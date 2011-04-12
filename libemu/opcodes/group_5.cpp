@@ -28,12 +28,12 @@
 #include <stdint.h>
 #include <errno.h>
 
-#include "emu/emu.h"
-#include "emu/emu_cpu.h"
-#include "emu/emu_cpu_data.h"
-#include "emu/emu_cpu_functions.h"
-#include "emu/emu_cpu_stack.h"
-#include "emu/emu_memory.h"
+#include "emu.h"
+#include "emu_cpu.h"
+#include "emu_cpu_data.h"
+#include "emu_cpu_functions.h"
+#include "emu_cpu_stack.h"
+#include "emu_memory.h"
 
 
 

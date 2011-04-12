@@ -46,21 +46,22 @@ struct run_time_options
 
 };
 
-struct mm_point{
+struct mmm_point{
 	uint32_t address;
 	char* name;
 	uint32_t hitat;
 };
 
-struct mm_range{
+struct mmm_range{
 	char id;
 	char* name;
 	uint32_t start_at;
 	uint32_t end_at;
 };
 
-extern struct mm_point mm_points[];
-extern struct mm_range mm_ranges[];
+
+extern struct mmm_point mm_points[];
+extern struct mmm_range mm_ranges[];
 extern struct run_time_options opts;
 
 bool cmp(void *a, void *b);

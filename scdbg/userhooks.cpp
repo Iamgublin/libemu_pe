@@ -26,72 +26,36 @@
  *******************************************************************************/
 
 
-#include "../config.h"
-
-#define HAVE_GETOPT_H
-#ifdef HAVE_GETOPT_H
-# include <getopt.h>
-#endif
-
-#ifdef HAVE_STDLIB_H
-# include <stdlib.h>
-#endif
 
 
 #include <stdint.h>
-
-#define HAVE_UNISTD
-#ifdef HAVE_UNISTD
-# include <unistd.h>
-#endif
 #include <stdio.h>
-
 #include <stdarg.h>
-
-
 #include <errno.h>
-#include <sys/select.h>
+#include "emu.h"
+#include "emu_memory.h"
+#include "emu_cpu.h"
+#include "emu_log.h"
+#include "emu_cpu_data.h"
+#include "emu_cpu_stack.h"
+#include "emu_env.h"
+#include "emu_env_w32.h"
+#include "emu_env_w32_dll.h"
+#include "emu_env_w32_dll_export.h"
+#include "emu_string.h"
 
-#include <sys/wait.h>
+extern "C"{
+	#include "emu_hashtable.h"
+}
 
-#ifdef HAVE_LIBCARGOS
-#include <cargos-lib.h>
-#endif
-
-
-#include <sys/types.h>
-#include <sys/socket.h>  
-
-#include "emu/emu.h"
-#include "emu/emu_memory.h"
-#include "emu/emu_cpu.h"
-#include "emu/emu_log.h"
-#include "emu/emu_cpu_data.h"
-#include "emu/emu_cpu_stack.h"
-#include "emu/environment/emu_profile.h"
-#include "emu/environment/emu_env.h"
-#include "emu/environment/win32/emu_env_w32.h"
-#include "emu/environment/win32/emu_env_w32_dll.h"
-#include "emu/environment/win32/emu_env_w32_dll_export.h"
-#include "emu/environment/win32/env_w32_dll_export_kernel32_hooks.h"
-#include "emu/environment/linux/emu_env_linux.h"
-#include "emu/emu_getpc.h"
-#include "emu/emu_graph.h"
-#include "emu/emu_string.h"
-#include "emu/emu_hashtable.h"
-#include "emu/emu_shellcode.h"
 #include "userhooks.h"
 #include "options.h"
-#include "nanny.h"
-
 #include <stdint.h>
 #include <stdarg.h>
-#include <sys/socket.h>
-#include <netinet/in.h>
-#include <arpa/inet.h>
-#include <fcntl.h>
 #include <string.h>
 #include <ctype.h>
+#include <winsock.h>
+#include <windows.h>
 
 extern int CODE_OFFSET;
 extern uint32_t FS_SEGMENT_DEFAULT_OFFSET;
@@ -100,6 +64,7 @@ extern int file_length(FILE *f);
 extern void add_malloc(uint32_t, uint32_t);
 extern struct emu_memory *mem;
 extern struct emu_cpu *cpu;    //these two are global in main code
+//extern struct nanny* na;       //this was passed around as user data in case of multithreading..but were not.
 extern bool disable_mm_logging;
 int last_GetSizeFHand = -44;
 int rep_count=0;
@@ -110,24 +75,31 @@ int nextFhandle = 0;
 uint32_t MAX_ALLOC  = 0x1000000;
 uint32_t next_alloc = 0x60000; //these increment so we dont walk on old allocs
 
-struct SYSTEMTIME { /* 16 bytes */
-  unsigned short wYear;
-  unsigned short wMonth;
-  unsigned short wDayOfWeek;
-  unsigned short wDay;
-  unsigned short wHour;
-  unsigned short wMinute;
-  unsigned short wSecond;
-  unsigned short wMilliseconds;
-}  ;
 
 int get_fhandle(void){
 	nextFhandle+=4;
 	return nextFhandle;
 }
 
+void loadargs(int count, uint32_t ary[]){
+	for(int i=0;i<count;i++){
+		int32_t ret = emu_memory_read_dword(cpu->mem, cpu->reg[esp], &ary[i]); 
+		if( ret != 0 ){
+			printf("Error reading stack %x\n", cpu->reg[esp]);
+			exit(0);
+		}
+		cpu->reg[esp] += 4; 
+	}
+}
+
+char* SafeTempFile(void){
+	char* buf = (char*)malloc(300);
+	GetTempPath(255, buf);
+	return strncat(buf,tmpnam(NULL),299);
+}
 
 
+void set_ret(uint32_t val){ cpu->reg[eax] = val; } 
 
 //by the time our user call is called, the args have already been popped off the stack.
 //in r/t that just means that esp has been adjusted and cleaned up for function to 
@@ -139,7 +111,7 @@ int get_fhandle(void){
 uint32_t get_ret(struct emu_env *env, int arg_adjust){
 
 	struct emu_memory *m = emu_memory_get(env->emu);
-	uint32_t reg_esp = emu_cpu_reg32_get( emu_cpu_get(env->emu), esp);
+	uint32_t reg_esp = cpu->reg[esp];
 	uint32_t ret_val = 0;
 	
 	emu_memory_read_dword( m, reg_esp+arg_adjust, &ret_val);
@@ -158,10 +130,10 @@ uint32_t get_ret(struct emu_env *env, int arg_adjust){
 
 char* get_client_ip(struct sockaddr *clientInformation)
 {	
-	if (clientInformation->sa_family == AF_INET) {
+	/*if (clientInformation->sa_family == AF_INET) {
 		struct sockaddr_in *ipv4 = (struct sockaddr_in *)clientInformation;
 		return inet_ntoa(ipv4->sin_addr);
-	}
+	}*/
 	return 0;
 }
 
@@ -225,33 +197,8 @@ void GetSHFolderName(int id, char* buf255){
 
 }
 
-
-// ------------------------ HOOKS BELOW HERE -------------------------------
-
-uint32_t user_hook_ExitProcess(struct emu_env *env, struct emu_env_hook *hook, ...)
-{
-	
-	//printf("%s:%i %s\n",__FILE__,__LINE__,__FUNCTION__);
-
-	uint32_t retaddr = get_ret(env, -8);
-
 /*
-VOID WINAPI ExitProcess(
-  UINT uExitCode
-);
-*/
-
-	va_list vl;
-	va_start(vl, hook);
-	int exitcode = va_arg(vl,  int);
-	va_end(vl);
-
-	printf("%x\t%s(%i)\n", retaddr, hook->hook.win->fnname, exitcode);
-
-
-	opts.steps = 0;
-	return 0;
-}
+// ------------------------ HOOKS BELOW HERE -------------------------------
 
 
 uint32_t user_hook_ExitThread(struct emu_env *env, struct emu_env_hook *hook, ...)
@@ -261,7 +208,7 @@ uint32_t user_hook_ExitThread(struct emu_env *env, struct emu_env_hook *hook, ..
 
 	uint32_t retaddr = get_ret(env, -8);
 
-	/* VOID ExitThread( DWORD dwExitCode ); */
+	/  * VOID ExitThread( DWORD dwExitCode ); *  /
 
 	va_list vl;
 	va_start(vl, hook);
@@ -275,688 +222,7 @@ uint32_t user_hook_ExitThread(struct emu_env *env, struct emu_env_hook *hook, ..
 
 }
 
-uint32_t user_hook_CreateProcess(struct emu_env *env, struct emu_env_hook *hook, ...)
-{
-	
-	//printf("%s:%i %s\n",__FILE__,__LINE__,__FUNCTION__);
-
-	uint32_t retaddr = get_ret(env, -44);
-
-/*BOOL CreateProcess( 
-  LPCWSTR pszImageName, 
-  LPCWSTR pszCmdLine, 
-  LPSECURITY_ATTRIBUTES psaProcess, 
-  LPSECURITY_ATTRIBUTES psaThread, 
-  BOOL fInheritHandles, 
-  DWORD fdwCreate, 
-  LPVOID pvEnvironment, 
-  LPWSTR pszCurDir, 
-  LPSTARTUPINFOW psiStartInfo, 
-  LPPROCESS_INFORMATION pProcInfo
-);*/
-
-	va_list vl;
-	va_start(vl, hook);
-
-	char *pszImageName				      = va_arg(vl, char *);  //now filled in - dz
-	char *pszCmdLine                      = va_arg(vl, char *);               
-
-	//STARTUPINFO *psiStartInfo             = va_arg(vl, STARTUPINFO *);
-	//PROCESS_INFORMATION *pProcInfo        = va_arg(vl, PROCESS_INFORMATION *); 
-
-	va_end(vl);
-
-	struct emu_string *cmd = emu_string_new();
-
-	if(pszImageName == 0 && pszCmdLine[0] == 0){
-		//some shellcode uses the function prolog of CreateProcess to put stack inline..
-		//printf("adjusting to use ebp..\n");
-		emu_memory_read_string(mem, cpu->reg[ebp] , cmd, 255);
-		pszCmdLine = (char*)cmd->data; 
-		printf("%x\tCreateProcessA( %s ) = 0x1269 (ebp)\n",retaddr, pszCmdLine); 
-	}else{
-		printf("%x\tCreateProcessA( %s, %s ) = 0x1269\n",retaddr, pszCmdLine, pszImageName );
-	}
-
-	if(opts.interactive_hooks == 0) return 1;
-
-	if ( pszCmdLine != NULL && strncasecmp(pszCmdLine, "cmd", 3) == 0 )
-	{
-		//todo possibly do stuff here to capture command line sent to cmd...
-	}
-
-	
-	emu_string_free(cmd);
-
-	return 1;
-}
-
-uint32_t user_hook_WaitForSingleObject(struct emu_env *env, struct emu_env_hook *hook, ...)
-{
-	
-	//printf("%s:%i %s\n",__FILE__,__LINE__,__FUNCTION__);
-
-	uint32_t retaddr = get_ret(env,-12);
-
-
-	/*
-	DWORD WINAPI WaitForSingleObject(
-	  HANDLE hHandle,
-	  DWORD dwMilliseconds
-	);
-	*/
-
-	va_list vl;
-	va_start(vl, hook);
-
-	int32_t hHandle = va_arg(vl, int32_t);
-	/*int32_t dwMilliseconds = */ (void)va_arg(vl, int32_t);
-	va_end(vl);
-
-	printf("%x\tWaitForSingleObject(h=%x)\n",retaddr, (int)hHandle);
-
-	if(opts.interactive_hooks){
-		int status;
-		while(1)
-		{
-			if (waitpid(hHandle, &status, WNOHANG) != 0) break;
-			sleep(1);
-		}
-	}
-
-	return 0;
-}
-
-
-uint32_t user_hook_exit(struct emu_env *env, struct emu_env_hook *hook, ...)
-{
-	
-	//printf("%s:%i %s\n",__FILE__,__LINE__,__FUNCTION__);
-
-	uint32_t retaddr = get_ret(env,-8);
-
-	va_list vl;
-	va_start(vl, hook);
-	int code = va_arg(vl,  int);
-	va_end(vl);
-
-	printf("%x\texit(%x)\n",retaddr,code );
-
-	opts.steps = 0;
-	return 0;
-}
-
-uint32_t user_hook_accept(struct emu_env *env, struct emu_env_hook *hook, ...)
-{
-	
-	//printf("%s:%i %s\n",__FILE__,__LINE__,__FUNCTION__);
-
-	uint32_t retaddr = get_ret(env,-16);
-
-	va_list vl;
-	va_start(vl, hook);
-
-	int s 					= va_arg(vl,  int);
-	/*struct sockaddr* addr 	= */(void)va_arg(vl,  struct sockaddr *);
-	/*socklen_t* addrlen 		= */(void)va_arg(vl,  socklen_t *);
-	va_end(vl);
-
-	struct sockaddr sa;
-	socklen_t st = sizeof(struct sockaddr);
-
-	printf("%x\taccept(h=%x)\n",retaddr, (int)s);
-
-    return accept(s, &sa, &st);
-}
-
-uint32_t user_hook_bind(struct emu_env *env, struct emu_env_hook *hook, ...)
-{
-	
-	//printf("%s:%i %s\n",__FILE__,__LINE__,__FUNCTION__);
-
-	uint32_t retaddr = get_ret(env,-16);
-
-	va_list vl;
-	va_start(vl, hook);
-
-	int s 					= va_arg(vl,  int);
-	struct sockaddr* addr 	= va_arg(vl,  struct sockaddr *);
-	socklen_t addrlen = va_arg(vl,  socklen_t );
-
-	/*
-	if (opts.override.bind.host != NULL )
-	{
-		struct sockaddr_in *si = (struct sockaddr_in *)addr;
-		si->sin_addr.s_addr = inet_addr(opts.override.bind.host);
-	}
-
-	if (opts.override.bind.port > 0)
-	{
-		struct sockaddr_in *si = (struct sockaddr_in *)addr;;
-		si->sin_port = htons(opts.override.bind.port);
-	}
-	*/
-	va_end(vl);
-
-	printf("%x\tbind(port: %d )\n",retaddr, get_client_port(addr) );
-
-    return bind(s, addr, addrlen);
-}
-
-uint32_t user_hook_closesocket(struct emu_env *env, struct emu_env_hook *hook, ...)
-{
-	
-	//printf("%s:%i %s\n",__FILE__,__LINE__,__FUNCTION__);
-
-	uint32_t retaddr = get_ret(env,-8);
-
-	va_list vl;
-	va_start(vl, hook);
-	int s 					= va_arg(vl,  int);
-	va_end(vl);
-
-	printf("%x\tclosesocket(h=%x)\n",retaddr,(int)s );
-
-    return close(s);
-}
-
-uint32_t user_hook_connect(struct emu_env *env, struct emu_env_hook *hook, ...)
-{
-	
-	//printf("%s:%i %s\n",__FILE__,__LINE__,__FUNCTION__);
-
-	uint32_t retaddr = get_ret(env,-16);
-
-	va_list vl;
-	va_start(vl, hook);
-
-	int s 					= va_arg(vl,  int);
-	struct sockaddr* addr 	= va_arg(vl,  struct sockaddr *);
-
-
-	if (opts.override.connect.host != NULL )
-	{
-		struct sockaddr_in *si = (struct sockaddr_in *)addr;
-		si->sin_addr.s_addr = inet_addr(opts.override.connect.host);
-	}
-
-	if (opts.override.connect.port > 0)
-	{
-		struct sockaddr_in *si = (struct sockaddr_in *)addr;;
-		si->sin_port = htons(opts.override.connect.port);
-	}
-
-	socklen_t addrlen = va_arg(vl,  socklen_t);
-
-	if (addrlen != sizeof(struct sockaddr))
-	{
-		addrlen = sizeof(struct sockaddr);
-	}
-
-	va_end(vl);
-
-	printf("%x\tconnect(h=%x, host: %s , port: %d )\n",retaddr,s, get_client_ip(addr), get_client_port(addr) );
-
-	if( opts.interactive_hooks == 0 ) return 0x4711;
-
-	return connect(s, addr, addrlen);
-	
-}
-
-uint32_t user_hook_fclose(struct emu_env *env, struct emu_env_hook *hook, ...)
-{
-	
-	//printf("%s:%i %s\n",__FILE__,__LINE__,__FUNCTION__);
-	//int fclose(FILE *fp);
-
-	uint32_t retaddr = get_ret(env,-8);
-
-	va_list vl;
-	va_start(vl, hook);
-	FILE *f = va_arg(vl, FILE *);
-	va_end(vl);
-
-	printf("%x\tfclose(h=%x)\n",retaddr, (int)f);
-
-	if( opts.interactive_hooks == 0 )  return 0x4711;
-
-	struct nanny_file *nf = nanny_get_file(hook->hook.win->userdata, (uint32_t)(uintptr_t)f);
-
-	if (nf != NULL)
-	{
-		FILE *ef = nf->real_file;
-		nanny_del_file(hook->hook.win->userdata, (uint32_t)(uintptr_t)f);
-    	return fclose(ef);
-	}
-	else 
-		return 0;
-	
-
-}
-
-
-uint32_t user_hook_fopen(struct emu_env *env, struct emu_env_hook *hook, ...)
-{
-	
-	//printf("%s:%i %s\n",__FILE__,__LINE__,__FUNCTION__);
-
-	char *localfile;
-	uint32_t retaddr = get_ret(env,-16);
-
-	va_list vl;
-	va_start(vl, hook);
-	char *filename			= va_arg(vl,  char *);
-	char *mode 				= va_arg(vl,  char *);
-	va_end(vl);
-
-	if( opts.interactive_hooks == 0){
-		printf("%x\tfopen(%s, %s) = %x\n", retaddr, filename, mode, 0x4711);
-		return 0x4711;
-	}
-
-	if ( asprintf(&localfile, "/tmp/XXXXXXXX") == -1) return -1;
-	int fd = mkstemp(localfile);
-	close(fd);
-
-	FILE *f = fopen(localfile,"w");
-	printf("%x\tfopen(%s) = %x\n", retaddr, filename, (int)f);
-	printf("\tInteractive mode local file: %s\n", localfile);
-
-	uint32_t file;
-	nanny_add_file(hook->hook.win->userdata, localfile, &file, f);
-
-	return file;
-}
-
-uint32_t user_hook_fwrite(struct emu_env *env, struct emu_env_hook *hook, ...)
-{
-	
-	//printf("%s:%i %s\n",__FILE__,__LINE__,__FUNCTION__);
-
-	uint32_t retaddr = get_ret(env,-24);
-	uint32_t real_buf = get_ret(env,-4);
-
-/*       size_t fwrite(const void *ptr, size_t size, size_t nmemb, FILE *stream);  */
-
-	va_list vl;
-	va_start(vl, hook);
-	void *data = va_arg(vl, void *);   //libemu buffer address 
-	size_t size = va_arg(vl, size_t);
-	size_t nmemb = va_arg(vl, size_t);
-	FILE *f = va_arg(vl, FILE *);
-	va_end(vl);
-	
-	printf("%x\tfwrite(h=%x, sz=%x, buf=%x)\n", retaddr, (int)f, size*nmemb, real_buf);
-	
-	if(opts.show_hexdumps && data != 0 && size > 0 && nmemb > 0){
-		int display_size = size*nmemb;
-		if(display_size > 300){ 
-			printf("Showing first 300 bytes...\n");
-			display_size = 300;
-		}
-		hexdump(data, display_size );
-	}
-
-	if(opts.interactive_hooks == 0 ) return size*nmemb;
-
-	struct nanny_file *nf = nanny_get_file(hook->hook.win->userdata, (uint32_t)(uintptr_t)f);
-
-	if (nf != NULL)
-		return fwrite(data, size, nmemb, nf->real_file);
-	else 
-		return size*nmemb;
-
-}
-
-
-
-uint32_t user_hook_listen(struct emu_env *env, struct emu_env_hook *hook, ...)
-{
-	
-	//printf("%s:%i %s\n",__FILE__,__LINE__,__FUNCTION__);
-
-	uint32_t retaddr = get_ret(env,-12);
-
-	va_list vl;
-	va_start(vl, hook);
-
-	int s 					= va_arg(vl,  int);
-	int backlog			 	= va_arg(vl,  int);
-	va_end(vl);
-	
-	printf("%x\tlisten(h=%x)\n",retaddr,s);
-
-	if(opts.interactive_hooks == 0 ) return 0; //ok
-
-    return listen(s, backlog);
-}
-
-uint32_t user_hook_recv(struct emu_env *env, struct emu_env_hook *hook, ...)
-{
-	
-	//printf("%s:%i %s\n",__FILE__,__LINE__,__FUNCTION__);
-
-	uint32_t retaddr = get_ret(env,-20);
-	uint32_t real_buf = get_ret(env,-12); //grab the real buf addr off of stack..
-
-	va_list vl;
-	va_start(vl, hook);
-
-	int s = va_arg(vl,  int);
-	char* buf = va_arg(vl,  char *); //not org buffer, libemu malloced
-	int len = va_arg(vl,  int);
-	int flags = va_arg(vl,  int);
-	va_end(vl);
-	 
-	printf("%x\trecv(h=%x, buf=%x, len=%x, fl=%x)\n", retaddr, s, real_buf, len, flags);
-	
-	if(opts.interactive_hooks == 0 ) return 0; //no data
-
-	int ret_val=0;
-
-	ret_val = recv(s, buf, len,  flags); //libemu malloced buf
-	
-	if(opts.show_hexdumps && ret_val > 0){
-		printf("%d bytes received:\n", ret_val);
-		hexdump((unsigned char*)buf, ret_val);
-	}
-
-	return ret_val; //if we return > 0 dll will write it to mem at real emu addr for us..
-
-}
-
-uint32_t user_hook_send(struct emu_env *env, struct emu_env_hook *hook, ...)
-{
-	
-	//printf("%s:%i %s\n",__FILE__,__LINE__,__FUNCTION__);
-
-	uint32_t retaddr = get_ret(env,-16);
-
-	va_list vl;
-	va_start(vl, hook);
-
-	int s = va_arg(vl,  int);
-	char* buf = va_arg(vl,  char *);
-	int len = va_arg(vl,  int);
-	int flags = va_arg(vl,  int);
-	va_end(vl);
-
-	printf("%x\tsend(h=%x, buf=%x, len=%x)\n",retaddr, s, (int)buf, len);
-
-	if(opts.show_hexdumps && len > 0 && buf > 0){
-		hexdump((unsigned char*)buf,len);
-	}
-
-	if(opts.interactive_hooks == 0 ) return len; //success
-
-	return send(s, buf, len,  flags);
-}
-
-
-uint32_t user_hook_socket(struct emu_env *env, struct emu_env_hook *hook, ...)
-{
-	
-	//printf("%s:%i %s\n",__FILE__,__LINE__,__FUNCTION__);
-
-	uint32_t retaddr = get_ret(env,-16);
-
-	va_list vl;
-	va_start(vl, hook);
-	/* int socket(int domain, int type, int protocol); */
-	int domain = va_arg(vl,  int);
-	int type = va_arg(vl,  int);
-	int protocol = va_arg(vl, int);
-	va_end(vl);
-
-	printf("%x\tsocket(%i, %i, %i)\n",retaddr, domain, type, protocol);
-
-	if(opts.interactive_hooks == 0 ) return 0x4711;
-
-	return socket(domain, type, protocol);
-}
-
-uint32_t user_hook_WSASocket(struct emu_env *env, struct emu_env_hook *hook, ...)
-{
-	
-	//printf("%s:%i %s\n",__FILE__,__LINE__,__FUNCTION__);
-
-	uint32_t retaddr = get_ret(env, -1*((6*4)+4) );
-
-	va_list vl;
-	va_start(vl, hook);
-	/* int socket(int domain, int type, int protocol); */
-	int domain = va_arg(vl,  int);
-	int type = va_arg(vl,  int);
-	int protocol = va_arg(vl, int);
-	(void)va_arg(vl, int);
-	(void)va_arg(vl, int);
-	(void)va_arg(vl, int);
-
-	va_end(vl);
-
-	printf("%x\tWSASocket(%i, %i, %i)\n",retaddr, domain, type, protocol);
-
-	if(opts.interactive_hooks == 0 ) return 0x4711;
-
-	return socket(domain, type, protocol);
-}
-
-
-uint32_t user_hook_CreateFile(struct emu_env *env, struct emu_env_hook *hook, ...)
-{
-	
-	//printf("%s:%i %s\n",__FILE__,__LINE__,__FUNCTION__);
-
-	uint32_t retaddr = get_ret(env, -32);
-
-/*
-HANDLE CreateFile(
-  LPCTSTR lpFileName,
-  DWORD dwDesiredAccess,
-  DWORD dwShareMode,
-  LPSECURITY_ATTRIBUTES lpSecurityAttributes,
-  DWORD dwCreationDisposition,
-  DWORD dwFlagsAndAttributes,
-  HANDLE hTemplateFile
-);
-*/
-
-	va_list vl;
-	va_start(vl, hook);
-	char *lpFileName			= va_arg(vl, char *);
-	/*int dwDesiredAccess		=*/(void)va_arg(vl, int);
-	/*int dwShareMode			=*/(void)va_arg(vl, int);
-	/*int lpSecurityAttributes	=*/(void)va_arg(vl, int);
-	/*int dwCreationDisposition	=*/(void)va_arg(vl, int);
-	/*int dwFlagsAndAttributes	=*/(void)va_arg(vl, int);
-	/*int hTemplateFile			=*/(void)va_arg(vl, int);
-	va_end(vl);
-
-	char *localfile;
-	printf("%x\t%s(%s)\n",retaddr, hook->hook.win->fnname, lpFileName);
-	
-	uint32_t handle = get_fhandle();
-	if(opts.interactive_hooks == 0 ) return handle;
-
-	if ( asprintf(&localfile, "/tmp/XXXXXXXX") == -1) return -1; //exit(-1);
-	int fd = mkstemp(localfile);
-	close(fd);
-
-	FILE *f = fopen(localfile,"w");
-
-	printf("\tInteractive mode file:%s h=%x\n", localfile, handle);
-
-	nanny_add_file(hook->hook.win->userdata, localfile, &handle, f);
-
-	return handle;
-}
-
-uint32_t user_hook_WriteFile(struct emu_env *env, struct emu_env_hook *hook, ...)
-{
-	
-	//printf("%s:%i %s\n",__FILE__,__LINE__,__FUNCTION__);
-
-	uint32_t retaddr = get_ret(env, -1*((5*4)+4));
-	uint32_t realBuf = get_ret(env, -16);
-
-/*
-BOOL WriteFile(
-  HANDLE hFile,
-  LPCVOID lpBuffer,
-  DWORD nNumberOfBytesToWrite,
-  LPDWORD lpNumberOfBytesWritten,
-  LPOVERLAPPED lpOverlapped
-);
-*/
-
-	int written = -1;
-	va_list vl;
-	va_start(vl, hook);
-	FILE *hFile 					= va_arg(vl, FILE *);
-	void *lpBuffer 					= va_arg(vl, void *);
-	int   nNumberOfBytesToWrite 	= va_arg(vl, int);
-	/* int *lpNumberOfBytesWritten  =*/(void)va_arg(vl, int*);
-	/* int *lpOverlapped 		    =*/(void)va_arg(vl, int*);
-	va_end(vl);
-
-	printf("%x\tWriteFile(h=%x, buf=%x, len=%x)\n",retaddr, (int)hFile, realBuf, nNumberOfBytesToWrite);
-
-	if(opts.show_hexdumps && nNumberOfBytesToWrite > 0){
-		int display_size = nNumberOfBytesToWrite;
-		if(display_size > 500){
-			printf("Showing first 500 bytes...\n");
-			display_size = 500;
-		}
-		hexdump(lpBuffer, display_size);
-	}
-
-	if(opts.interactive_hooks == 0 ) return 1; //success
-
-	struct nanny_file *nf = nanny_get_file(hook->hook.win->userdata, (uint32_t)(uintptr_t)hFile);
-
-	if (nf != NULL){
-		written = fwrite(lpBuffer, nNumberOfBytesToWrite, 1, nf->real_file);
-	}else{
-		printf("WriteFile invalid handle = %x, buf=%x, len=%x\n", (int)hFile, realBuf, nNumberOfBytesToWrite );
-	}
-
-	return 1;
-
-}
-
-
-uint32_t user_hook_CloseHandle(struct emu_env *env, struct emu_env_hook *hook, ...)
-{
-	
-	//printf("%s:%i %s\n",__FILE__,__LINE__,__FUNCTION__);
-
-	uint32_t retaddr = get_ret(env,-8);
-
-/*
-BOOL CloseHandle(
-  HANDLE hObject
-);
-*/
-
-	va_list vl;
-	va_start(vl, hook);
-	FILE *hObject = va_arg(vl, FILE *);
-	va_end(vl);
-
-	printf("%x\tCloseHandle(%x)\n",retaddr,(int)hObject);
-
-	if(opts.interactive_hooks == 0 ) return 1; //success
-
-	struct nanny_file *nf = nanny_get_file(hook->hook.win->userdata, (uint32_t)(uintptr_t)hObject);
-
-	if (nf != NULL)
-	{
-		FILE *f = nf->real_file;
-		nanny_del_file(hook->hook.win->userdata, (uint32_t)(uintptr_t)hObject);
-		fclose(f);
-	}
-	else 
-	{
-		//printf("shellcode tried to close not existing handle (maybe closed it already?)\n");
-	}
-
-
-	return 1;
-}
-
-
-
-uint32_t user_hook_URLDownloadToFile(struct emu_env *env, struct emu_env_hook *hook, ...)
-{
-	
-	//printf("%s:%i %s\n",__FILE__,__LINE__,__FUNCTION__);
-
-	uint32_t retaddr = get_ret(env,-24);
-
-	va_list vl;
-	va_start(vl, hook);
-
-	/*void * pCaller    = */(void)va_arg(vl, void *);
-	char * szURL      = va_arg(vl, char *);
-	char * szFileName = va_arg(vl, char *);
-	/*int    dwReserved = */(void)va_arg(vl, int   );
-	/*void * lpfnCB     = */(void)va_arg(vl, void *);
-
-	va_end(vl);
-
-	printf("%x\tURLDownloadToFile(%s, %s)\n",retaddr, szURL, szFileName);
-
-	return 0;
-}
-
-
-
-
 // ---------------- added 1-20-11 dzzie (not all have been tested live! ) ---------------
-
-uint32_t user_hook_GetProcAddress(struct emu_env *env, struct emu_env_hook *hook, ...)
-{
-	
-	//printf("%s:%i %s\n",__FILE__,__LINE__,__FUNCTION__);
-
-	uint32_t retaddr =  get_ret(env,-12);
-
-/* GetProcAddress(hModule, proc) */
-
-	va_list vl;
-	va_start(vl, hook);
-	int hMod  = va_arg(vl,  int);
-	char* api = va_arg(vl, char *); 
-	va_end(vl);
-
-	printf("%x\tGetProcAddress(%s)\n",retaddr, api);
-	if(hMod == 0 || cpu->reg[eax] == 0 ) printf("\tLookup not found: module base = %x\n", hMod);  
-
-	return 0;
-
-}
-
-
-uint32_t user_hook_GetSystemDirectoryA(struct emu_env *env, struct emu_env_hook *hook, ...)
-{
-	
-	//printf("%s:%i %s\n",__FILE__,__LINE__,__FUNCTION__);
-
-	uint32_t retaddr =  get_ret(env,-12);
-
-/*
-UINT GetSystemDirectory(
-  LPTSTR lpBuffer,
-  UINT uSize
-);
-*/
-	//buffer filled in by dll hook
-	printf("%x\tGetSystemDirectoryA( c:\\windows\\system32\\ )\n",retaddr);
- 
-	return 0;
-
-}
-
 
 uint32_t user_hook_GetTickCount(struct emu_env *env, struct emu_env_hook *hook, ...)
 {
@@ -971,7 +237,7 @@ uint32_t user_hook_GetTickCount(struct emu_env *env, struct emu_env_hook *hook, 
 
 }
 
-/* 
+/  * 
 uint32_t user_hook_LoadLibraryA(struct emu_env *env, struct emu_env_hook *hook, ...)
 {
 	
@@ -989,348 +255,17 @@ uint32_t user_hook_LoadLibraryA(struct emu_env *env, struct emu_env_hook *hook, 
 
 	return 0;
 
-}*/
+}*  /
 
 
 
-uint32_t user_hook__lcreat(struct emu_env *env, struct emu_env_hook *hook, ...)
-{
-	
-	//printf("%s:%i %s\n",__FILE__,__LINE__,__FUNCTION__);
-
-	uint32_t retaddr =  get_ret(env,-12);
-
-/*
-LONG _lcreat(
-  LPCSTR lpszFileName,
-  int fnAttribute
-);
 */
-	va_list vl;
-	va_start(vl, hook);
-	char* fname = va_arg(vl, char *); 
-	/*int fnAttribute  = */ va_arg(vl,  int);
-	va_end(vl);
-
-	printf("%x\t_lcreate(%s)\n",retaddr,fname);
-	
-	uint32_t handle = get_fhandle();
-	if(opts.interactive_hooks == 0) return handle;
-
-	
-	char *localfile;
-	if ( asprintf(&localfile, "/tmp/XXXXXXXX") == -1) return -1; //exit(-1);
-	int fd = mkstemp(localfile);
-	close(fd);
-
-	FILE *f = fopen(localfile,"w");
-
-	printf("\tInteractive mode local file: %s=%d  h\n", localfile, handle);
-
-	nanny_add_file(hook->hook.win->userdata, localfile, &handle, f);
-
-	return handle;
-
-}
-
-
-uint32_t user_hook__lwrite(struct emu_env *env, struct emu_env_hook *hook, ...)
-{
-	
-	//printf("%s:%i %s\n",__FILE__,__LINE__,__FUNCTION__);
-
-	uint32_t retaddr =  get_ret(env,-16);
-
-/*
-LONG _lwrite(
-  HFile hFile,
-  LPCSTR lpBuffer,
-  UINT cbWrite
-);
-*/
-	uint32_t real_buf = get_ret(env,-8);
-
-	va_list vl;
-	va_start(vl, hook);
-	int hFile    = va_arg(vl,  int);
-	int lpBuffer = va_arg(vl,  int); //this is the libemu buffer not real address...
-	int cbWrite  = va_arg(vl,  int);
-	va_end(vl);
-
-	printf("%x\t_lwrite(h=%x, buf=%x)\n",retaddr, hFile, real_buf);
-
-	if(opts.show_hexdumps && lpBuffer != 0 && cbWrite > 0) hexdump((unsigned char*)lpBuffer, cbWrite);
-
-	if(opts.interactive_hooks == 0 ) return cbWrite;
-
-	struct nanny_file *nf = nanny_get_file(hook->hook.win->userdata, (uint32_t)(uintptr_t)hFile);
-
-	if (nf != NULL)
-		return fwrite((void*)lpBuffer, 1, cbWrite, nf->real_file);
-	else 
-		return cbWrite;
-
-}
-
-
-uint32_t user_hook__lclose(struct emu_env *env, struct emu_env_hook *hook, ...)
-{
-	
-	//printf("%s:%i %s\n",__FILE__,__LINE__,__FUNCTION__);
-
-	uint32_t retaddr =  get_ret(env,-8);
-
-	va_list vl;
-	va_start(vl, hook);
-	int hFile  =  va_arg(vl,  int); 
-	va_end(vl);
-
-	printf("%x\t_lclose(h=%x)\n",retaddr,hFile);
-
-	if( opts.interactive_hooks == 0 )  return 0;
-
-	struct nanny_file *nf = nanny_get_file(hook->hook.win->userdata, (uint32_t)(uintptr_t)hFile);
-
-	if (nf != NULL)
-	{
-		FILE *ef = nf->real_file;
-		nanny_del_file(hook->hook.win->userdata, (uint32_t)(uintptr_t)hFile);
-    	return fclose(ef);
-	}
-	else 
-		return 0;
-
-}
-
-
-uint32_t user_hook_malloc(struct emu_env *env, struct emu_env_hook *hook, ...)
-{
-	
-	//printf("%s:%i %s\n",__FILE__,__LINE__,__FUNCTION__);
-
-	uint32_t retaddr =  get_ret(env,-8);
-
-/*
-void *malloc( 
-   size_t size 
-);
-*/
-
-	va_list vl;
-	va_start(vl, hook);
-	int sz  =  va_arg(vl,  int);
-	va_end(vl);
-
-	printf("%x\tmalloc(%x)\n",retaddr,sz);
-
-	return 0;
-
-}
-
-
-uint32_t user_hook_memset(struct emu_env *env, struct emu_env_hook *hook, ...)
-{
-	
-	//printf("%s:%i %s\n",__FILE__,__LINE__,__FUNCTION__);
-
-	uint32_t retaddr =  get_ret(env,-16);
-
-/*
-void *memset(
-   void* dest, 
-   int c, 
-   size_t count 
-);
-*/
-
-	va_list vl;
-	va_start(vl, hook);
-	int dest  =   va_arg(vl,  int);
-	int c  =   va_arg(vl,  int);
-	int sz  =   va_arg(vl,  int);
-	va_end(vl);
-
-	printf("%x\tmemset(buf=%x, c=%x, sz=%x)\n",retaddr,dest,c,sz);
-
-	return 0;
-
-}
-
-
-uint32_t user_hook_SetUnhandledExceptionFilter(struct emu_env *env, struct emu_env_hook *hook, ...)
-{
-	
-	//printf("%s:%i %s\n",__FILE__,__LINE__,__FUNCTION__);
-
-	uint32_t retaddr =  get_ret(env,-8);
-
-/*
-lpFilter
-);
-*/
-
-	va_list vl;
-	va_start(vl, hook);
-	int lpfilter  =  va_arg(vl,  int);
-	va_end(vl);
-
-	printf("%x\tSetUnhandledExceptionFilter(%x)\n",retaddr,lpfilter);
-
-	uint32_t seh = 0;
-	disable_mm_logging = true;
-	if(emu_memory_read_dword( mem, FS_SEGMENT_DEFAULT_OFFSET, &seh) != -1){
-		emu_memory_write_dword( mem, seh+4, lpfilter);
-	}
-	disable_mm_logging = false;
-
-	return 0;
-
-}
-
-
-uint32_t user_hook_WinExec(struct emu_env *env, struct emu_env_hook *hook, ...)
-{
-	
-	//printf("%s:%i %s\n",__FILE__,__LINE__,__FUNCTION__);
-
-	uint32_t retaddr =  get_ret(env,-12);
-
-/*
-UINT WINAPI WinExec(
-  LPCSTR lpCmdLine,
-  UINT uCmdShow
-);
-*/
-
-	va_list vl;
-	va_start(vl, hook);
-	char* cmd = va_arg(vl, char *); 
-	/*int uCmdShow  = */ va_arg(vl,  int);
-	va_end(vl);
-
-	printf("%x\tWinExec(%s)\n",retaddr,cmd);
-
-	return 0;
-
-}
-
-
-//---------------------------------- added with newest dll ---------------
-
-uint32_t user_hook_DeleteFileA(struct emu_env *env, struct emu_env_hook *hook, ...)
-{
-	
-	//printf("%s:%i %s\n",__FILE__,__LINE__,__FUNCTION__);
-
-	uint32_t retaddr = get_ret(env,-8);
-
-	/*
-	BOOL DeleteFile(
-	  LPCTSTR lpFileName
-	);
-	*/
-
-	va_list vl;
-	va_start(vl, hook);
-
-	char* fpath = va_arg(vl, char*);
-	va_end(vl);
-
-	printf("%x\tDeleteFileA(%s)\n",retaddr, fpath );
-
-	return 0;
-}
-
-uint32_t user_hook_GetVersion(struct emu_env *env, struct emu_env_hook *hook, ...)
-{
-	
-	//printf("%s:%i %s\n",__FILE__,__LINE__,__FUNCTION__);
-
-	uint32_t retaddr = get_ret(env,-4);
-
-/*
-DWORD WINAPI GetVersion(void);
-*/
-	printf("%x\tGetVersion()\n",retaddr);
-
-	return 0;
-}
-
-uint32_t user_hook_GetTempPath(struct emu_env *env, struct emu_env_hook *hook, ...)
-{
-	
-	//printf("%s:%i %s\n",__FILE__,__LINE__,__FUNCTION__);
-
-	uint32_t retaddr = get_ret(env,-12);
-	uint32_t buflen = get_ret(env,-8);
-	uint32_t buf = get_ret(env,-4);
-
-	/*
-	DWORD WINAPI GetTempPath(
-	  __in   DWORD nBufferLength,
-	  __out  LPTSTR lpBuffer
-	);
-	*/
-	printf("%x\tGetTempPath(len=%x, buf=%x)\n",retaddr, buflen, buf);
-
-	return 0;
-}
-
-uint32_t user_hook_Sleep(struct emu_env *env, struct emu_env_hook *hook, ...)
-{
-	
-	//printf("%s:%i %s\n",__FILE__,__LINE__,__FUNCTION__);
-
-	uint32_t retaddr = get_ret(env,-8);
-
-/*VOID WINAPI Sleep(
-  __in  DWORD dwMilliseconds
-);
-*/
-	va_list vl;
-	va_start(vl, hook);
-	int32_t dwMilliseconds = va_arg(vl, int32_t);
-	va_end(vl);
-
-	printf("%x\tSleep(0x%x)\n",retaddr, dwMilliseconds);
-
-	return 0;
-}
-
-uint32_t user_hook_VirtualProtect(struct emu_env *env, struct emu_env_hook *hook, ...)
-{
-	
-	//printf("%s:%i %s\n",__FILE__,__LINE__,__FUNCTION__);
-
-	uint32_t retaddr = get_ret(env, -20);
-
-/*
-  BOOL VirtualProtect( 
- 	LPVOID lpAddress, 
- 	DWORD  dwSize, 
-       DWORD  flNewProtect, 
-       PDWORD lpflOldProtect 
- ); 
-*/
-	va_list vl;
-	va_start(vl, hook);
-	int32_t addr = va_arg(vl, int32_t);
-	int32_t size = va_arg(vl, int32_t);
-	int32_t protect = va_arg(vl, int32_t);
-	va_arg(vl, int32_t); //old protect
-	va_end(vl);
-
-	printf("%x\tVirtualProtect(adr=%x, sz=%x, flags=%x)\n",retaddr, addr, size ,protect);
-
-	return 0;
-}
-
 
 /*
 -------------------	new user hook format stubs below here ----------------------------
 */
 
-int32_t	new_user_hook_GetModuleHandleA(struct emu_env *env, struct emu_env_hook *hook)
+int32_t	__stdcall new_user_hook_GetModuleHandleA(struct emu_env *env, struct emu_env_hook *hook)
 {
 
 	struct emu_cpu *c = emu_cpu_get(env->emu);
@@ -1353,13 +288,13 @@ int32_t	new_user_hook_GetModuleHandleA(struct emu_env *env, struct emu_env_hook 
 
 	int i=0;
 	int found_dll = 0;
-	emu_cpu_reg32_set(c, eax, 0); //default = fail
+	cpu->reg[eax] = 0; //default = fail
 
 	for (i=0; env->env.win->loaded_dlls[i] != NULL; i++)
 	{
-		if (strncasecmp(env->env.win->loaded_dlls[i]->dllname, dllname, strlen(env->env.win->loaded_dlls[i]->dllname)) == 0)
+		if (stricmp(env->env.win->loaded_dlls[i]->dllname, dllname) == 0)
 		{
-			emu_cpu_reg32_set(c, eax, env->env.win->loaded_dlls[i]->baseaddr);
+			cpu->reg[eax]= env->env.win->loaded_dlls[i]->baseaddr;
 			found_dll = 1;
 			break;
 		}
@@ -1369,7 +304,7 @@ int32_t	new_user_hook_GetModuleHandleA(struct emu_env *env, struct emu_env_hook 
 	{
         if (emu_env_w32_load_dll(env->env.win, dllname) == 0)
         {
-            emu_cpu_reg32_set(c, eax, env->env.win->loaded_dlls[i]->baseaddr);
+            cpu->reg[eax] = env->env.win->loaded_dlls[i]->baseaddr;
 			found_dll = 1;
         }
 	}
@@ -1381,7 +316,7 @@ int32_t	new_user_hook_GetModuleHandleA(struct emu_env *env, struct emu_env_hook 
 	return 0;
 }
 
-int32_t	new_user_hook_MessageBoxA(struct emu_env *env, struct emu_env_hook *hook)
+int32_t	__stdcall new_user_hook_MessageBoxA(struct emu_env *env, struct emu_env_hook *hook)
 {
 
 	struct emu_cpu *c = emu_cpu_get(env->emu);
@@ -1419,12 +354,12 @@ int WINAPI MessageBox(
 	
 	emu_string_free(s_text);
 
-	emu_cpu_reg32_set(c, eax, 0);
+	cpu->reg[eax] = 0;
 	emu_cpu_eip_set(c, eip_save);
 	return 0;
 }
 
-int32_t	new_user_hook_ShellExecuteA(struct emu_env *env, struct emu_env_hook *hook)
+int32_t	__stdcall new_user_hook_ShellExecuteA(struct emu_env *env, struct emu_env_hook *hook)
 {
 
 	struct emu_cpu *c = emu_cpu_get(env->emu);
@@ -1474,12 +409,12 @@ HINSTANCE ShellExecute(
 	emu_string_free(s_text);
 	emu_string_free(s_param);
 
-	emu_cpu_reg32_set(c, eax, 33);
+	cpu->reg[eax] = 33;
 	emu_cpu_eip_set(c, eip_save);
 	return 0;
 }
 
-int32_t	new_user_hook_SHGetSpecialFolderPathA(struct emu_env *env, struct emu_env_hook *hook)
+int32_t	__stdcall new_user_hook_SHGetSpecialFolderPathA(struct emu_env *env, struct emu_env_hook *hook)
 {
 
 	struct emu_cpu *c = emu_cpu_get(env->emu);
@@ -1517,12 +452,12 @@ CopyBOOL SHGetSpecialFolderPath(
 	
 	emu_memory_write_block(mem,buf,buf255,strlen(buf255));
 
-	emu_cpu_reg32_set(c, eax, 0);
+	cpu->reg[eax] = 0;
 	emu_cpu_eip_set(c, eip_save);
 	return 0;
 }
 
-int32_t	new_user_hook_GenericStub(struct emu_env *env, struct emu_env_hook *hook)
+int32_t	__stdcall new_user_hook_GenericStub(struct emu_env *env, struct emu_env_hook *hook)
 {
 
 	struct emu_cpu *c = emu_cpu_get(env->emu);
@@ -1532,15 +467,6 @@ int32_t	new_user_hook_GenericStub(struct emu_env *env, struct emu_env_hook *hook
 	POP_DWORD(c, &eip_save);
 
 /*
-	HANDLE WINAPI CreateFileMapping(
-	  __in      HANDLE hFile,
-	  __in_opt  LPSECURITY_ATTRIBUTES lpAttributes,
-	  __in      DWORD flProtect,
-	  __in      DWORD dwMaximumSizeHigh,
-	  __in      DWORD dwMaximumSizeLow,
-	  __in_opt  LPCTSTR lpName
-	);
-
 	BOOL InternetReadFile(
 	  __in   HINTERNET hFile,
 	  __out  LPVOID lpBuffer,
@@ -1587,11 +513,6 @@ int32_t	new_user_hook_GenericStub(struct emu_env *env, struct emu_env_hook *hook
 
 	char* func = hook->hook.win->fnname;
 
-	if(strcmp(func, "CreateFileMappingA") ==0 ){
-		log_val = get_ret(env,16);  //sizelow
-		arg_count = 6;
-	}
-
 	if(strcmp(func, "GetCurrentProcess") ==0 ){
 		arg_count = 0;
 	}
@@ -1615,10 +536,10 @@ int32_t	new_user_hook_GenericStub(struct emu_env *env, struct emu_env_hook *hook
 	if(strcmp(func, "GetSystemTime") ==0 ){
 		arg_count = 0;
 		log_val = get_ret(env,0);  //lpSystime
-		struct SYSTEMTIME st;
-		memset(&st,7, 16);
-		st.wYear = 2011;
-		emu_memory_write_block( mem, log_val, &st, 16);
+		//struct SYSTEMTIME st;
+		//memset(&st,7, 16);
+		//st.wYear = 2011;
+		//emu_memory_write_block( mem, log_val, &st, 16);
 	}
 
 	if(strcmp(func, "FreeLibrary") ==0 ){
@@ -1718,7 +639,7 @@ int32_t	new_user_hook_GenericStub(struct emu_env *env, struct emu_env_hook *hook
 		emu_cpu_eip_set(c, log_val);
 		printf("\tTransferring execution to threadstart...\n");
 	}else{
-		emu_cpu_reg32_set(c, eax, ret_val);
+		cpu->reg[eax] = ret_val;
 		emu_cpu_eip_set(c, eip_save);
 	}
 	
@@ -1727,7 +648,7 @@ int32_t	new_user_hook_GenericStub(struct emu_env *env, struct emu_env_hook *hook
 }
 
 
-int32_t	new_user_hook_CreateProcessInternalA(struct emu_env *env, struct emu_env_hook *hook)
+int32_t	__stdcall new_user_hook_CreateProcessInternalA(struct emu_env *env, struct emu_env_hook *hook)
 {
 
 	struct emu_cpu *c = emu_cpu_get(env->emu);
@@ -1771,13 +692,13 @@ int32_t	new_user_hook_CreateProcessInternalA(struct emu_env *env, struct emu_env
 		printf("%x\t%s()\n",eip_save,hook->hook.win->fnname);
 	}
 
-	emu_cpu_reg32_set(c, eax, 0);
+	cpu->reg[eax] = 0;
 	emu_cpu_eip_set(c, eip_save);
 	return 1;
 }
 
 
-int32_t	new_user_hook_GlobalAlloc(struct emu_env *env, struct emu_env_hook *hook)
+int32_t	__stdcall new_user_hook_GlobalAlloc(struct emu_env *env, struct emu_env_hook *hook)
 {
 
 	struct emu_cpu *c = emu_cpu_get(env->emu);
@@ -1811,22 +732,16 @@ int32_t	new_user_hook_GlobalAlloc(struct emu_env *env, struct emu_env_hook *hook
 		printf("%x\tGlobalAlloc(sz=%x) (Ignored size out of range)\n", eip_save, size);
 	}
 
-	emu_cpu_reg32_set(c, eax, baseMemAddress);
+	cpu->reg[eax] = baseMemAddress;
 	emu_cpu_eip_set(c, eip_save);
 	return 0;
 }
 
-int32_t	new_user_hook_MapViewOfFile(struct emu_env *env, struct emu_env_hook *hook)
+int32_t	__stdcall new_user_hook_MapViewOfFile(struct emu_env *env, struct emu_env_hook *hook)
 {
-
-	struct emu_cpu *c = emu_cpu_get(env->emu);
-
-	uint32_t eip_save;
-
-	POP_DWORD(c, &eip_save);
-
+	uint32_t a[10] = {0,0,0,0,0,0,0,0,0,0};
+	loadargs(5, a);
 /*
-	
 	LPVOID WINAPI MapViewOfFile(  //todo: the return value is the starting address of the mapped view.
 	  __in  HANDLE hFileMappingObject,
 	  __in  DWORD dwDesiredAccess,
@@ -1835,34 +750,31 @@ int32_t	new_user_hook_MapViewOfFile(struct emu_env *env, struct emu_env_hook *ho
 	  __in  SIZE_T dwNumberOfBytesToMap
 	);
 */
-	uint32_t size;
-	POP_DWORD(c, &size);
-	POP_DWORD(c, &size);
-	POP_DWORD(c, &size);
-	POP_DWORD(c, &size);
-	POP_DWORD(c, &size);
-
+	uint32_t h		= a[1];
+	uint32_t offset = a[4];
+	uint32_t size   = a[5];
 	uint32_t baseMemAddress = next_alloc;
 
-	if(size==0) size = 5000; //size was specified in CreateFileMapping...so we default it...
+	if(size==0) size = 0x5000; //size was specified in CreateFileMapping...so we default it...
 
 	if(size > 0 && size < MAX_ALLOC){
 		set_next_alloc(size);
 		void *buf = malloc(size);
-		memset(buf,0,size);
+		memset(buf,0,size); //to do this right, we would be grabbing the file data and writing it in..
 		emu_memory_write_block(mem,baseMemAddress,buf, size);
-		printf("%x\tMapViewOfFile(sz=%x) = %x\n", eip_save, size, baseMemAddress);
+		printf("%x\tMapViewOfFile(h=%x, offset=%x, sz=%x) = %x\n", a[0], offset, size, baseMemAddress);
 		free(buf);
+		set_ret(baseMemAddress);
 	}else{
-		printf("%x\tMapViewOfFile(sz=%x) (Ignored to big)\n", eip_save, size);
+		printf("%x\tMapViewOfFile(h=%x, offset=%x, sz=%x)\n", a[0], offset, size);
+		set_ret(0);
 	}
 
-	emu_cpu_reg32_set(c, eax, baseMemAddress);
-	emu_cpu_eip_set(c, eip_save);
+	emu_cpu_eip_set(cpu, a[0]);
 	return 0;
 }
 
-int32_t	new_user_hook_URLDownloadToCacheFileA(struct emu_env *env, struct emu_env_hook *hook)
+int32_t	__stdcall new_user_hook_URLDownloadToCacheFileA(struct emu_env *env, struct emu_env_hook *hook)
 {
 	struct emu_cpu *c = emu_cpu_get(env->emu);
 
@@ -1913,12 +825,12 @@ int32_t	new_user_hook_URLDownloadToCacheFileA(struct emu_env *env, struct emu_en
 		emu_memory_write_byte(mem,p_fname + strlen(tmp)+1, 0x00);
 	}
 
-	emu_cpu_reg32_set(c, eax, 0); // S_OK 
+	cpu->reg[eax] = 0; // S_OK 
 	emu_cpu_eip_set(c, eip_save);
 	return 1;
 }
 
-int32_t	new_user_hook_system(struct emu_env *env, struct emu_env_hook *hook)
+int32_t	__stdcall new_user_hook_system(struct emu_env *env, struct emu_env_hook *hook)
 {
 	struct emu_cpu *c = emu_cpu_get(env->emu);
 
@@ -1941,12 +853,12 @@ int32_t	new_user_hook_system(struct emu_env *env, struct emu_env_hook *hook)
 	printf("%x\tsystem(%s)\n",eip_save,  emu_string_char(s_url));
 
 	emu_string_free(s_url);
-	emu_cpu_reg32_set(c, eax, 0);  
+	cpu->reg[eax] =  0;  
 	emu_cpu_eip_set(c, eip_save);
 	return 1;
 }
 
-int32_t	new_user_hook_VirtualAlloc(struct emu_env *env, struct emu_env_hook *hook)
+int32_t	__stdcall new_user_hook_VirtualAlloc(struct emu_env *env, struct emu_env_hook *hook)
 {
 
 	struct emu_cpu *c = emu_cpu_get(env->emu);
@@ -1991,12 +903,12 @@ int32_t	new_user_hook_VirtualAlloc(struct emu_env *env, struct emu_env_hook *hoo
 		printf("%x\tVirtualAlloc(sz=%x) (Ignored size out of range)\n", eip_save, size);
 	}
 
-	emu_cpu_reg32_set(c, eax, baseMemAddress);
+	cpu->reg[eax] = baseMemAddress;
 	emu_cpu_eip_set(c, eip_save);
 	return 0;
 }
 
-int32_t	new_user_hook_VirtualProtectEx(struct emu_env *env, struct emu_env_hook *hook)
+int32_t	__stdcall new_user_hook_VirtualProtectEx(struct emu_env *env, struct emu_env_hook *hook)
 {
 
 	struct emu_cpu *c = emu_cpu_get(env->emu);
@@ -2031,7 +943,7 @@ int32_t	new_user_hook_VirtualProtectEx(struct emu_env *env, struct emu_env_hook 
 
 	printf("%x\tVirtualProtectEx(hProc=%x , addr=%x , sz=%x, prot=%x)\n", eip_save, hProcess, address, size, flNewProtect);
 		
-	emu_cpu_reg32_set(c, eax, 1);
+	cpu->reg[eax] = 1;
 	emu_cpu_eip_set(c, eip_save);
 	return 0;
 }
@@ -2040,7 +952,7 @@ int32_t	new_user_hook_VirtualProtectEx(struct emu_env *env, struct emu_env_hook 
 
 //need to find a clean way to have these stubs handle multiple api..this is a start anyway..
 //this one can handle logging of 1 or 2 string args..
-int32_t	new_user_hook_GenericStub2String(struct emu_env *env, struct emu_env_hook *hook)
+int32_t	__stdcall new_user_hook_GenericStub2String(struct emu_env *env, struct emu_env_hook *hook)
 {
 
 	struct emu_cpu *c = emu_cpu_get(env->emu);
@@ -2113,7 +1025,7 @@ int32_t	new_user_hook_GenericStub2String(struct emu_env *env, struct emu_env_hoo
 	r_esp += arg_count*4;
 	
 	//printf("adjusting stack by %d prev=%x new=%x\n", arg_count*4, c->reg[esp], r_esp  );
-	emu_cpu_reg32_set(c, esp, r_esp);
+	cpu->reg[esp] = r_esp;
 
 	if(log_sarg == -1){
 		printf("%x\t%s()\n", eip_save, func );
@@ -2135,13 +1047,13 @@ int32_t	new_user_hook_GenericStub2String(struct emu_env *env, struct emu_env_hoo
 	}
 
 
-	emu_cpu_reg32_set(c, eax, ret_val);
+	cpu->reg[eax] = ret_val;
 	emu_cpu_eip_set(c, eip_save);
 	return 0;
 }
 
 
-int32_t	new_user_hook_SetFilePointer(struct emu_env *env, struct emu_env_hook *hook)
+int32_t	__stdcall new_user_hook_SetFilePointer(struct emu_env *env, struct emu_env_hook *hook)
 {
 
 	struct emu_cpu *c = emu_cpu_get(env->emu);
@@ -2184,12 +1096,12 @@ int32_t	new_user_hook_SetFilePointer(struct emu_env *env, struct emu_env_hook *h
 		}
 	}
 
-	emu_cpu_reg32_set(c, eax, lDistanceToMove);
+	cpu->reg[eax] = lDistanceToMove;
 	emu_cpu_eip_set(c, eip_save);
 	return 0;
 }
 
-int32_t	new_user_hook_ReadFile(struct emu_env *env, struct emu_env_hook *hook)
+int32_t	__stdcall new_user_hook_ReadFile(struct emu_env *env, struct emu_env_hook *hook)
 {
 
 	struct emu_cpu *c = emu_cpu_get(env->emu);
@@ -2224,7 +1136,7 @@ int32_t	new_user_hook_ReadFile(struct emu_env *env, struct emu_env_hook *hook)
 	numBytes++;
 	if((int)opts.fopen > 0){
 		if( hfile == (int)opts.fopen || hfile == 4){ //scanners start at 4 so no spam this way..
-			char* tmp = malloc(numBytes);
+			char* tmp = (char*)malloc(numBytes);
 			fread(tmp, numBytes, 1, opts.fopen);
 			emu_memory_write_block(mem, lpBuffer,tmp,numBytes);
 			free(tmp);
@@ -2237,7 +1149,7 @@ int32_t	new_user_hook_ReadFile(struct emu_env *env, struct emu_env_hook *hook)
 
 	if(lpNumBytes != 0) emu_memory_write_dword(mem, lpNumBytes, numBytes);
 
-	emu_cpu_reg32_set(c, eax, 1);
+	cpu->reg[eax] = 1;
 	emu_cpu_eip_set(c, eip_save);
 	return 0;
 }
@@ -2258,7 +1170,7 @@ uint32_t emu_string_length(uint32_t addr, int scan_limit){
 }
 
 
-int32_t	new_user_hook_strstr(struct emu_env *env, struct emu_env_hook *hook)
+int32_t	__stdcall new_user_hook_strstr(struct emu_env *env, struct emu_env_hook *hook)
 {
 
 	struct emu_cpu *c = emu_cpu_get(env->emu);
@@ -2285,7 +1197,7 @@ int32_t	new_user_hook_strstr(struct emu_env *env, struct emu_env_hook *hook)
 		emu_memory_read_string(mem, s2, find, 255);
 
 		if(len > 0){
-			char* tmp = malloc(len);
+			char* tmp = (char*)malloc(len);
 			emu_memory_read_block(mem, s1, tmp, len);
 			ret = (int)strstr(tmp, (char*)find->data);
 			if(ret != 0){
@@ -2300,13 +1212,13 @@ int32_t	new_user_hook_strstr(struct emu_env *env, struct emu_env_hook *hook)
 	printf("%x\tstrstr(buf=%x, find=\"%s\") = %x\n", eip_save, (int)s1, emu_string_char(find), ret);
 	
 	emu_string_free(find);
-	emu_cpu_reg32_set(c, eax, ret);
+	cpu->reg[eax] = ret;
 	emu_cpu_eip_set(c, eip_save);
 	return 0;
 }
 
 
-int32_t	new_user_hook_strtoul(struct emu_env *env, struct emu_env_hook *hook)
+int32_t	__stdcall new_user_hook_strtoul(struct emu_env *env, struct emu_env_hook *hook)
 {
 
 	struct emu_cpu *c = emu_cpu_get(env->emu);
@@ -2334,12 +1246,12 @@ int32_t	new_user_hook_strtoul(struct emu_env *env, struct emu_env_hook *hook)
 	printf("%x\tstrtoul(buf=%x -> \"%s\", base=%d) = %x\n", eip_save, s1, emu_string_char(arg), base, ret);
 	
 	emu_string_free(arg);
-	emu_cpu_reg32_set(c, eax, ret);
+	cpu->reg[eax] = ret;
 	emu_cpu_eip_set(c, eip_save);
 	return 0;
 }
 
-int32_t	new_user_hook_GetTempFileNameA(struct emu_env *env, struct emu_env_hook *hook)
+int32_t	__stdcall new_user_hook_GetTempFileNameA(struct emu_env *env, struct emu_env_hook *hook)
 {
 
 	struct emu_cpu *c = emu_cpu_get(env->emu);
@@ -2377,7 +1289,7 @@ int32_t	new_user_hook_GetTempFileNameA(struct emu_env *env, struct emu_env_hook 
 
 	if(s1==0){
 		ret = 0;
-		emu_cpu_reg32_set(c, eax, 0);
+		cpu->reg[eax] = 0;
 		emu_cpu_eip_set(c, eip_save);
 		return 0;
 	}
@@ -2394,21 +1306,23 @@ int32_t	new_user_hook_GetTempFileNameA(struct emu_env *env, struct emu_env_hook 
 	char* s_prefix = emu_string_char(prefix);
 
 	if(s_path == 0){
-		s_path = malloc(10); //memleak
+		s_path = (char*)malloc(10); //memleak
 		strcpy(s_path,"");
 	}else{
 		path_len = strlen(s_path);
 	}
 
 	if(s_prefix == 0){
-		s_prefix = malloc(10); //memleak
+		s_prefix = (char*)malloc(10); //memleak
 		strcpy(s_prefix,"");
 	}else{
 		prefix_len = strlen(s_prefix);
 	}
 
     if(unique==0) unique = 0xBAAD;
-	if(asprintf(&s_unique, "%X", unique) == -1) return -1;
+	printf("GetTempFileNameA broken fix me\n");
+	return 0;
+//	if(asprintf(&s_unique, "%X", unique) == -1) return -1;
 
 	uint32_t slen = path_len + prefix_len + strlen(s_unique) + 15;
 
@@ -2416,8 +1330,8 @@ int32_t	new_user_hook_GetTempFileNameA(struct emu_env *env, struct emu_env_hook 
 		ret = 0;
 	}else{
 		ret = unique;
-		s_out = malloc(300);
-		sprintf(s_out, "%s\%s%s.TMP", s_path, s_prefix, s_unique);
+		s_out = (char*)malloc(300);
+		sprintf(s_out, "%s\\%s%s.TMP", s_path, s_prefix, s_unique);
 		emu_memory_write_block(mem, out_buf, s_out, strlen(s_out));
 	}
 	
@@ -2431,12 +1345,12 @@ int32_t	new_user_hook_GetTempFileNameA(struct emu_env *env, struct emu_env_hook 
 	emu_string_free(path);
 	emu_string_free(prefix);
 
-	emu_cpu_reg32_set(c, eax, ret);
+	cpu->reg[eax] = ret;
 	emu_cpu_eip_set(c, eip_save);
 	return 0;
 }
 
-int32_t	new_user_hook_LoadLibrary(struct emu_env *env, struct emu_env_hook *hook)
+int32_t	__stdcall new_user_hook_LoadLibrary(struct emu_env *env, struct emu_env_hook *hook)
 {
 
 	struct emu_cpu *c = emu_cpu_get(env->emu);
@@ -2468,9 +1382,9 @@ int32_t	new_user_hook_LoadLibrary(struct emu_env *env, struct emu_env_hook *hook
 
 	for (i=0; env->env.win->loaded_dlls[i] != NULL; i++)
 	{
-		if (strncasecmp(env->env.win->loaded_dlls[i]->dllname, dllname, strlen(env->env.win->loaded_dlls[i]->dllname)) == 0)
+		if (stricmp(env->env.win->loaded_dlls[i]->dllname, dllname) == 0)
 		{
-			emu_cpu_reg32_set(c, eax, env->env.win->loaded_dlls[i]->baseaddr);
+			cpu->reg[eax] = env->env.win->loaded_dlls[i]->baseaddr;
 			found_dll = 1;
 			break;
 		}
@@ -2480,12 +1394,12 @@ int32_t	new_user_hook_LoadLibrary(struct emu_env *env, struct emu_env_hook *hook
 	{
         if (emu_env_w32_load_dll(env->env.win, dllname) == 0)
         {
-            emu_cpu_reg32_set(c, eax, env->env.win->loaded_dlls[i]->baseaddr);
+            cpu->reg[eax] = env->env.win->loaded_dlls[i]->baseaddr;
 			found_dll = 1;
         }
         else
         {
-            emu_cpu_reg32_set(c, eax, 0x0);
+            cpu->reg[eax] = 0;
         }
 	}
 
@@ -2497,7 +1411,7 @@ int32_t	new_user_hook_LoadLibrary(struct emu_env *env, struct emu_env_hook *hook
 	return 0;
 }
 
-int32_t	new_user_hook_GetModuleFileNameA(struct emu_env *env, struct emu_env_hook *hook)
+int32_t	__stdcall new_user_hook_GetModuleFileNameA(struct emu_env *env, struct emu_env_hook *hook)
 {
 
 	struct emu_cpu *c = emu_cpu_get(env->emu);
@@ -2544,12 +1458,12 @@ int32_t	new_user_hook_GetModuleFileNameA(struct emu_env *env, struct emu_env_hoo
 		emu_memory_write_block(mem, lpfname, &ret, i);
 	} 
 
-	emu_cpu_reg32_set(c, eax, i);
+	cpu->reg[eax] =  i;
 	emu_cpu_eip_set(c, eip_save);
 	return 0;
 }
 
-int32_t	new_user_hook_DialogBoxIndirectParamA(struct emu_env *env, struct emu_env_hook *hook)
+int32_t	__stdcall new_user_hook_DialogBoxIndirectParamA(struct emu_env *env, struct emu_env_hook *hook)
 {
 
 	struct emu_cpu *c = emu_cpu_get(env->emu);
@@ -2585,7 +1499,7 @@ int32_t	new_user_hook_DialogBoxIndirectParamA(struct emu_env *env, struct emu_en
 	printf("%x\tDialogBoxIndirectParamA(hmod=%x, hdlg=%x, hwnd=%x, proc=%x, param=%x)\n",
 		eip_save, hmod, hdlg, hwnd, lpproc, param);
 
-	emu_cpu_reg32_set(c, eax, 1);
+	cpu->reg[eax] = 1;
 
 	if( lpproc != 0 ){
 		PUSH_DWORD(c, param);
@@ -2599,7 +1513,7 @@ int32_t	new_user_hook_DialogBoxIndirectParamA(struct emu_env *env, struct emu_en
 	return 0;
 }
 
-int32_t	new_user_hook_ZwQueryVirtualMemory(struct emu_env *env, struct emu_env_hook *hook)
+int32_t	__stdcall new_user_hook_ZwQueryVirtualMemory(struct emu_env *env, struct emu_env_hook *hook)
 {
 
 	struct emu_cpu *c = emu_cpu_get(env->emu);
@@ -2684,12 +1598,12 @@ int32_t	new_user_hook_ZwQueryVirtualMemory(struct emu_env *env, struct emu_env_h
 		}
 	}*/
 
-	emu_cpu_reg32_set(c, eax, 1);	 
+	cpu->reg[eax] = 1;	 
 	emu_cpu_eip_set(c, eip_save);
 	return 0;
 }
 
-int32_t	new_user_hook_GetEnvironmentVariableA(struct emu_env *env, struct emu_env_hook *hook)
+int32_t	__stdcall new_user_hook_GetEnvironmentVariableA(struct emu_env *env, struct emu_env_hook *hook)
 {
 
 	struct emu_cpu *c = emu_cpu_get(env->emu);
@@ -2732,12 +1646,12 @@ int32_t	new_user_hook_GetEnvironmentVariableA(struct emu_env *env, struct emu_en
 		
 	printf("%x\tGetEnvironmentVariableA(name=%s, buf=%x, size=%x) = %s\n", eip_save, var, buf, size, out );
 
-	emu_cpu_reg32_set(c, eax, sl);	 
+	cpu->reg[eax] =  sl;	 
 	emu_cpu_eip_set(c, eip_save);
 	return 0;
 }
 
-int32_t	new_user_hook_VirtualAllocEx(struct emu_env *env, struct emu_env_hook *hook)
+int32_t	__stdcall new_user_hook_VirtualAllocEx(struct emu_env *env, struct emu_env_hook *hook)
 {
 
 	struct emu_cpu *c = emu_cpu_get(env->emu);
@@ -2786,12 +1700,12 @@ int32_t	new_user_hook_VirtualAllocEx(struct emu_env *env, struct emu_env_hook *h
 		printf("%x\tVirtualAllocEx(pid=%x, sz=%x) (Ignored size out of range)\n", eip_save, hproc, size);
 	}
 
-	emu_cpu_reg32_set(c, eax, baseMemAddress);
+	cpu->reg[eax] = baseMemAddress;
 	emu_cpu_eip_set(c, eip_save);
 	return 0;
 }
 
-int32_t	new_user_hook_WriteProcessMemory(struct emu_env *env, struct emu_env_hook *hook)
+int32_t	__stdcall new_user_hook_WriteProcessMemory(struct emu_env *env, struct emu_env_hook *hook)
 {
 
 	struct emu_cpu *c = emu_cpu_get(env->emu);
@@ -2846,13 +1760,13 @@ int32_t	new_user_hook_WriteProcessMemory(struct emu_env *env, struct emu_env_hoo
 		printf("\tSize > MAX_ALLOC (%x) ignoring...", MAX_ALLOC);
 	}
 
-	emu_cpu_reg32_set(c, eax, 1);
+	cpu->reg[eax] = 1;
 	emu_cpu_eip_set(c, eip_save);
 	return 0;
 }
 
 
-int32_t	new_user_hook_CreateRemoteThread(struct emu_env *env, struct emu_env_hook *hook)
+int32_t	__stdcall new_user_hook_CreateRemoteThread(struct emu_env *env, struct emu_env_hook *hook)
 {
 
 	struct emu_cpu *c = emu_cpu_get(env->emu);
@@ -2891,7 +1805,7 @@ int32_t	new_user_hook_CreateRemoteThread(struct emu_env *env, struct emu_env_hoo
 		emu_cpu_eip_set(c, address);
 		printf("\tTransferring execution to threadstart...\n");
 	}else{
-		emu_cpu_reg32_set(c, eax, 0x222);
+		cpu->reg[eax] = 0x222;
 		emu_cpu_eip_set(c, eip_save);
 	}
 
@@ -2899,7 +1813,7 @@ int32_t	new_user_hook_CreateRemoteThread(struct emu_env *env, struct emu_env_hoo
 }
 
 
-int32_t	new_user_hook_MultiByteToWideChar(struct emu_env *env, struct emu_env_hook *hook)
+int32_t	__stdcall new_user_hook_MultiByteToWideChar(struct emu_env *env, struct emu_env_hook *hook)
 {
 
 	struct emu_cpu *c = emu_cpu_get(env->emu);
@@ -2935,8 +1849,12 @@ int32_t	new_user_hook_MultiByteToWideChar(struct emu_env *env, struct emu_env_ho
 	emu_memory_read_string(mem, src, s_src, 500);
 	char* s = (char*)s_src->data;
 
-	printf("%x\tMultiByteToWideChar(cp=%x, fl=%x , src=%x, sz=%x, dst=%x, dstsz=%x)\n", eip_save, cp, flags, src, size, dst,dstsz);
-	printf("\t%x -> %s\n", src, s);
+	if(opts.verbose > 0){
+		printf("%x\tMultiByteToWideChar(cp=%x, fl=%x , src=%x, sz=%x, dst=%x, dstsz=%x)\n", eip_save, cp, flags, src, size, dst,dstsz);
+		printf("\t%x -> %s\n", src, s);
+	}else{
+		printf("%x\tMultiByteToWideChar(%s)\n", eip_save, s);
+	}
 
 	int retval = (strlen(s) * 2);
 
@@ -2962,13 +1880,13 @@ int32_t	new_user_hook_MultiByteToWideChar(struct emu_env *env, struct emu_env_ho
 
 	}*/
 		
-	emu_cpu_reg32_set(c, eax, retval);
+	cpu->reg[eax] = retval;
 	emu_cpu_eip_set(c, eip_save);
 	 
 	return 0;
 }
 
-int32_t	new_user_hook_CreateFileW(struct emu_env *env, struct emu_env_hook *hook)
+int32_t	__stdcall new_user_hook_CreateFileW(struct emu_env *env, struct emu_env_hook *hook)
 {
 
 	struct emu_cpu *c = emu_cpu_get(env->emu);
@@ -3010,23 +1928,1305 @@ HANDLE CreateFile(
 	uint32_t templatefile;
 	POP_DWORD(c, &templatefile);
 
-	uint32_t returnvalue;
+//	uint32_t returnvalue;
 
-	returnvalue = user_hook_CreateFile(env, hook, 
-									   emu_string_char(filename),
-									   desiredaccess,
-									   sharemode,
-									   securityattr,
-									   createdisp,
-									   flagsandattr,
-									   templatefile);
+	printf("CreateFileW do stuff\n");
 
 
 	emu_string_free(filename);
 
-	emu_cpu_reg32_set(c, eax, returnvalue);
+	cpu->reg[eax] = 0;
 	emu_cpu_eip_set(c, eip_save);
 
+	return 0;
+}
+
+int32_t	__stdcall new_user_hook_URLDownloadToFileA(struct emu_env *env, struct emu_env_hook *hook)
+{
+	struct emu_cpu *c = emu_cpu_get(env->emu);
+	uint32_t eip_save;
+	POP_DWORD(c, &eip_save);
+/*
+HRESULT URLDownloadToFile(
+  LPUNKNOWN pCaller,
+  LPCTSTR szURL,
+  LPCTSTR szFileName,
+  DWORD dwReserved,
+  LPBINDSTATUSCALLBACK lpfnCB
+);
+*/
+	uint32_t p_caller;
+	POP_DWORD(c, &p_caller);
+
+	uint32_t p_url;
+	POP_DWORD(c, &p_url);
+
+    struct emu_string *url = emu_string_new();
+	emu_memory_read_string(c->mem, p_url, url, 512);
+
+	uint32_t p_filename;
+	POP_DWORD(c, &p_filename);
+
+	struct emu_string *filename = emu_string_new();
+	emu_memory_read_string(c->mem, p_filename, filename, 512);
+
+	uint32_t reserved;
+	POP_DWORD(c, &reserved);
+
+	uint32_t statuscallbackfn;
+	POP_DWORD(c, &statuscallbackfn);
+
+	uint32_t returnvalue=0;
+	printf("%x\tURLDownloadToFile(%s, %s)\n",eip_save, emu_string_char(url), emu_string_char(filename));
+
+	cpu->reg[eax] = returnvalue;
+
+	emu_string_free(url);
+	emu_string_free(filename);
+    emu_cpu_eip_set(c, eip_save);
+	return 0;
+}
+
+int32_t	__stdcall new_user_hook_execv(struct emu_env *env, struct emu_env_hook *hook)
+{
+	struct emu_cpu *c = emu_cpu_get(env->emu);
+	uint32_t eip_save;
+	POP_DWORD(c, &eip_save);
+
+	/*
+	intptr_t _execv( 
+	   const char *cmdname,
+	   const char *const *argv 
+	);
+	intptr_t _wexecv( 
+	   const wchar_t *cmdname,
+	   const wchar_t *const *argv 
+	);
+	*/
+
+	uint32_t p_cmdname;
+	POP_DWORD(c, &p_cmdname);
+
+	struct emu_string *cmdname = emu_string_new();
+	emu_memory_read_string(c->mem, p_cmdname, cmdname, 512);
+
+	uint32_t p_argv;
+	POP_DWORD(c, &p_argv);
+
+	printf("%x\texecv(%s, %x)\n", eip_save, emu_string_char(cmdname), p_argv);
+
+	emu_string_free(cmdname);
+    emu_cpu_eip_set(c, eip_save);
+	return 0;
+}
+
+int32_t	__stdcall new_user_hook_fclose(struct emu_env *env, struct emu_env_hook *hook)
+{
+	struct emu_cpu *c = emu_cpu_get(env->emu);
+	uint32_t eip_save;
+	POP_DWORD(c, &eip_save);
+	/*
+	int _fcloseall( void );
+	int fclose( FILE *stream );
+	*/
+	uint32_t p_stream;
+	MEM_DWORD_READ(c, c->reg[esp], &p_stream);
+
+	cpu->reg[eax] = 0;
+
+	printf("%x\tfclose(h=%x)\n",eip_save, (int)p_stream);
+
+	if( opts.interactive_hooks == 0 ){
+		cpu->reg[eax] = 0x4711;
+	}else{
+    	cpu->reg[eax] = fclose((FILE*)p_stream);
+	}
+	
+    emu_cpu_eip_set(c, eip_save);
+	return 0;
+}
+
+int32_t	__stdcall new_user_hook_fopen(struct emu_env *env, struct emu_env_hook *hook)
+{
+	struct emu_cpu *c = emu_cpu_get(env->emu);
+	uint32_t eip_save;
+	POP_DWORD(c, &eip_save);
+	/*
+	FILE *fopen( const char *filename, const char *mode );
+	FILE *_wfopen( const wchar_t *filename, const wchar_t *mode );
+	*/
+	uint32_t p_filename;
+	MEM_DWORD_READ(c, c->reg[esp], &p_filename);
+
+	struct emu_string *filename = emu_string_new();
+	emu_memory_read_string(c->mem, p_filename, filename, 512);
+	
+	uint32_t p_mode;
+	MEM_DWORD_READ(c, c->reg[esp]+4, &p_mode);
+	struct emu_string *mode = emu_string_new();
+	emu_memory_read_string(c->mem, p_mode, mode, 512);
+	
+	if( opts.interactive_hooks == 0){
+		printf("%x\tfopen(%s, %s) = %x\n", eip_save, emu_string_char(filename), emu_string_char(mode), 0x4711);
+		cpu->reg[eax] = 0x4711;
+	}else{
+		char* localfile = SafeTempFile();
+		FILE *f = fopen(localfile,"w");
+		printf("%x\tfopen(%s) = %x\n", eip_save, filename, (int)f);
+		printf("\tInteractive mode local file: %s\n", localfile);
+		free(localfile);
+		cpu->reg[eax] = (int)f; 
+	}
+
+	emu_string_free(filename);
+	emu_string_free(mode);
+	emu_cpu_eip_set(c, eip_save);
+	return 0;
+}
+
+int32_t	__stdcall new_user_hook_fwrite(struct emu_env *env, struct emu_env_hook *hook)
+{
+	logDebug(env->emu, "Hook me Captain Cook!\n");
+	logDebug(env->emu, "%s:%i %s\n",__FILE__,__LINE__,__FUNCTION__);
+
+	struct emu_cpu *c = emu_cpu_get(env->emu);
+
+	uint32_t eip_save;
+
+	POP_DWORD(c, &eip_save);
+
+/*
+size_t fwrite( const void *buffer, size_t size, size_t count, FILE *stream );
+*/
+	uint32_t p_buffer;
+	MEM_DWORD_READ(c, c->reg[esp], &p_buffer);
+	
+	uint32_t size;
+	MEM_DWORD_READ(c, (c->reg[esp]+4), &size);
+
+	uint32_t count;
+	MEM_DWORD_READ(c, (c->reg[esp]+8), &count);
+	
+	uint32_t len = size * count;
+
+	uint32_t MAX_ALLOC = 0x900000;
+	if(len > MAX_ALLOC){
+		printf("\tAllocation > MAX_ALLOC adjusting...\n");
+		len = MAX_ALLOC; //dzzie
+	}
+
+	unsigned char *buffer = (unsigned char*)malloc(len);
+	emu_memory_read_block(emu_memory_get(env->emu), p_buffer, buffer, len);
+
+	uint32_t p_stream;
+	MEM_DWORD_READ(c, c->reg[esp]+12, &p_stream);
+		
+	printf("%x\tfwrite(h=%x, sz=%x, buf=%x)\n", eip_save, (int)p_stream, size*count, p_buffer);
+	
+	if(opts.show_hexdumps && buffer != 0 && size > 0 && count > 0){
+		int display_size = size*count;
+		if(display_size > 300){ 
+			printf("Showing first 300 bytes...\n");
+			display_size = 300;
+		}
+		hexdump(buffer, display_size );
+	}
+
+	uint32_t retval = size*count;
+	cpu->reg[eax] = retval;
+
+	if(opts.interactive_hooks != 0 ){
+		retval = fwrite(buffer, size, count, (FILE*)p_stream);
+	}
+	
+	cpu->reg[eax] = retval;
+	free(buffer);
+    emu_cpu_eip_set(c, eip_save);
+	return 0;
+}
+
+int32_t	__stdcall new_user_hook__lcreat(struct emu_env *env, struct emu_env_hook *hook)
+{
+	struct emu_cpu *c = emu_cpu_get(env->emu);
+	uint32_t eip_save;
+	POP_DWORD(c, &eip_save);
+	/*
+	LONG _lcreat(
+	  LPCSTR lpszFileName,
+	  int fnAttribute
+	);
+	*/
+	uint32_t p_filename;
+	POP_DWORD(c, &p_filename);
+	struct emu_string *filename = emu_string_new();
+	emu_memory_read_string(emu_memory_get(env->emu), p_filename, filename, 256);
+
+	uint32_t fnAttribute;
+	POP_DWORD(c, &fnAttribute);
+
+	char* fname = emu_string_char(filename);
+
+	printf("%x\t_lcreate(%s)\n",eip_save, fname);
+	
+	uint32_t handle = 0;
+
+	if(opts.interactive_hooks != 0){
+		char *localfile = SafeTempFile();
+		FILE *f = fopen(localfile,"w");
+		printf("\tInteractive mode local file: %s\n", localfile);
+		free(localfile);
+		handle = (int)f;
+	}else{
+		handle = get_fhandle();
+	}
+
+	cpu->reg[eax] = handle;
+
+	emu_string_free(filename);
+	emu_cpu_eip_set(c, eip_save);
+	return 0;
+}
+
+int32_t	__stdcall new_user_hook__lclose(struct emu_env *env, struct emu_env_hook *hook)
+{
+	struct emu_cpu *c = emu_cpu_get(env->emu);
+	uint32_t eip_save;
+	POP_DWORD(c, &eip_save);
+/*
+HFILE _lclose(
+    HFILE hFile	// handle to file to close
+   ); 
+*/
+	uint32_t file;
+	POP_DWORD(c, &file);
+
+	printf("%x\t_lclose(h=%x)\n",eip_save,file);
+	cpu->reg[eax] = 0;
+
+	if( opts.interactive_hooks != 0 ){
+		cpu->reg[eax] = fclose((FILE*)file);
+	}
+
+	emu_cpu_eip_set(c, eip_save);
+	return 0;
+}
+
+
+int32_t	__stdcall new_user_hook__lwrite(struct emu_env *env, struct emu_env_hook *hook)
+{
+	struct emu_cpu *c = emu_cpu_get(env->emu);
+	uint32_t eip_save;
+	POP_DWORD(c, &eip_save);
+	/*
+	LONG _lwrite(
+	  HFile hFile,
+	  LPCSTR lpBuffer,
+	  UINT cbWrite
+	);
+	*/
+	uint32_t file;
+	POP_DWORD(c, &file);
+
+	uint32_t p_buffer;
+	POP_DWORD(c, &p_buffer);
+
+	uint32_t size;
+	POP_DWORD(c, &size);
+
+	uint32_t MAX_ALLOC = 0x900000;
+	if(size > MAX_ALLOC){
+		printf("\tAllocation > MAX_ALLOC adjusting...\n");
+		size = MAX_ALLOC; //dzzie
+	}
+
+	unsigned char *buffer = (unsigned char*)malloc(size);
+	emu_memory_read_block(emu_memory_get(env->emu), p_buffer, buffer, size);
+	
+	printf("%x\t_lwrite(h=%x, buf=%x)\n",eip_save, file, p_buffer);
+
+	if(opts.show_hexdumps && buffer != 0 && size > 0) hexdump((unsigned char*)buffer, size);
+
+	cpu->reg[eax] = size;
+
+	if(opts.interactive_hooks != 0 ){
+		int r = fwrite((void*)buffer, 1, size, (FILE*)file);
+		set_ret(r);
+	}
+
+	free(buffer);
+	emu_cpu_eip_set(c, eip_save);
+	return 0;
+}
+
+int32_t	__stdcall new_user_hook_GetTempPathA(struct emu_env *env, struct emu_env_hook *hook)
+{
+	struct emu_cpu *c = emu_cpu_get(env->emu);
+	uint32_t eip_save;
+	POP_DWORD(c, &eip_save);
+	/*
+	DWORD WINAPI GetTempPath(
+	  __in   DWORD nBufferLength,
+	  __out  LPTSTR lpBuffer
+	);
+	*/
+	uint32_t bufferlength;
+	POP_DWORD(c, &bufferlength);
+
+	uint32_t p_buffer;
+	POP_DWORD(c, &p_buffer);
+
+	static char *path = "c:\\%TEMP%\\";
+	emu_memory_write_block(emu_memory_get(env->emu), p_buffer, path, strlen(path));
+	set_ret(strlen(path));
+
+	printf("%x\tGetTempPath(len=%x, buf=%x)\n",eip_save, bufferlength, p_buffer);
+
+	emu_cpu_eip_set(c, eip_save);
+	return 0;
+}
+
+int32_t	__stdcall new_user_hook_GetTickCount(struct emu_env *env, struct emu_env_hook *hook)
+{
+	struct emu_cpu *c = emu_cpu_get(env->emu);
+	uint32_t eip_save;
+	POP_DWORD(c, &eip_save);
+	uint32_t tickcount = rand();
+	set_ret(tickcount);
+	printf("%x\tGetTickCount() = %x\n", eip_save, tickcount);
+	emu_cpu_eip_set(c, eip_save);
+	return 0;
+}
+
+int32_t	__stdcall new_user_hook__hwrite(struct emu_env *env, struct emu_env_hook *hook)
+{
+	return new_user_hook__lwrite(env, hook);
+}
+
+int32_t	__stdcall new_user_hook_WinExec(struct emu_env *env, struct emu_env_hook *hook)
+{
+	struct emu_cpu *c = emu_cpu_get(env->emu);
+	uint32_t eip_save;
+	POP_DWORD(c, &eip_save);
+
+	/* UINT WINAPI WinExec( LPCSTR lpCmdLine, UINT uCmdShow);*/
+	uint32_t p_cmdline;
+	POP_DWORD(c, &p_cmdline);
+
+	struct emu_string *cmdstr = emu_string_new();
+	emu_memory_read_string(emu_memory_get(env->emu), p_cmdline, cmdstr, 1256);
+
+	uint32_t show;
+	POP_DWORD(c, &show);
+	
+	uint32_t returnvalue = 32;
+	printf("%x\tWinExec(%s)\n",eip_save, emu_string_char(cmdstr));
+	emu_string_free(cmdstr);
+	set_ret(returnvalue);
+	emu_cpu_eip_set(c, eip_save);
+	return 0;
+}
+
+int32_t	__stdcall new_user_hook_Sleep(struct emu_env *env, struct emu_env_hook *hook)
+{
+	struct emu_cpu *c = emu_cpu_get(env->emu);
+	uint32_t eip_save;
+	POP_DWORD(c, &eip_save);
+	uint32_t dwMilliseconds;
+	POP_DWORD(c, &dwMilliseconds);
+	set_ret(0);
+	printf("%x\tSleep(0x%x)\n", eip_save, dwMilliseconds);
+	emu_cpu_eip_set(c, eip_save);
+	return 0;
+}
+
+
+int32_t	__stdcall new_user_hook_DeleteFileA(struct emu_env *env, struct emu_env_hook *hook)
+{
+	struct emu_cpu *c = emu_cpu_get(env->emu);
+	uint32_t eip_save;
+
+	POP_DWORD(c, &eip_save);
+
+	uint32_t filename;
+	POP_DWORD(c, &filename);
+
+	struct emu_string *s_filename = emu_string_new();
+	emu_memory_read_string(mem, filename, s_filename, 256);
+	printf("%x\tDeleteFileA(%s)\n",eip_save, emu_string_char(s_filename) );
+	set_ret(0);
+	emu_string_free(s_filename);
+	emu_cpu_eip_set(c, eip_save);
+	return 0;
+}
+
+int32_t	__stdcall new_user_hook_ExitProcess(struct emu_env *env, struct emu_env_hook *hook)
+{
+	struct emu_cpu *c = emu_cpu_get(env->emu);
+	uint32_t eip_save;
+	POP_DWORD(c, &eip_save);
+	/* VOID WINAPI ExitProcess(UINT uExitCode); */
+	/* VOID ExitThread(DWORD dwExitCode); */
+	uint32_t exitcode;
+	POP_DWORD(c, &exitcode);
+	printf("%x\t%s(%i)\n", eip_save, hook->hook.win->fnname, exitcode);
+	set_ret(0);
+	emu_cpu_eip_set(c, eip_save);
+	opts.steps = 0;
+	return 0;
+}
+
+
+int32_t	__stdcall new_user_hook_CloseHandle(struct emu_env *env, struct emu_env_hook *hook)
+{
+	struct emu_cpu *c = emu_cpu_get(env->emu);
+	uint32_t eip_save;
+	POP_DWORD(c, &eip_save);
+	/* BOOL CloseHandle( HANDLE hObject);*/
+	uint32_t object;
+	POP_DWORD(c, &object);
+	set_ret(1);
+	printf("%x\tCloseHandle(%x)\n", eip_save,(int)object);
+	if(opts.interactive_hooks == 1){
+		set_ret( fclose((FILE*)object) );
+	}
+	emu_cpu_eip_set(c, eip_save);
+	return 0;
+}
+
+int32_t	__stdcall new_user_hook_CreateFileA(struct emu_env *env, struct emu_env_hook *hook)
+{
+	struct emu_cpu *c = emu_cpu_get(env->emu);
+	uint32_t eip_save;
+	POP_DWORD(c, &eip_save);
+	/*
+		HANDLE CreateFile(
+		  LPCTSTR lpFileName,
+		  DWORD dwDesiredAccess,
+		  DWORD dwShareMode,
+		  LPSECURITY_ATTRIBUTES lpSecurityAttributes,
+		  DWORD dwCreationDisposition,
+		  DWORD dwFlagsAndAttributes,
+		  HANDLE hTemplateFile
+		);
+	*/
+	uint32_t p_filename;
+	POP_DWORD(c, &p_filename);
+    struct emu_string *filename = emu_string_new();
+	emu_memory_read_string(emu_memory_get(env->emu), p_filename, filename, 256);
+
+	uint32_t desiredaccess;
+	POP_DWORD(c, &desiredaccess);
+
+	uint32_t sharemode;
+	POP_DWORD(c, &sharemode);
+
+	uint32_t securityattr;
+	POP_DWORD(c, &securityattr);
+
+    uint32_t createdisp;
+	POP_DWORD(c, &createdisp);
+
+	uint32_t flagsandattr;
+	POP_DWORD(c, &flagsandattr);
+
+	uint32_t templatefile;
+	POP_DWORD(c, &templatefile);
+
+	if(opts.interactive_hooks == 1 ){
+		char *localfile = SafeTempFile();
+		FILE *f = fopen(localfile,"w");
+		printf("\tInteractive mode local file %s\n", localfile);
+	    set_ret((int)f);
+	}else{
+		set_ret( get_fhandle() );
+	}
+	
+	printf("%x\t%s(%s) = %x\n", eip_save, hook->hook.win->fnname, emu_string_char(filename), cpu->reg[eax]  );
+
+	emu_string_free(filename);
+	emu_cpu_eip_set(c, eip_save);
+	return 0;
+}
+
+
+int32_t	__stdcall new_user_hook_CreateProcessA(struct emu_env *env, struct emu_env_hook *hook)
+{
+	struct emu_cpu *c = emu_cpu_get(env->emu);
+	struct emu_memory *m = emu_memory_get(env->emu);
+	uint32_t eip_save;
+	POP_DWORD(c, &eip_save);
+/*BOOL CreateProcess( 
+  LPCWSTR pszImageName, 
+  LPCWSTR pszCmdLine, 
+  LPSECURITY_ATTRIBUTES psaProcess, 
+  LPSECURITY_ATTRIBUTES psaThread, 
+  BOOL fInheritHandles, 
+  DWORD fdwCreate, 
+  LPVOID pvEnvironment, 
+  LPWSTR pszCurDir, 
+  LPSTARTUPINFOW psiStartInfo, 
+  LPPROCESS_INFORMATION pProcInfo
+);*/
+	uint32_t p_imagename;
+	POP_DWORD(c, &p_imagename);
+
+	struct emu_string *imagename = emu_string_new();
+	emu_memory_read_string(m, p_imagename, imagename, 1024);
+
+	uint32_t p_cmdline;
+	POP_DWORD(c, &p_cmdline);
+
+	struct emu_string *command = emu_string_new();
+	emu_memory_read_string(m, p_cmdline, command, 1024);
+
+	uint32_t p_process;
+	POP_DWORD(c, &p_process);
+
+	uint32_t p_thread;
+	POP_DWORD(c, &p_thread);
+
+	uint32_t inherithandles;
+	POP_DWORD(c, &inherithandles);
+
+	uint32_t create;
+	POP_DWORD(c, &create);
+
+	uint32_t environment;
+	POP_DWORD(c, &environment);
+
+	uint32_t cwd;
+	POP_DWORD(c, &cwd);
+
+	uint32_t p_startinfo;
+	POP_DWORD(c, &p_startinfo);
+
+	STARTUPINFO *si = (STARTUPINFO*)malloc(sizeof(STARTUPINFO));
+	memset(si, 0, sizeof(STARTUPINFO));
+
+	emu_memory_read_dword(m, p_startinfo + 14 * 4, (uint32_t *)&si->hStdInput);
+	emu_memory_read_dword(m, p_startinfo + 15 * 4, (uint32_t *)&si->hStdOutput);
+	emu_memory_read_dword(m, p_startinfo + 16 * 4, (uint32_t *)&si->hStdError);
+
+	uint32_t p_procinfo;
+	POP_DWORD(c, &p_procinfo);
+
+	PROCESS_INFORMATION *pi = (PROCESS_INFORMATION*)malloc(sizeof(PROCESS_INFORMATION));
+	memset(pi, 0, sizeof(PROCESS_INFORMATION));
+
+	pi->hProcess = (HANDLE)4713;
+	pi->hThread = (HANDLE)4714;
+	pi->dwProcessId = 4711;
+	pi->dwThreadId = 4712;
+
+	emu_memory_write_dword(m, p_procinfo+0*4, (uint32_t)pi->hProcess);
+	emu_memory_write_dword(m, p_procinfo+1*4, (uint32_t)pi->hThread);
+	emu_memory_write_dword(m, p_procinfo+2*4, pi->dwProcessId);
+	emu_memory_write_dword(m, p_procinfo+3*4, pi->dwThreadId);
+	emu_memory_write_dword(m, p_procinfo+0*4, (uint32_t)pi->hProcess);
+	emu_memory_write_dword(m, p_procinfo+1*4, (uint32_t)pi->hThread);
+	emu_memory_write_dword(m, p_procinfo+2*4, pi->dwProcessId);
+	emu_memory_write_dword(m, p_procinfo+3*4, pi->dwThreadId);
+
+	char* pszCmdLine = emu_string_char(command);
+	char* pszImageName = emu_string_char(imagename);
+
+	if(p_imagename == 0 && pszCmdLine[0] == 0){
+		//some shellcode uses the function prolog of CreateProcess to put stack inline..
+		struct emu_string *cmd = emu_string_new();
+		emu_memory_read_string(mem, cpu->reg[ebp] , cmd, 255);
+		printf("%x\tCreateProcessA( %s ) = 0x1269 (ebp)\n",eip_save, (char*)cmd->data);
+		emu_string_free(cmd);
+	}else{
+		printf("%x\tCreateProcessA( %s, %s ) = 0x1269\n",eip_save, pszCmdLine, pszImageName );
+	}
+
+	set_ret(0x1269);
+	emu_string_free(imagename);
+	emu_string_free(command);
+	free(pi);
+	free(si);
+
+	emu_cpu_eip_set(c, eip_save);
+	return 0;
+}
+
+
+int32_t	__stdcall new_user_hook_GetVersion(struct emu_env *env, struct emu_env_hook *hook)
+{
+	struct emu_cpu *c = emu_cpu_get(env->emu);
+	uint32_t eip_save;
+	POP_DWORD(c, &eip_save);
+	/* DWORD WINAPI GetVersion(void); */
+	uint32_t version = 0xa280105;
+	set_ret(version);
+	printf("%x\tGetVersion()\n", eip_save);
+	emu_cpu_eip_set(c, eip_save);
+	return 0;
+}
+
+int32_t	__stdcall new_user_hook_GetProcAddress(struct emu_env *env, struct emu_env_hook *hook)
+{
+	struct emu_cpu *c = emu_cpu_get(env->emu);
+	struct emu_memory *mem = emu_memory_get(env->emu);
+	uint32_t eip_save;
+	POP_DWORD(c, &eip_save);
+	/* FFARPROC WINAPI GetProcAddress(  HMODULE hModule,  LPCSTR lpProcName);*/
+	uint32_t module;
+	POP_DWORD(c, &module);
+	uint32_t p_procname;
+	POP_DWORD(c, &p_procname);
+
+	struct emu_string *procname = emu_string_new();
+	emu_memory_read_string(mem, p_procname, procname, 256);
+
+	int i;
+	set_ret(0); //set default value of 0 (not found) //dzzie
+
+	for ( i=0; env->env.win->loaded_dlls[i] != NULL; i++ )
+	{
+		if ( env->env.win->loaded_dlls[i]->baseaddr == module )
+		{
+			/*logDebug(env->emu, "dll is %s %08x %08x \n", 
+				   env->env.win->loaded_dlls[i]->dllname, 
+				   module, 
+				   env->env.win->loaded_dlls[i]->baseaddr);*/
+
+			struct emu_env_w32_dll *dll = env->env.win->loaded_dlls[i];
+			struct emu_hashtable_item *ehi = emu_hashtable_search(dll->exports_by_fnname, (void *)emu_string_char(procname));
+			if ( ehi == NULL )
+			{
+				break;
+			}
+			else
+			{
+				struct emu_env_hook *hook = (struct emu_env_hook *)ehi->value;
+				//logDebug(env->emu, "found %s at addr %08x\n",emu_string_char(procname), dll->baseaddr + hook->hook.win->virtualaddr );
+				set_ret(dll->baseaddr + hook->hook.win->virtualaddr);
+				break;
+			}
+		}	
+	}
+
+	printf("%x\tGetProcAddress(%s)\n",eip_save, emu_string_char(procname));
+	if(module == 0 || cpu->reg[eax] == 0 ) printf("\tLookup not found: module base = %x\n", module);  
+
+	emu_string_free(procname);
+	emu_cpu_eip_set(c, eip_save);
+	return 0;
+}
+
+int32_t	__stdcall new_user_hook_GetSystemDirectoryA(struct emu_env *env, struct emu_env_hook *hook)
+{
+	struct emu_cpu *c = emu_cpu_get(env->emu);
+	uint32_t eip_save;
+	POP_DWORD(c, &eip_save);
+	/* UINT GetSystemDirectory(   LPTSTR lpBuffer,   UINT uSize ); */
+	uint32_t p_buffer;
+	POP_DWORD(c, &p_buffer);
+	uint32_t size;
+	POP_DWORD(c, &size);
+	static char *sysdir = "c:\\WINDOWS\\system32";
+	emu_memory_write_block(emu_memory_get(env->emu), p_buffer, sysdir, 20);
+	set_ret(19);
+	printf("%x\tGetSystemDirectoryA( c:\\windows\\system32\\ )\n",eip_save);
+	emu_cpu_eip_set(c, eip_save);
+	return 0;
+}
+
+int32_t	__stdcall new_user_hook_malloc(struct emu_env *env, struct emu_env_hook *hook)
+{
+	struct emu_cpu *c = emu_cpu_get(env->emu);
+	uint32_t eip_save;
+	POP_DWORD(c, &eip_save);
+	/*void *malloc( size_t size );*/
+	uint32_t size;
+	POP_DWORD(c, &size);
+	PUSH_DWORD(c, size);
+
+	if(size > MAX_ALLOC){
+		printf("\tAllocation > MAX_ALLOC adjusting...\n");
+		size = MAX_ALLOC; //dzzie
+	}
+
+	uint32_t addr;
+	if (emu_memory_alloc(c->mem, &addr, size) == -1)
+		set_ret(0);
+	else
+		set_ret(addr);
+
+	printf("%x\tmalloc(%x)\n",eip_save,size);	
+    emu_cpu_eip_set(c, eip_save);
+	return 0;
+}
+
+
+
+int32_t	__stdcall new_user_hook_memset(struct emu_env *env, struct emu_env_hook *hook)
+{
+	struct emu_cpu *c = emu_cpu_get(env->emu);
+	uint32_t eip_save;
+	POP_DWORD(c, &eip_save);
+	/*	void *memset(   void* dest,    int c,    size_t count );*/
+	uint32_t dest;
+	POP_DWORD(c, &dest);
+	uint32_t writeme;
+	POP_DWORD(c, &writeme);
+	uint32_t size;
+	POP_DWORD(c, &size);
+	printf("%x\tmemset(buf=%x, c=%x, sz=%x)\n",eip_save,dest,writeme,size);
+	set_ret(dest);
+    emu_cpu_eip_set(c, eip_save);
+	return 0;
+
+}
+
+int32_t	__stdcall new_user_hook_SetUnhandledExceptionFilter(struct emu_env *env, struct emu_env_hook *hook)
+{
+	uint32_t eip_save;
+	POP_DWORD(cpu, &eip_save);
+
+	/*LPTOP_LEVEL_EXCEPTION_FILTER WINAPI SetUnhandledExceptionFilter(LPTOP_LEVEL_EXCEPTION_FILTER lpTopLevelExceptionFilter);*/
+
+	uint32_t lpfilter;
+	POP_DWORD(cpu, &lpfilter);
+
+	set_ret(0x7C81CDDA);
+	printf("%x\tSetUnhandledExceptionFilter(%x)\n",eip_save,lpfilter);
+
+	uint32_t seh = 0;
+	disable_mm_logging = true;
+	if(emu_memory_read_dword( mem, FS_SEGMENT_DEFAULT_OFFSET, &seh) != -1){
+		emu_memory_write_dword( mem, seh+4, lpfilter);
+	}
+	disable_mm_logging = false;
+	emu_cpu_eip_set(cpu, eip_save);
+	return 0;
+}
+
+int32_t	__stdcall new_user_hook_WaitForSingleObject(struct emu_env *env, struct emu_env_hook *hook)
+{
+	struct emu_cpu *c = emu_cpu_get(env->emu);
+	uint32_t eip_save;
+	POP_DWORD(c, &eip_save);
+	/*DWORD WINAPI WaitForSingleObject(  HANDLE hHandle,  DWORD dwMilliseconds);*/
+	uint32_t handle;
+	POP_DWORD(c, &handle);
+	uint32_t msecs;
+	POP_DWORD(c, &msecs);
+	uint32_t returnvalue = 0;
+	printf("%x\tWaitForSingleObject(h=%x, ms=%x)\n",eip_save, (int)handle, msecs);
+	if(opts.interactive_hooks){
+		returnvalue = WaitForSingleObject((HANDLE)handle, msecs);	
+	}
+	set_ret(returnvalue);
+	emu_cpu_eip_set(c, eip_save);
+	return 0;
+}
+
+int32_t	__stdcall new_user_hook_WriteFile(struct emu_env *env, struct emu_env_hook *hook)
+{
+	struct emu_cpu *c = emu_cpu_get(env->emu);
+	uint32_t eip_save;
+	POP_DWORD(c, &eip_save);
+
+/*
+BOOL WriteFile(
+  HANDLE hFile,
+  LPCVOID lpBuffer,
+  DWORD nNumberOfBytesToWrite,
+  LPDWORD lpNumberOfBytesWritten,
+  LPOVERLAPPED lpOverlapped
+);
+*/
+	uint32_t file;
+	POP_DWORD(c, &file);
+
+	uint32_t p_buffer;
+	POP_DWORD(c,  &p_buffer);
+
+	uint32_t bytestowrite;
+	POP_DWORD(c,  &bytestowrite);
+
+	uint32_t max_size = 0x900000;
+	if( bytestowrite > max_size ){  //sample 2c2167d371c6e0ccbcee778a4d10b3bd - dzzie 
+		printf("\tWriteFile modifying BytesToWrite from %x to %x\n", bytestowrite , max_size);
+		bytestowrite = max_size;
+	}
+
+	unsigned char *buffer = (unsigned char*)malloc(bytestowrite);
+	emu_memory_read_block(mem, p_buffer,(void*) buffer, bytestowrite);
+
+	uint32_t p_byteswritten;
+	POP_DWORD(c,  &p_byteswritten);
+	
+	uint32_t p_overlapped;
+	POP_DWORD(c,  &p_overlapped);
+
+	emu_memory_write_dword(emu_memory_get(env->emu), p_byteswritten, bytestowrite);
+
+	printf("%x\tWriteFile(h=%x, buf=%x, len=%x)\n",eip_save, (int)file, p_buffer, bytestowrite);
+
+	if(opts.show_hexdumps && bytestowrite > 0){
+		int display_size = bytestowrite;
+		if(display_size > 300){
+			printf("Showing first 300 bytes...\n");
+			display_size = 300;
+		}
+		hexdump(buffer, display_size);
+	}
+
+	uint32_t returnvalue = bytestowrite;
+	if(opts.interactive_hooks == 1 ){
+		returnvalue = fwrite(buffer, bytestowrite, 1, (FILE*)file);
+	}
+
+	set_ret(returnvalue);
+	free(buffer);
+	emu_cpu_eip_set(c, eip_save);
+	return 0;
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+int32_t	__stdcall new_user_hook_VirtualProtect(struct emu_env *env, struct emu_env_hook *hook)
+{
+	struct emu_cpu *c = emu_cpu_get(env->emu);
+	uint32_t eip_save;
+	POP_DWORD(c, &eip_save);
+/*
+ * BOOL VirtualProtect( 
+ *	LPVOID lpAddress, 
+ *	DWORD  dwSize, 
+ *      DWORD  flNewProtect, 
+ *      PDWORD lpflOldProtect 
+ *); 
+ */
+	uint32_t p_address;
+	POP_DWORD(c, &p_address);
+
+	uint32_t size;
+	POP_DWORD(c, &size);
+
+	uint32_t newprotect;
+	POP_DWORD(c, &newprotect);
+
+	uint32_t oldprotect;
+	POP_DWORD(c, &oldprotect);
+
+	printf("%x\tVirtualProtect(adr=%x, sz=%x, flags=%x)\n",eip_save, p_address, size ,newprotect);
+
+	set_ret(1);
+	emu_cpu_eip_set(c, eip_save);
+	return 0;
+}
+
+//*************************************************************************************
+//winsock hooks
+
+int32_t	__stdcall new_user_hook_accept(struct emu_env *env, struct emu_env_hook *hook)
+{
+	struct emu_cpu *c = emu_cpu_get(env->emu);
+
+	uint32_t eip_save;
+
+	POP_DWORD(c, &eip_save);
+
+/*SOCKET accept(
+  SOCKET s,
+  struct sockaddr* addr,
+  int* addrlen
+);*/
+	uint32_t s;
+	POP_DWORD(c, &s);
+
+	uint32_t addr;
+	POP_DWORD(c, &addr);
+	struct sockaddr sa;
+	emu_memory_read_block(mem, addr, &sa, sizeof(struct sockaddr));
+
+	uint32_t addrlen;
+	POP_DWORD(c, &addrlen);
+
+	uint32_t returnvalue = 0x68;
+	printf("%x\taccept(h=%x)\n",eip_save, (int)s);
+
+    if(opts.interactive_hooks == 1) returnvalue = accept((SOCKET)s, &sa, (int*)&addrlen);
+
+	set_ret(returnvalue);
+	emu_cpu_eip_set(c, eip_save);
+	return 0;
+}
+
+int32_t	__stdcall new_user_hook_bind(struct emu_env *env, struct emu_env_hook *hook)
+{
+	struct emu_cpu *c = emu_cpu_get(env->emu);
+	uint32_t eip_save;
+	POP_DWORD(c, &eip_save);
+	/*int bind(   SOCKET s,  const struct sockaddr* name,  int namelen); */
+	uint32_t s;
+	POP_DWORD(c, &s);
+
+	uint32_t p_name;
+	POP_DWORD(c, &p_name);
+	
+	struct sockaddr sa;
+	emu_memory_read_block(mem, p_name, &sa, sizeof(struct sockaddr));
+
+	uint32_t namelen;
+	POP_DWORD(c, &namelen);
+
+	uint32_t returnvalue = 0 ;
+	set_ret(returnvalue);
+	
+	printf("%x\tbind(port:%d)\n",eip_save, get_client_port(&sa) );
+
+    //if(opts.interactive_hooks ==1) returnvalue = bind(s, sa, namelen);
+
+	emu_cpu_eip_set(c, eip_save);
+	return 0;
+}
+
+int32_t	__stdcall new_user_hook_closesocket(struct emu_env *env, struct emu_env_hook *hook)
+{   /*int closesocket(SOCKET s);*/
+	uint32_t eip_save;
+	uint32_t s;
+	uint32_t returnvalue = 0;
+	POP_DWORD(cpu, &eip_save);
+	POP_DWORD(cpu, &s);
+	printf("%x\tclosesocket(h=%x)\n",eip_save, s );
+	if(opts.interactive_hooks == 1 ) returnvalue = closesocket((SOCKET)s);
+	set_ret(returnvalue);
+	emu_cpu_eip_set(cpu, eip_save);
+	return 0;
+}
+
+int32_t	__stdcall new_user_hook_connect(struct emu_env *env, struct emu_env_hook *hook)
+{	/* int connect(  SOCKET s,  const struct sockaddr* name,  int namelen)*/
+	struct emu_cpu *c = emu_cpu_get(env->emu);
+	uint32_t eip_save;
+	POP_DWORD(c, &eip_save);
+	uint32_t s;
+	POP_DWORD(c, &s);
+	uint32_t p_name;
+	POP_DWORD(c, &p_name);
+	struct sockaddr sa;
+	emu_memory_read_block(emu_memory_get(env->emu), p_name, &sa, sizeof(struct sockaddr));
+	uint32_t namelen;
+	POP_DWORD(c, &namelen);
+	
+	if (opts.override.connect.host != NULL ){
+		struct sockaddr_in *si = (struct sockaddr_in *)&sa;
+		si->sin_addr.s_addr = inet_addr(opts.override.connect.host);
+	}
+
+	if (opts.override.connect.port > 0){
+		struct sockaddr_in *si = (struct sockaddr_in *)&sa;;
+		si->sin_port = htons(opts.override.connect.port);
+	}
+
+	if (namelen != sizeof(struct sockaddr)) namelen = sizeof(struct sockaddr);
+
+	if( opts.interactive_hooks == 0 ){
+		set_ret(0x4711);
+	}else{
+		set_ret( connect((SOCKET)s, &sa, namelen) );
+	}
+
+	printf("%x\tconnect(h=%x, host: %s , port: %d ) = %x\n",eip_save, s, get_client_ip(&sa), get_client_port(&sa), cpu->reg[eax]  );
+
+	emu_cpu_eip_set(c, eip_save);
+	return 0;
+}
+
+int32_t	__stdcall new_user_hook_listen(struct emu_env *env, struct emu_env_hook *hook)
+{
+	struct emu_cpu *c = emu_cpu_get(env->emu);
+	uint32_t eip_save;
+	POP_DWORD(c, &eip_save);
+	/*int listen(   SOCKET s,  int backlog);*/
+	uint32_t s;
+	POP_DWORD(c, &s);
+
+	uint32_t backlog;
+	POP_DWORD(c, &backlog);
+
+	uint32_t returnvalue = 0;	
+	printf("%x\tlisten(h=%x)\n",eip_save,s);
+
+	if(opts.interactive_hooks == 1 ) returnvalue = listen((SOCKET)s, backlog);
+
+	set_ret(returnvalue);
+	emu_cpu_eip_set(c, eip_save);
+	return 0;
+}
+
+int32_t	__stdcall new_user_hook_recv(struct emu_env *env, struct emu_env_hook *hook)
+{
+	struct emu_cpu *c = emu_cpu_get(env->emu);
+	uint32_t eip_save;
+	POP_DWORD(c, &eip_save);
+	/*int recv(  SOCKET s,  char* buf,  int len,  int flags);*/
+
+	uint32_t s;
+	POP_DWORD(c, &s);
+
+	uint32_t buf;
+	POP_DWORD(c, &buf);
+
+	uint32_t len;
+	POP_DWORD(c, &len);
+
+	uint32_t flags;
+	POP_DWORD(c, &flags);
+
+	if (len > 4096){
+		printf("\tlen being reset to 4096 from %x\n", len);
+		len = 4096;
+	}
+
+	char *buffer = (char *)malloc(len);
+	memset(buffer, 0, len);
+
+	uint32_t returnvalue = 0;
+	printf("%x\trecv(h=%x, buf=%x, len=%x, fl=%x)\n", eip_save, s, buf, len, flags);
+	
+	if(opts.interactive_hooks == 1 ){
+		
+		returnvalue = recv((SOCKET)s, buffer, len,  flags); //libemu malloced buf
+
+		if(opts.show_hexdumps && returnvalue > 0){
+			printf("%d bytes received:\n", returnvalue);
+			hexdump((unsigned char*)buf, returnvalue);
+		}
+
+		if (returnvalue > 0) emu_memory_write_block(mem, buf, buffer, len);
+	}
+	
+	set_ret(returnvalue);
+	free(buffer);
+	emu_cpu_eip_set(c, eip_save);
+	return 0;
+}
+
+int32_t	__stdcall new_user_hook_send(struct emu_env *env, struct emu_env_hook *hook)
+{
+	struct emu_cpu *c = emu_cpu_get(env->emu);
+	uint32_t eip_save;
+	POP_DWORD(c, &eip_save);
+	/*int send(  SOCKET s,  const char* buf,  int len,  int flags);*/
+	uint32_t s;
+	POP_DWORD(c, &s);
+
+	uint32_t p_buf;
+	POP_DWORD(c, &p_buf);
+
+	uint32_t len;
+	POP_DWORD(c, &len);
+
+	uint32_t flags;
+	POP_DWORD(c, &flags);
+
+	if(len > MAX_ALLOC){
+		printf("\tAllocation > MAX_ALLOC adjusting...\n");
+		len = MAX_ALLOC; //dzzie
+	}
+
+	char *buffer = (char *)malloc(len);
+	emu_memory_read_block(mem, p_buf, buffer, len);
+
+	uint32_t returnvalue = len;
+	printf("%x\tsend(h=%x, buf=%x, len=%x)\n",eip_save, s, p_buf, len);
+
+	if(opts.show_hexdumps && len > 0 && p_buf > 0)
+		hexdump((unsigned char*)buffer,len);
+	
+	if(opts.interactive_hooks == 1 )
+		returnvalue = send((SOCKET)s, buffer, len,  flags);
+
+	set_ret(returnvalue);
+	free(buffer);
+	emu_cpu_eip_set(c, eip_save);
+	return 0;
+}
+
+
+
+int32_t	__stdcall new_user_hook_sendto(struct emu_env *env, struct emu_env_hook *hook)
+{
+	struct emu_cpu *c = emu_cpu_get(env->emu);
+	uint32_t eip_save;
+	POP_DWORD(c, &eip_save);
+	/*int sendto(  SOCKET s,  const char* buf,  int len,  int flags,  const struct sockaddr* to,  int tolen);*/
+	uint32_t s;
+	POP_DWORD(c, &s);
+
+	uint32_t p_buf;
+	POP_DWORD(c, &p_buf);
+
+	uint32_t len;
+	POP_DWORD(c, &len);
+
+	if(len > MAX_ALLOC){
+		printf("\tAllocation > MAX_ALLOC adjusting...\n");
+		len = MAX_ALLOC; //dzzie
+	}
+	
+	char *buffer = (char *)malloc(len);
+	emu_memory_read_block(emu_memory_get(env->emu), p_buf, buffer, len);
+
+	uint32_t flags;
+	POP_DWORD(c, &flags);
+
+	uint32_t p_to;
+	POP_DWORD(c, &p_to);
+
+	struct sockaddr sa;
+	emu_memory_read_block(emu_memory_get(env->emu), p_to, &sa, sizeof(struct sockaddr));
+
+	uint32_t tolen;
+	POP_DWORD(c, &tolen);
+
+	uint32_t returnvalue = len;	
+	printf("%x\tsendto(h=%x, buf=%x, host: %s, port: %x)\n",eip_save, s, p_buf, get_client_ip(&sa), get_client_port(&sa) );
+
+	if(opts.interactive_hooks ==1) returnvalue = sendto((SOCKET)s,buffer,len,flags,&sa,tolen);
+
+	set_ret(returnvalue);
+	free(buffer);
+	emu_cpu_eip_set(c, eip_save);
+	return 0;
+}
+
+
+int32_t	__stdcall new_user_hook_socket(struct emu_env *env, struct emu_env_hook *hook)
+{
+	struct emu_cpu *c = emu_cpu_get(env->emu);
+	uint32_t eip_save;
+	POP_DWORD(c, &eip_save);
+	/*SOCKET WSAAPI socket(  int af,  int type,  int protocol);*/
+	uint32_t af;
+	POP_DWORD(c, &af);
+
+	uint32_t type;
+	POP_DWORD(c, &type);
+
+	uint32_t protocol;
+	POP_DWORD(c, &protocol);
+
+	uint32_t returnvalue = 65;
+	printf("%x\tsocket(%i, %i, %i)\n",eip_save, af, type, protocol);
+
+	if(opts.interactive_hooks == 1 ) returnvalue = socket(af, type, protocol);
+
+	set_ret(returnvalue);
+	emu_cpu_eip_set(c, eip_save);
+	return 0;
+}
+
+
+
+int32_t	__stdcall new_user_hook_WSASocketA(struct emu_env *env, struct emu_env_hook *hook)
+{
+	struct emu_cpu *c = emu_cpu_get(env->emu);
+	uint32_t eip_save;
+	POP_DWORD(c, &eip_save);
+/* SOCKET WSASocket(
+  int af,
+  int type,
+  int protocol,
+  LPWSAPROTOCOL_INFO lpProtocolInfo,
+  GROUP g,
+  DWORD dwFlags
+); */
+	uint32_t af;
+	POP_DWORD(c, &af);
+
+	uint32_t type;
+	POP_DWORD(c, &type);
+
+	uint32_t protocol;
+	POP_DWORD(c, &protocol);
+
+	uint32_t protocolinfo;
+	POP_DWORD(c, &protocolinfo);
+
+	uint32_t group;
+	POP_DWORD(c, &group);
+
+	uint32_t flags;
+	POP_DWORD(c, &flags);
+
+	uint32_t returnvalue = 66;
+	printf("%x\tWSASocket(af=%i, tp=%i, proto=%i, group=%i, flags=%i)\n", eip_save, af, type, protocol,group,flags);
+
+	if(opts.interactive_hooks == 1 ) returnvalue = socket(af, type, protocol);
+
+	set_ret(returnvalue);
+	emu_cpu_eip_set(c, eip_save);
+	return 0;
+}
+
+
+
+int32_t	__stdcall new_user_hook_WSAStartup(struct emu_env *env, struct emu_env_hook *hook)
+{
+	struct emu_cpu *c = emu_cpu_get(env->emu);
+	uint32_t eip_save;
+	POP_DWORD(c, &eip_save);
+	/*int WSAStartup(  WORD wVersionRequested,  LPWSADATA lpWSAData);*/
+	uint32_t wsaversionreq;
+	POP_DWORD(c, &wsaversionreq);
+	uint32_t wsadata;
+	POP_DWORD(c, &wsadata);
+
+	printf("%x\tWSAStartup(%x)\n", eip_save, wsaversionreq);
+
+	set_ret(0);
+	emu_cpu_eip_set(c, eip_save);
+	return 0;
+}
+
+int32_t	__stdcall new_user_hook_CreateFileMappingA(struct emu_env *env, struct emu_env_hook *hook)
+{
+	uint32_t a[10] = {0,0,0,0,0,0,0,0,0,0};
+	loadargs(6, a);
+	/*
+	HANDLE WINAPI CreateFileMapping(
+		  __in      HANDLE hFile,
+		  __in_opt  LPSECURITY_ATTRIBUTES lpAttributes,
+		  __in      DWORD flProtect,
+		  __in      DWORD dwMaximumSizeHigh,
+		  __in      DWORD dwMaximumSizeLow,
+		  __in_opt  LPCTSTR lpName
+		);
+	*/
+
+	uint32_t rv = 0;
+	uint32_t h = a[1];
+
+	/*if(opts.interactive_hooks == 1){
+		if(h == 1 || h == 4){
+			h = (uint32_t)opts.fopen; 
+			//printf("\tAdjusting handle to /fopen handle %x\n",h);
+		}
+		rv = (uint32_t)CreateFileMapping( (HANDLE)h, (LPSECURITY_ATTRIBUTES)a[2],a[3],a[4],a[5],0);
+	}*/
+	
+	printf("%x\tCreateFileMappingA(h=%x,%x,p=%x,%x,%x,lpName=%x) = %x\n", a[0], h ,a[2],a[3],a[4],a[5],a[6],rv);
+
+	set_ret(rv);
+	emu_cpu_eip_set(cpu, a[0]);
 	return 0;
 }
 

@@ -28,14 +28,18 @@
 
 #include <string.h>
 
-#include "emu/emu.h"
-#include "emu/emu_cpu.h"
-#include "emu/emu_cpu_data.h"
-#include "emu/emu_instruction.h"
-#include "emu/emu_track.h"
-#include "emu/emu_source.h"
-#include "emu/emu_hashtable.h"
-#include "emu/emu_graph.h"
+#include "emu.h"
+#include "emu_cpu.h"
+#include "emu_cpu_data.h"
+#include "emu_instruction.h"
+#include "emu_track.h"
+//#include "emu_source.h"
+
+extern "C"{
+	#include "emu_hashtable.h"
+}
+
+//#include "emu_graph.h"
 
 struct emu_track_and_source *emu_track_and_source_new(void)
 {
@@ -43,31 +47,34 @@ struct emu_track_and_source *emu_track_and_source_new(void)
 	memset(et, 0, sizeof(struct emu_track_and_source));
 	et->track.reg[esp] = 0xffffffff;
 	return et;
+	//struct emu_track_and_source *et = 0;
+	//return et;
 }
 
 void emu_track_and_source_free(struct emu_track_and_source *et)
 {
 	if (et->static_instr_table != NULL)
 		emu_hashtable_free(et->static_instr_table);
-
+/*
 	if (et->static_instr_graph != NULL)
 		emu_graph_free(et->static_instr_graph);
+*/
 
 	if (et->run_instr_table != NULL)
 		emu_hashtable_free(et->run_instr_table);
 
-	if (et->run_instr_graph != NULL)
-		emu_graph_free(et->run_instr_graph);
+	//if (et->run_instr_graph != NULL)
+	//	emu_graph_free(et->run_instr_graph);
 
 	free(et);
-
+	 
 }
 
 
 void debug_instruction(struct emu_instruction *i);
 
 
-#include "emu/emu_cpu_functions.h"
+#include "emu_cpu_functions.h"
 
 int32_t emu_track_instruction_check(struct emu *e, struct emu_track_and_source *et)
 {
@@ -91,7 +98,7 @@ int32_t emu_track_instruction_check(struct emu *e, struct emu_track_and_source *
 			et->reg[eax] = et->reg[c->instr.cpu.opc & 7];
 			et->reg[c->instr.cpu.opc & 7] = reg1;
 		}
-*/
+*/  
 		for (i=0;i<8;i++)
 		{
 			if (i == esp)
@@ -126,6 +133,9 @@ int32_t emu_track_instruction_check(struct emu *e, struct emu_track_and_source *
 
 struct emu_source_and_track_instr_info *emu_source_and_track_instr_info_new(struct emu_cpu *cpu, uint32_t eip_before_instruction)
 {
+	//struct emu_source_and_track_instr_info *etii = 0;
+	//return etii;
+
 	struct emu_source_and_track_instr_info *etii = (struct emu_source_and_track_instr_info *)malloc(sizeof(struct emu_source_and_track_instr_info));
 	if( etii == NULL )
 	{
@@ -156,6 +166,7 @@ struct emu_source_and_track_instr_info *emu_source_and_track_instr_info_new(stru
 		memcpy(etii->track.need.reg, cpu->instr.track.need.reg, sizeof(uint32_t)*8);
 	}
 	return etii;
+	 
 }
 
 void emu_source_and_track_instr_info_free(struct emu_source_and_track_instr_info *etii)
@@ -184,7 +195,7 @@ void emu_tracking_info_diff(struct emu_tracking_info *a, struct emu_tracking_inf
 
 struct emu_tracking_info *emu_tracking_info_new(void)
 {
-	struct emu_tracking_info *eti = malloc(sizeof(struct emu_tracking_info));
+	struct emu_tracking_info *eti = (emu_tracking_info *)malloc(sizeof(struct emu_tracking_info));
 	memset(eti, 0, sizeof(struct emu_tracking_info));
 	eti->reg[esp] = 0xffffffff;
 	return eti;
@@ -237,10 +248,10 @@ void emu_tracking_info_debug_print(struct emu_tracking_info *a)
 {
 	return;
 
-	static const char *regm32[] = {
+/*	static const char *regm32[] = {
 		"eax", "ecx", "edx", "ebx", "esp", "ebp", "esi", "edi"
 	};
-
+*/
 /*	static const char *regm16[] = {
 		"ax", "cx", "dx", "bx", "sp", "bp", "si", "di"
 	};
@@ -250,7 +261,7 @@ void emu_tracking_info_debug_print(struct emu_tracking_info *a)
 	};
 */
 	/* 0     1     2     3      4       5       6     7 */
-	const char *eflagm[] = 
+/*	const char *eflagm[] = 
 	{ 
 		"CF", "  ", "PF", "  " , "AF"  , "    ", "ZF", "SF", 
 		"TF", "IF", "DF", "OF" , "IOPL", "IOPL", "NT", "  ",
@@ -296,5 +307,5 @@ void emu_tracking_info_debug_print(struct emu_tracking_info *a)
 	}
 
 	
-
+*/
 }

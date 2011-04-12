@@ -29,8 +29,8 @@
 #define EMU_HASHTABLE_H
 
 
-#include <stdint.h>
-#include <emu/emu_list.h>
+#include "stdint.h"
+#include "emu_list.h"
 
 /**
  * The emu_hashtable_item stores the key/value pair.

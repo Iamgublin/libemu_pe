@@ -27,14 +27,15 @@
 
 #include <string.h>
 #include <stdlib.h>
+#include <stdint.h>
 #include <errno.h>
-#include <stdbool.h>
+//#include <stdbool.h>
 
-#include "emu/emu.h"
-#include "emu/emu_log.h"
-#include "emu/emu_memory.h"
-#include "emu/emu_string.h"
-#include "emu/emu_hashtable.h"
+#include "emu.h"
+#include "emu_log.h"
+#include "emu_memory.h"
+#include "emu_string.h"
+//#include "emu_hashtable.h"
 
 #define PAGE_BITS 12 /* size of one page, 2^12 = 4096 */
 #define PAGESET_BITS 10 /* number of pages in one pageset, 2^10 = 1024 */
@@ -56,9 +57,9 @@ mm_callback mem_monitor_callback=0;
 typedef void (*mm_range_callback)(char, char, uint32_t);
 mm_range_callback mem_monitor_range_callback=0;
 
-int mm_points[256];
-int mm_point_cnt=0;
-int mm_range_cnt=0;
+uint32_t mm_points[256];
+uint32_t mm_point_cnt=0;
+uint32_t mm_range_cnt=0;
 
 struct mm_range{
 	char id;
@@ -67,6 +68,10 @@ struct mm_range{
 };
 
 struct mm_range mm_ranges[256];
+
+void* bcopy (void* src, void* dest, unsigned int len){
+	return memcpy(dest, src, len);
+}
 
 //----------------------------------
 
@@ -82,6 +87,7 @@ struct emu_memory
 
 	bool read_only_access;
 };
+
 
 #if 1
 /*static void emu_memory_debug_pagetable(struct emu_memory *m)
@@ -161,7 +167,7 @@ struct emu_memory *emu_memory_new(struct emu *e)
 	
 	em->emu = e;
 	
-	em->pagetable = malloc((1 << (32 - PAGE_BITS - PAGESET_BITS)) * sizeof(void *));
+	em->pagetable = (void ***)malloc((1 << (32 - PAGE_BITS - PAGESET_BITS)) * sizeof(void *));
 	if( em->pagetable == NULL )
 	{
 		return NULL;
@@ -235,7 +241,7 @@ static inline int page_alloc(struct emu_memory *em, uint32_t addr)
 {
 	if( em->pagetable[PAGESET(addr)] == NULL )
 	{
-		em->pagetable[PAGESET(addr)] = malloc(PAGESET_SIZE * sizeof(void *));
+		em->pagetable[PAGESET(addr)] = (void **)malloc(PAGESET_SIZE * sizeof(void *));
 		
 		if( em->pagetable[PAGESET(addr)] == NULL )
 		{
@@ -269,7 +275,8 @@ static inline void *translate_addr(struct emu_memory *em, uint32_t addr)
 	{
 		if( em->pagetable[PAGESET(addr)][PAGE(addr)] != NULL )
 		{
-			return em->pagetable[PAGESET(addr)][PAGE(addr)] + OFFSET(addr);
+			unsigned char* base = (unsigned char*)em->pagetable[PAGESET(addr)][PAGE(addr)];
+			return  (void*)(base + OFFSET(addr));
 		}
 	}
 	
@@ -278,7 +285,7 @@ static inline void *translate_addr(struct emu_memory *em, uint32_t addr)
 
 void mm_check(uint32_t addr, uint32_t len, char mode){
 	
-	int i=0;
+	uint32_t i=0;
 
 	//if(mode=='w') printf("Write: %x %x\n",addr,len);
 
@@ -335,7 +342,7 @@ int32_t emu_memory_read_word(struct emu_memory *m, uint32_t addr, uint16_t *word
 {
 #if BYTE_ORDER == BIG_ENDIAN
 	uint16_t val;
-	int32_t retval = emu_memory_read_block(m, addr, &val, 2);
+	int32_t retval = emu_memory_read_block(m, addr, &val, (unsigned long)2);
 	val =  ((val & 0xff00) >> 8) | 
 		   ((val & 0x00ff) << 8);
 	bcopy(&val,word,2);
@@ -386,7 +393,7 @@ int32_t emu_memory_read_block(struct emu_memory *m, uint32_t addr, void *dest, s
 	{
 		uint32_t cb = PAGE_SIZE - OFFSET(addr);
 		bcopy(address, dest, cb);
-		return emu_memory_read_block(m, oaddr + cb, dest + cb, len - cb);
+		return emu_memory_read_block(m, oaddr + cb, (unsigned char*)dest + cb, len - cb);
 	}
 }
 /* original
@@ -437,7 +444,7 @@ int32_t emu_memory_read_string(struct emu_memory *m, uint32_t addr, struct emu_s
 
 	if(address == NULL){
 		s->data = malloc(4);
-		strcpy(s->data, "");
+		strcpy((char*)s->data, "");
 		s->size = 0;
 		return 0;
 	}else{
@@ -563,7 +570,7 @@ int32_t emu_memory_write_block(struct emu_memory *m, uint32_t addr, void *src, s
 	{
 		uint32_t cb = PAGE_SIZE - OFFSET(addr);
 		bcopy(src, address, cb);
-		return emu_memory_write_block(m, oaddr + cb, src + cb, len - cb);
+		return emu_memory_write_block(m, oaddr + cb, (unsigned char*)src + cb, len - cb);
 	}
 
 	return 0;
@@ -616,7 +623,7 @@ int32_t emu_memory_alloc(struct emu_memory *m, uint32_t *addr, size_t len)
 		pages++;
 	}
 
-	int i;
+	uint32_t i;
 	
 	/* TODO: ensure termination */
 	for( ; ; )

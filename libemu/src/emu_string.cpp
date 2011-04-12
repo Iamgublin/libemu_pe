@@ -31,7 +31,7 @@
 #include <stdarg.h>
 
 
-#include "emu/emu_string.h"
+#include "emu_string.h"
 
 
 struct emu_string *emu_string_new(void)
@@ -63,7 +63,8 @@ void emu_string_append_char(struct emu_string *s, const char *data)
 //	printf("before %i %i|%s|\n", s->size, strlen(data), (char *)s->data);
 	s->data = realloc(s->data, s->size + strlen(data) + 1);
 	memcpy((unsigned char *)s->data + s->size, data, strlen(data));
-	*(unsigned char *)(s->data + s->size + strlen(data)) = 0;
+	char* uc = ((char*)s->data + s->size + strlen(data));
+	*uc = 0;
 	s->size += strlen(data);
 //	printf("after %i |%s|\n", s->size, (char *)s->data);
 }
@@ -71,10 +72,10 @@ void emu_string_append_char(struct emu_string *s, const char *data)
 void emu_string_append_format(struct emu_string *s, const char *format, ...)
 {
 	va_list         ap;
-	char            *message;
+	char *message = (char*)malloc(0x800);
 
 	va_start(ap, format);
-	int va = vasprintf(&message, format, ap);
+	int va = vsnprintf(message, 0x800, format, ap);
 	va_end(ap);
 
 	if (va == -1)

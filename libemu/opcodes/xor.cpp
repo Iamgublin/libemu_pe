@@ -29,10 +29,10 @@
 
 
 
-#include "emu/emu_cpu.h"
-#include "emu/emu_cpu_data.h"
+#include "emu_cpu.h"
+#include "emu_cpu_data.h"
 
-#include "emu/emu_memory.h"
+#include "emu_memory.h"
 
 
 #ifdef INSTR_CALC_AND_SET_FLAGS

@@ -28,7 +28,11 @@
 #ifndef HAVE_EMU_LOG_H
 #define HAVE_EMU_LOG_H
 
-struct emu;
+#include "emu.h"
+
+extern struct emu_logging *emu_logging_get(struct emu *e);
+
+//struct emu;
 
 enum emu_log_level
 {
@@ -50,14 +54,12 @@ void emu_log_set_logcb(struct emu_logging *el, emu_log_logcb logcb);
 
 void emu_log_default_logcb(struct emu *e, enum emu_log_level level, const char *msg);
 
-#define logInfo(e, format...) emu_log(e, EMU_LOG_INFO, format)
+#define logInfo(e, format, ...) emu_log(e, EMU_LOG_INFO, format)
 
-#ifdef DEBUG
-#define logDebug(e, format...) emu_log(e, EMU_LOG_DEBUG, format)
-#else
-#define logDebug(e, format...)
-#endif // DEBUG
+void logDebug(struct emu* e, const char* format, ...);
 
-#define logPF(e) logDebug(e, "in <%s> %s:%i>\n", __PRETTY_FUNCTION__, __FILE__,  __LINE__)
+
+
+#define logPF(e) logDebug(e, "in <%s> %s:%i>\n", __FUNCTION__, __FILE__,  __LINE__)
 
 #endif // HAVE_EMU_LOG_H

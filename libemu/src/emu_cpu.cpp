@@ -29,15 +29,17 @@
 #include <stdlib.h>
 #include <errno.h>
 #include <stdint.h>
-#include <stdbool.h>
+//#include <stdbool.h>
 
-#include "../config.h"
+//#include "config.h"
 
-#include "emu/emu_cpu.h"
-#include "emu/emu_cpu_data.h"
-#include "emu/emu_memory.h"
-#include "emu/emu.h"
-#include "emu/emu_log.h"
+#include "emu_cpu.h"
+#include "emu_cpu_data.h"
+#include "emu_memory.h"
+#include "emu.h"
+#include "emu_log.h"
+
+extern void* bcopy (void* src, void* dest, unsigned int len);
 
 static const char *regm[] = {
 	"eax", "ecx", "edx", "ebx", "esp", "ebp", "esi", "edi"
@@ -56,7 +58,7 @@ static uint8_t scalem[] = {
 
 static uint16_t prefix_map[0x100];
 
-#include "emu/emu_cpu_itables.h"
+#include "emu_cpu_itables.h"
 
 static void init_prefix_map(void)
 {
@@ -129,7 +131,7 @@ struct emu_cpu *emu_cpu_new(struct emu *e)
 			}
 		}
 
-		c->instr.cpu.imm16 = (uint16_t *)((void *)&c->instr.cpu.imm + 1);
+		c->instr.cpu.imm16 = (uint16_t *)((unsigned char *)&c->instr.cpu.imm + 1);
 		c->instr.cpu.imm8 = (uint8_t *)&c->instr.cpu.imm + 3;
 
 	}
@@ -337,7 +339,7 @@ void debug_instruction(struct emu_instruction *ei)
 //	printf("%s\n",
 
 	int j;
-
+	
 	bool trace_eflag_need = false;
 	bool trace_eflag_init = false;
 	bool trace_reg_need = false;
@@ -420,7 +422,7 @@ void debug_instruction(struct emu_instruction *ei)
 		}
 		printf("\n");
 	}
-
+	
 	printf("\tsource:\n");
 	printf("\t\tnormal pos 0x%08x\n", ei->source.norm_pos);
 	if (ei->source.has_cond_pos == 1)
@@ -444,7 +446,6 @@ uint32_t dasm_print_instruction(uint32_t eip, uint8_t *data, uint32_t size, char
 		return 0;
 	}
 
-#ifdef DEBUG
 	str[81] = '\0';
 	memset(str, 0x20, 81);
 
@@ -459,7 +460,7 @@ uint32_t dasm_print_instruction(uint32_t eip, uint8_t *data, uint32_t size, char
 
 	// step 3: print it
 	get_instruction_string(&inst, FORMAT_INTEL, 0, str+32, 31);
-#endif // DEBUG
+
 
 	return instrsize;
 }
@@ -798,8 +799,8 @@ int32_t emu_cpu_parse(struct emu_cpu *c)
 			if ( CPU_DEBUG_FLAG_ISSET(c, instruction_size ) && eip_after - eip_before != expected_instr_size)
 			{
 				logDebug(c->emu, "broken instr.cpu size %i %i\n",
-					   eip_after - eip_before,
-					   expected_instr_size);
+				 	   eip_after - eip_before,
+				 	   expected_instr_size);
 				return -1;
 			}
 
@@ -879,7 +880,7 @@ int32_t emu_cpu_step(struct emu_cpu *c)
 			if( (c->instr.fpu.fpu_data[1] & 0xf8) == 0xc0 )
 			{
 				/* ffree */
-				TRACK_INIT_FPU(c->instr, TRACK_FPU_LAST_INSTRUCTION);
+//				TRACK_INIT_FPU(c->instr, TRACK_FPU_LAST_INSTRUCTION);
 			}
 		}
 	}

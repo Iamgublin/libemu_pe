@@ -27,10 +27,10 @@
 
 #include <stdint.h>
 
-#include "emu/emu_cpu.h"
-#include "emu/emu_cpu_data.h"
+#include "emu_cpu.h"
+#include "emu_cpu_data.h"
 
-#include "emu/emu_memory.h"
+#include "emu_memory.h"
 
 #define OF_IS_ONE(cpu)  (CPU_FLAG_ISSET(cpu, f_of) != 0) 
 #define OF_IS_ZERO(cpu) (CPU_FLAG_ISSET(cpu, f_of) == 0)

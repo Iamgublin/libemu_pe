@@ -29,7 +29,7 @@
 #define HAVE_EMU_STRING_H
 
 #include <inttypes.h>
-#include <sys/types.h>
+//#include <sys/types.h>
 
 /**
  * The struct used for the string implementation.

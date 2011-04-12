@@ -28,7 +28,8 @@
 #ifndef HAVE_EMU_CPU_H
 #define HAVE_EMU_CPU_H
 
-#include <inttypes.h>
+//#include <inttypes.h>
+#include <stdint.h>
 
 struct emu;
 struct emu_cpu;
@@ -68,7 +69,7 @@ enum emu_reg8
 struct emu_cpu *emu_cpu_new(struct emu *e);
 
 uint32_t emu_cpu_reg32_get(struct emu_cpu *cpu_p, enum emu_reg32 reg);
-void  emu_cpu_reg32_set(struct emu_cpu *cpu_p, enum emu_reg32 reg, uint32_t val);
+void emu_cpu_reg32_set(struct emu_cpu *cpu_p, enum emu_reg32 reg, uint32_t val);
 
 uint16_t emu_cpu_reg16_get(struct emu_cpu *cpu_p, enum emu_reg16 reg);
 void emu_cpu_reg16_set(struct emu_cpu *cpu_p, enum emu_reg16 reg, uint16_t val);

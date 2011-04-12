@@ -34,7 +34,7 @@
 
 struct emu;
 struct emu_cpu;
-struct emu_graph;
+//struct emu_graph;
 struct emu_instruction;
 
 
@@ -100,12 +100,12 @@ struct emu_track_and_source
 {
 	struct emu_tracking_info track;
 
-	struct emu_graph        *static_instr_graph;
+	//struct emu_graph        *static_instr_graph;
 	struct emu_hashtable    *static_instr_table;
 
-	struct emu_graph        *run_instr_graph;
+	//struct emu_graph        *run_instr_graph;
 	struct emu_hashtable    *run_instr_table;
-
+	
 };
 
 

@@ -25,8 +25,8 @@
  *
  *******************************************************************************/
 
-#include <sys/types.h>
-#include <sys/param.h>
+//#include <sys/types.h>
+//#include <sys/param.h>
 #include <stdint.h>
 
 #if BYTE_ORDER == BIG_ENDIAN 
@@ -44,10 +44,10 @@ UINTOF(bits) operation_result = operand_a operation operand_b;
 #endif // ENDIAN
 
 
-#include "emu/emu_cpu.h"
-#include "emu/emu_cpu_data.h"
+#include "emu_cpu.h"
+#include "emu_cpu_data.h"
 
-#include "emu/emu_memory.h"
+#include "emu_memory.h"
 
 #ifdef INSTR_CALC_AND_SET_FLAGS
 #undef INSTR_CALC_AND_SET_FLAGS

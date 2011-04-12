@@ -36,15 +36,15 @@ struct emu_env_w32;
 struct emu_env;
 struct emu_env_hook;
 
-typedef uint32_t	(*win32userhook)(struct emu_env_w32 *env, struct emu_env_w32_dll_export *ex, ...);
+//typedef uint32_t	(*win32userhook)(struct emu_env_w32 *env, struct emu_env_w32_dll_export *ex, ...);
 
 struct emu_env_w32_dll_export
 {
 	char 		*fnname;
 	uint32_t 	virtualaddr;
-    int32_t		(*fnhook)(struct emu_env *env, struct emu_env_hook *hook);
+    int32_t		(__stdcall *fnhook)(struct emu_env *env, struct emu_env_hook *hook);
 	void 		*userdata;
-	uint32_t	(*userhook)(struct emu_env *env, struct emu_env_hook *hook, ...);
+	//uint32_t	(*userhook)(struct emu_env *env, struct emu_env_hook *hook, ...);
 };
 
 struct emu_env_w32_dll_export *emu_env_w32_dll_export_new(void);

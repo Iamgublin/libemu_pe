@@ -35,12 +35,12 @@ UINTOF(bits) operation_result = operand_a - operand_b;
 //printf(" a %02x b %02x c %02x \n",operand_a, operand_b, operation_result);
 
 
-#include "emu/emu.h"
-#include "emu/emu_cpu.h"
-#include "emu/emu_cpu_data.h"
+#include "emu.h"
+#include "emu_cpu.h"
+#include "emu_cpu_data.h"
 
-#include "emu/emu_cpu_stack.h"
-#include "emu/emu_memory.h"
+#include "emu_cpu_stack.h"
+#include "emu_memory.h"
 
 /*Intel Architecture Software Developer's Manual Volume 2: Instruction Set Reference (24319102.PDF) page 127*/
 

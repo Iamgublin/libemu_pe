@@ -30,10 +30,10 @@
 #define HAVE_EMU_LIST_H
 
 
-#include <stdbool.h>
-#include <stddef.h>
-#include <stdlib.h>
-#include <stdint.h>
+#include "stdbool.h"
+#include "stddef.h"
+#include "stdlib.h"
+#include "stdint.h"
 
 
 /* credit http://dotat.at/prog/lists/list.h

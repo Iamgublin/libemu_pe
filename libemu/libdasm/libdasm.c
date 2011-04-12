@@ -14,6 +14,8 @@
 #include "libdasm.h"
 #include "opcode_tables.h"
 
+#pragma warning( disable : 4996 ) //unsafe function (strcpy,vsnprintf)
+
 
 // Endianess conversion routines (thanks Ero)
 

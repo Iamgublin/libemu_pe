@@ -27,15 +27,13 @@
 
 
 #include <string.h>
+#include "emu_hashtable.h"
 
-#include "emu/emu_hashtable.h"
-
-
-
-source_list_functions(emu_hashtable_bucket_items,emu_hashtable_bucket_item_root, emu_hashtable_bucket_item, link);
-
-
-
+source_list_functions(emu_hashtable_bucket_items,
+					  emu_hashtable_bucket_item_root,  
+					  emu_hashtable_bucket_item, 
+					  link
+					  );
 
 struct emu_hashtable *emu_hashtable_new(uint32_t size, 
 											   emu_hashtable_hash_cb hash, 
@@ -93,14 +91,13 @@ void emu_hashtable_free(struct emu_hashtable *eh)
 
 struct emu_hashtable_item *emu_hashtable_search(struct emu_hashtable *eh, void *key)
 {
+	struct emu_hashtable_item *ehi;
+	struct emu_hashtable_bucket_item *ehbi;
 	uint32_t first_hash = eh->hash(key) % eh->size;
 
 	struct emu_hashtable_bucket *ehb = 	eh->buckets[first_hash];
 	if (ehb == NULL)
 		return NULL;
-
-	struct emu_hashtable_item *ehi;
-	struct emu_hashtable_bucket_item *ehbi;
 
 	for (ehbi = emu_hashtable_bucket_items_first(ehb->items); !emu_hashtable_bucket_items_attail(ehbi); ehbi = emu_hashtable_bucket_items_next(ehbi))
 	{
@@ -114,15 +111,18 @@ struct emu_hashtable_item *emu_hashtable_search(struct emu_hashtable *eh, void *
 
 struct emu_hashtable_item *emu_hashtable_insert(struct emu_hashtable *eh, void *key, void *data)
 {
+	uint32_t first_hash = 0;
 	struct emu_hashtable_item *ehi;
+	struct emu_hashtable_bucket_item *ehbi;
+	struct emu_hashtable_bucket *ehb;
+
 	if ((ehi = emu_hashtable_search(eh, key)) == NULL)
 	{
-		struct emu_hashtable_bucket_item *ehbi = emu_hashtable_bucket_item_new(key, data);
+		ehbi = emu_hashtable_bucket_item_new(key, data);
 		ehi = &ehbi->item;
 
-		uint32_t first_hash = eh->hash(key) % eh->size;
-
-		struct emu_hashtable_bucket *ehb;
+		first_hash = eh->hash(key) % eh->size;
+		
 		if ((ehb = eh->buckets[first_hash]) == NULL)
 		{
 			ehb = emu_hashtable_bucket_new();
@@ -141,15 +141,14 @@ struct emu_hashtable_item *emu_hashtable_insert(struct emu_hashtable *eh, void *
 bool emu_hashtable_delete(struct emu_hashtable *eh, void *key)
 {
 	uint32_t first_hash = eh->hash(key) % eh->size;
-
+	struct emu_hashtable_bucket_item *ehbi;
 	struct emu_hashtable_bucket *ehb;
+	struct emu_hashtable_item *ehi;
+
 	if ((ehb = eh->buckets[first_hash]) != NULL)
 	{
-		struct emu_hashtable_bucket_item *ehbi;
-
 		for (ehbi = emu_hashtable_bucket_items_first(ehb->items); !emu_hashtable_bucket_items_attail(ehbi); ehbi = emu_hashtable_bucket_items_next(ehbi))
-		{
-			struct emu_hashtable_item *ehi;
+		{		
 			ehi = &ehbi->item;
 			if (eh->cmp(ehi->key, key) == true)
 			{
@@ -236,7 +235,7 @@ uint32_t emu_hashtable_string_hash(void *key)
 
     return hash;
 #else
-	unsigned char *str = key;
+	unsigned char *str = (unsigned char*)key;
 	unsigned long hash = 5381;
 	int c;
 
@@ -249,7 +248,7 @@ uint32_t emu_hashtable_string_hash(void *key)
 
 bool emu_hashtable_string_cmp(void *a, void *b)
 {
-	if ( strcmp(a, b) == 0 )
+	if ( strcmp((char*)a, (char*)b) == 0 )
 		return true;
 
 	return false;

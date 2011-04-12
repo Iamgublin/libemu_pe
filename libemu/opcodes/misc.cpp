@@ -27,11 +27,11 @@
 
 #include <stdint.h>
 
-#include "emu/emu_cpu.h"
-#include "emu/emu_cpu_data.h"
-#include "emu/emu_cpu_stack.h"
-#include "emu/emu_memory.h"
-#include "emu/emu_log.h"
+#include "emu_cpu.h"
+#include "emu_cpu_data.h"
+#include "emu_cpu_stack.h"
+#include "emu_memory.h"
+#include "emu_log.h"
 #include <errno.h>
 
 int32_t prefix_fn(struct emu_cpu *c, struct emu_cpu_instruction *i)
@@ -62,7 +62,7 @@ int32_t instr_daa_27(struct emu_cpu *c, struct emu_cpu_instruction *i)
 	 * DAA
 	 */
 	/*Intel Architecture Software Developer's Manual Volume 2: Instruction Set Reference (24319102.PDF) page 183*/
-	STUB(c);
+	//STUB(c);
 	return 0;
 }
 
@@ -74,7 +74,7 @@ int32_t instr_das_2f(struct emu_cpu *c, struct emu_cpu_instruction *i)
 	 * DAS
 	 */
 	/*Intel Architecture Software Developer's Manual Volume 2: Instruction Set Reference (24319102.PDF) page 185*/
-	STUB(c);
+	//STUB(c);
 	return 0;
 }
 
@@ -85,7 +85,7 @@ int32_t instr_aas_3f(struct emu_cpu *c, struct emu_cpu_instruction *i)
 	 * aas
 	 */
 	/*Intel Architecture Software Developer's Manual Volume 2: Instruction Set Reference (24319102.PDF) page 60*/
-	STUB(c);
+	//STUB(c);
 	return 0;
 }
 
@@ -99,7 +99,7 @@ int32_t instr_wait_9b(struct emu_cpu *c, struct emu_cpu_instruction *i)
 	 * wait
 	 */
 	/*Intel Architecture Software Developer's Manual Volume 2: Instruction Set Reference (24319102.PDF) page 747*/
-	STUB(c);
+	//STUB(c);
 	return 0;
 }
 
@@ -112,7 +112,7 @@ int32_t instr_pushf_9c(struct emu_cpu *c, struct emu_cpu_instruction *i)
 	/*Intel Architecture Software Developer's Manual Volume 2: Instruction Set Reference (24319102.PDF) page 627*/
 
         PUSH_DWORD(c, c->eflags);
-//	STUB(c);
+//	//STUB(c);
 	return 0;
 }
 
@@ -124,7 +124,7 @@ int32_t instr_popf_9d(struct emu_cpu *c, struct emu_cpu_instruction *i)
 	 */
 	/*Intel Architecture Software Developer's Manual Volume 2: Instruction Set Reference (24319102.PDF) page 578*/
         POP_DWORD(c, &c->eflags);
-//	STUB(c);
+//	//STUB(c);
 	return 0;
 }
 
@@ -135,7 +135,7 @@ int32_t instr_sahf_9e(struct emu_cpu *c, struct emu_cpu_instruction *i)
 	 * SAHF
 	 */
 	/*Intel Architecture Software Developer's Manual Volume 2: Instruction Set Reference (24319102.PDF) page 661*/
-	STUB(c);
+	//STUB(c);
 	return 0;
 }
 
@@ -146,7 +146,7 @@ int32_t instr_lahf_9f(struct emu_cpu *c, struct emu_cpu_instruction *i)
 	 * SAHF
 	 */
 	/*Intel Architecture Software Developer's Manual Volume 2: Instruction Set Reference (24319102.PDF) page 381*/
-	STUB(c);
+	//STUB(c);
 	return 0;
 }
 
@@ -301,7 +301,7 @@ int32_t instr_sldt_0f00(struct emu_cpu *c, struct emu_cpu_instruction *i)
 {
 	/*Intel Architecture Software Developer's Manual Volume 2: Instruction Set Reference (24319102.PDF) page 692 */
 
-	STUB(c);
+	//STUB(c);
 
 	if( i->prefixes & PREFIX_OPSIZE )
 	{

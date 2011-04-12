@@ -24,21 +24,23 @@
  *             contact nepenthesdev@users.sourceforge.net  
  *
  *******************************************************************************/
+#include <stdlib.h>
+#include <memory.h>
 
-#include "emu/environment/emu_env.h"
-#include "emu/environment/emu_profile.h"
-#include "emu/environment/linux/emu_env_linux.h"
-#include "emu/environment/win32/emu_env_w32.h"
-#include "emu/environment/win32/emu_env_w32_dll_export.h"
+#include "emu_env.h"
+//#include "emu_profile.h"
+//#include "emu_env_linux.h"
+#include "emu_env_w32.h"
+#include "emu_env_w32_dll_export.h"
 
 struct emu_env *emu_env_new(struct emu *e)
 {
-	struct emu_env *env = malloc(sizeof(struct emu_env));
+	struct emu_env *env = (struct emu_env*)malloc(sizeof(struct emu_env));
 	memset(env, 0, sizeof(struct emu_env));
-	env->env.lin = emu_env_linux_new(e);
+	//env->env.lin = emu_env_linux_new(e);
 	env->env.win = emu_env_w32_new(e);
 	env->emu = e;
-	env->profile = NULL;//emu_profile_new();
+//	env->profile = NULL;//emu_profile_new();
 	return env;
 	
 }
@@ -46,8 +48,8 @@ struct emu_env *emu_env_new(struct emu *e)
 void emu_env_free(struct emu_env *env)
 {
 	emu_env_w32_free(env->env.win);
-	emu_env_linux_free(env->env.lin);
-	if (env->profile != NULL)
-		emu_profile_free(env->profile);
+	//emu_env_linux_free(env->env.lin);
+//	if (env->profile != NULL)
+//		emu_profile_free(env->profile);
 	free(env);
 }

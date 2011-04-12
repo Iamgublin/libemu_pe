@@ -25,8 +25,8 @@
  *
  *******************************************************************************/
 
-struct emu_env_linux;
-struct emu_env_linux_syscall;
+//struct emu_env_linux;
+//struct emu_env_linux_syscall;
 struct emu_env_w32;
 struct emu_env_w32_dll_export;
 
@@ -83,7 +83,7 @@ struct env_helper envs[] =
 enum emu_env_type
 {
 	emu_env_type_win32,
-	emu_env_type_linux,
+	//emu_env_type_linux,
 };
 
 struct emu_env_hook
@@ -93,7 +93,7 @@ struct emu_env_hook
 	union 
 	{
 		struct emu_env_w32_dll_export *win;
-		struct emu_env_linux_syscall  *lin;
+		//struct emu_env_linux_syscall  *lin;
 	} hook;
 };
 
@@ -102,13 +102,13 @@ struct emu_env
 	struct
 	{
 		struct emu_env_w32   *win;
-		struct emu_env_linux *lin;
+		//struct emu_env_linux *lin;
 	} env;
 
 
 	struct emu *emu;
 //	struct env_helper *envs;
-	struct emu_profile *profile;
+//	struct emu_profile *profile;
 	void *userdata;
 };
 

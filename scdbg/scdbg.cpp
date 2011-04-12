@@ -33,7 +33,14 @@
 	I have yet to see. its a dirty hack, but in practice (so far) its working just fine...
 
 	TODO: 
-		
+
+		  fix peb module order..(specific legit order for each list)
+
+		  CreateFileMapping/MapViewofFile - figure out how to make work...
+
+		  for hooks with lots of args, (and needed for debugging) use opts.verbose to
+		  select which to use (simple vrs debug)
+
 		  InMemoryOrderModuleList 2nd dll supposed to be k32 ? 
 
 		  update the mdll ranges for new dlls
@@ -64,65 +71,42 @@
 
 
 */
-#include "../config.h"
 
-#define HAVE_GETOPT_H
-#ifdef HAVE_GETOPT_H
-# include <getopt.h>
-#endif
 
-#ifdef HAVE_STDLIB_H
 # include <stdlib.h>
-#endif
-
 #include <stdint.h>
-
-#define HAVE_UNISTD
-#ifdef HAVE_UNISTD
-# include <unistd.h>
-#endif
-
 #include <stdio.h>
 #include <stdarg.h>
 #include <errno.h>
-#include <sys/types.h>
-#include <sys/socket.h>
-#include <netinet/in.h>
-#include <arpa/inet.h>
-#include <sys/select.h>
-#include <sys/wait.h>
 
-#include "emu/emu.h"
-#include "emu/emu_memory.h"
-#include "emu/emu_cpu.h"
-#include "emu/emu_log.h"
-#include "emu/emu_cpu_data.h"
-#include "emu/emu_cpu_stack.h"
-#include "emu/environment/emu_profile.h"
-#include "emu/environment/emu_env.h"
-#include "emu/environment/win32/emu_env_w32.h"
-#include "emu/environment/win32/emu_env_w32_dll.h"
-#include "emu/environment/win32/emu_env_w32_dll_export.h"
-#include "emu/environment/win32/env_w32_dll_export_kernel32_hooks.h"
-#include "emu/environment/linux/emu_env_linux.h"
-#include "emu/emu_getpc.h"
-#include "emu/emu_graph.h"
-#include "emu/emu_string.h"
-#include "emu/emu_hashtable.h"
-#include "emu/emu_shellcode.h"
+#include "emu.h"
+#include "emu_memory.h"
+#include "emu_cpu.h"
+#include "emu_log.h"
+#include "emu_cpu_data.h"
+#include "emu_cpu_stack.h"
+#include "emu_env.h"
+#include "emu_env_w32.h"
+#include "emu_env_w32_dll.h"
+#include "emu_env_w32_dll_export.h"
+#include "emu_string.h"
+#include "stdint.h"
 
+extern "C"{
+	#include "emu_hashtable.h"
+}
+
+#define INT32_MAX 0x7fffffff
 #define F(x) (1 << (x))
 #define CPU_FLAG_ISSET(cpu_p, fl) ((cpu_p)->eflags & (1 << (fl)))
 #define FLAG(fl) (1 << (fl))
 
 #include "userhooks.h"
 #include "options.h"
-#include "dot.h"
-#include "tests.h"
-#include "nanny.h"
 #include <io.h>
-#include <termios.h>
+//#include <termios.h>
 #include <signal.h>
+#include <windows.h>
 
 struct hh{
 	uint32_t eip;
@@ -153,13 +137,13 @@ struct m_allocs mallocs[21];
 
 struct emm_mode emm; //extended memory monitor
 struct run_time_options opts;
-static struct termios orgt;
+//static struct termios orgt;
 struct emu *e = 0;           //one global object 
 struct emu_cpu *cpu = 0;
 struct emu_memory *mem = 0;
 struct emu_env *env = 0;
-
-int graph_draw(struct emu_graph *graph);
+//struct nanny *na = 0;
+	
 void debugCPU(struct emu *e, bool showdisasm);
 int fulllookupAddress(int eip, char* buf255);
 void init_emu(void);
@@ -178,6 +162,7 @@ int mdll_last_read_eip=0;
 int mdll_last_read_addr=0;
 
 bool hexdump_color = false;
+HANDLE hCon = 0;
 
 //overview stats variables
 bool ov_reads_dll_mem = false;
@@ -194,12 +179,15 @@ char *regm[] = {"eax", "ecx", "edx", "ebx", "esp", "ebp", "esi", "edi"};
 
 //http://en.wikipedia.org/wiki/FLAGS_register_(computing)
 	                    /* 0     1     2     3      4       5       6     7 */
-const char *eflagm[] = { "CF", ""  , "PF", ""   , "AF"  , ""    , "ZF", "SF", 
+/*const char *eflagm[] = { "CF", ""  , "PF", ""   , "AF"  , ""    , "ZF", "SF", 
 	                     "TF", "IF", "DF", "OF" , "IOPL", "IOPL", "NT", "",
 	                     "RF", "VM", "AC", "VIF", "RIP" , "ID"  , "", "",
 	                     "",   "",   "",   "",    "",     "",     "", ""};
+*/
 
-struct mm_point mm_points[] = 
+extern const char *eflagm[];
+
+struct mmm_point mm_points[] = 
 { //http://en.wikipedia.org/wiki/Win32_Thread_Information_Block
 	{0x00251ea0,"PEB Data",0},
 	{0x7ffdf000,"SEH (fs0)",0},
@@ -222,7 +210,7 @@ struct mm_point mm_points[] =
 //first is imagebase + sizeof(pe headers) (roughly) - start of export table
 //second is image base + rva export table + export table size - through base + size of image
 //even then these had to be tuned a little..luckily stray output tells us which to refine...
-struct mm_range mm_ranges[] = 
+struct mmm_range mm_ranges[] = 
 { 
 	{0, "kernel32", 0x7c800300, 0x7C80260f},                        
 	{0, "kernel32", 0x7c800000+0x261C+0x6C7B+0x1, 0x7C800000+0x831e9},  
@@ -251,17 +239,28 @@ struct mm_range mm_ranges[] =
 	{0, NULL, 0,0},
 };
 
-enum colors{ mwhite=0, mgreen, mred, myellow, mblue, mpurple };
-void end_color(void){ if(!opts.no_color) printf("\033[0m"); }
+//enum Color { DARKBLUE = 1, DARKGREEN=2, DARKTEAL=3, DARKRED=4, 
+//			   DARKPINK=5, DARKYELLOW=6, GRAY=7, DARKGRAY=8, 
+//             BLUE=9, GREEN=10, TEAL=11, RED=12, PINK=13, YELLOW=14, WHITE=15 };
+
+enum colors{ mwhite=15, mgreen=10, mred=12, myellow=14, mblue=9, mpurple=5 };
+
+void end_color(void){
+	if(opts.no_color) return;
+	//printf("\033[0m"); 
+	SetConsoleTextAttribute(hCon,7); 
+}
 void nl(void){ printf("\n"); }
-void restore_terminal(int arg)    { tcsetattr( STDIN_FILENO, TCSANOW, &orgt); }
-void atexit_restore_terminal(void){ tcsetattr( STDIN_FILENO, TCSANOW, &orgt); }
+//void restore_terminal(int arg)    { tcsetattr( STDIN_FILENO, TCSANOW, &orgt); }
+//void atexit_restore_terminal(void){ tcsetattr( STDIN_FILENO, TCSANOW, &orgt); }
 
 void start_color(enum colors c){
-	char* cc[] = {"\033[37;1m", "\033[32;1m", "\033[31;1m", "\033[33;1m", "\033[34;1m", "\033[35;1m"};
+	//char* cc[] = {"\033[37;1m", "\033[32;1m", "\033[31;1m", "\033[33;1m", "\033[34;1m", "\033[35;1m"};
 	if(opts.no_color) return;
-	printf("%s", cc[c]);
+	//printf("%s", cc[c]);
+    SetConsoleTextAttribute(hCon, c);
 }
+
 
 void ctrl_c_handler(int arg){ 
 	opts.verbose = 3;             //break next instruction
@@ -828,7 +827,7 @@ void show_disasm(struct emu *e){  //current line
 	disasm_addr(e,m_eip);
 
 	if(opts.time_delay > 0){
-		if(opts.verbose ==1 || opts.verbose ==2) usleep(opts.time_delay * 1000);
+		if(opts.verbose ==1 || opts.verbose ==2) Sleep(opts.time_delay * 1000);
 	}
 
 }
@@ -839,7 +838,7 @@ unsigned int read_hex(char* prompt, char* buf){
 	int i=0;
 
 	printf("%s: (hex/reg) 0x", prompt);
-	getline(&buf, &nBytes, stdin);
+//	getline(&buf, &nBytes, stdin);
 
 	if(strlen(buf)==4){
 		for(i=0;i<8;i++){
@@ -866,7 +865,7 @@ int read_string(char* prompt, char* buf){
 	int i=0;
 
 	printf("%s", prompt);
-	getline(&buf, &nBytes, stdin);
+//	getline(&buf, &nBytes, stdin);
 	i = strlen(buf);
 	if(i>0) buf[i-1] = 0; //strip new line
 	nl();
@@ -880,7 +879,7 @@ unsigned int read_int(char* prompt, char* buf){
 	int i=0;
 
 	printf("%s: (int/reg) ", prompt);
-	getline(&buf, &nBytes, stdin);
+//	getline(&buf, &nBytes, stdin);
 
 	if(strlen(buf)==4){
 		for(i=0;i<8;i++){
@@ -901,7 +900,8 @@ unsigned int read_int(char* prompt, char* buf){
 void show_stack(void){
 	
 	int i=0;
-	uint32_t curesp = emu_cpu_reg32_get(cpu ,esp);
+	//uint32_t curesp = emu_cpu_reg32_get(cpu , emu_reg32::esp);
+	uint32_t curesp = cpu->reg[esp];
 	uint32_t mretval=0;
 	char buf[255];
 
@@ -989,10 +989,10 @@ void interactive_command(struct emu *e){
 	char *buf=0;
 	char *tmp = (char*)malloc(61);
 	char lookup[255];
-	unsigned int base=0;
-	unsigned int size=0;
-	unsigned int i=0;
-	unsigned int bytes_read=0;
+	uint32_t base=0;
+	uint32_t size=0;
+	uint32_t i=0;
+	uint32_t bytes_read=0;
 	char x[2]; x[1]=0;
     char c=0;;
 
@@ -1216,7 +1216,7 @@ void debugCPU(struct emu *e, bool showdisasm){
 
 	//show registers 
 	for(i=0;i<8;i++){
-		printf("%s=%-8x  ", regm[i], emu_cpu_reg32_get(emu_cpu_get(e),i) );
+		printf("%s=%-8x  ", regm[i], cpu->reg[(emu_reg32)i] );
 		if(i==3)printf("\n");
 	}
 
@@ -1232,7 +1232,7 @@ void debugCPU(struct emu *e, bool showdisasm){
 
 }
 
-void set_hooks(struct emu_env *env,struct nanny *na){
+void set_hooks(struct emu_env *env /*,struct nanny *na*/){
 
 	/* (as far as i understand it..)
 	   api function hooking in libemu works in 3 layers. first the addresses
@@ -1270,47 +1270,6 @@ void set_hooks(struct emu_env *env,struct nanny *na){
 	emu_env_w32_load_dll(env->env.win,"advapi32.dll");
 	emu_env_w32_load_dll(env->env.win,"shdocvw.dll");
 
-	emu_env_w32_export_hook(env, "ExitProcess", user_hook_ExitProcess, NULL);
-	emu_env_w32_export_hook(env, "ExitThread", user_hook_ExitThread, NULL);
-	emu_env_w32_export_hook(env, "CreateProcessA", user_hook_CreateProcess, NULL);
-	emu_env_w32_export_hook(env, "WaitForSingleObject", user_hook_WaitForSingleObject, NULL);
-	emu_env_w32_export_hook(env, "CreateFileA", user_hook_CreateFile, na);
-	emu_env_w32_export_hook(env, "WriteFile", user_hook_WriteFile, na);
-	emu_env_w32_export_hook(env, "CloseHandle", user_hook_CloseHandle, na);
-	emu_env_w32_export_hook(env, "fclose", user_hook_fclose, na);
-	emu_env_w32_export_hook(env, "fopen", user_hook_fopen, na);
-	emu_env_w32_export_hook(env, "fwrite", user_hook_fwrite, na);
-	emu_env_w32_export_hook(env, "accept", user_hook_accept, NULL);
-	emu_env_w32_export_hook(env, "bind", user_hook_bind, NULL);
-	emu_env_w32_export_hook(env, "closesocket", user_hook_closesocket, NULL);
-	emu_env_w32_export_hook(env, "connect", user_hook_connect, NULL);
-	emu_env_w32_export_hook(env, "listen", user_hook_listen, NULL);
-	emu_env_w32_export_hook(env, "recv", user_hook_recv, NULL);
-	emu_env_w32_export_hook(env, "send", user_hook_send, NULL);
-	emu_env_w32_export_hook(env, "socket", user_hook_socket, NULL);
-	emu_env_w32_export_hook(env, "WSASocketA", user_hook_WSASocket, NULL);
-	emu_env_w32_export_hook(env, "URLDownloadToFileA", user_hook_URLDownloadToFile, NULL);
-	emu_env_linux_syscall_hook(env, "exit", user_hook_exit, NULL);
-	emu_env_linux_syscall_hook(env, "socket", user_hook_socket, NULL);
-
-
-	//-----------------------added dz(+ support in dll also) userhooks..
-	emu_env_w32_export_hook(env, "GetProcAddress", user_hook_GetProcAddress, NULL);
-	emu_env_w32_export_hook(env, "GetSystemDirectoryA", user_hook_GetSystemDirectoryA, NULL);
-	emu_env_w32_export_hook(env, "GetTickCount", user_hook_GetTickCount, NULL);
-	emu_env_w32_export_hook(env, "_lcreat", user_hook__lcreat, na);
-	emu_env_w32_export_hook(env, "_lwrite", user_hook__lwrite, na);
-	emu_env_w32_export_hook(env, "_lclose", user_hook__lclose, na);
-	emu_env_w32_export_hook(env, "malloc", user_hook_malloc, NULL);
-	emu_env_w32_export_hook(env, "memset", user_hook_memset, NULL);
-	emu_env_w32_export_hook(env, "SetUnhandledExceptionFilter", user_hook_SetUnhandledExceptionFilter, NULL);
-	emu_env_w32_export_hook(env, "WinExec", user_hook_WinExec, NULL);
-	emu_env_w32_export_hook(env, "DeleteFileA", user_hook_DeleteFileA, NULL);
-	emu_env_w32_export_hook(env, "GetVersion", user_hook_GetVersion, NULL);
-	emu_env_w32_export_hook(env, "GetTempPathA", user_hook_GetTempPath, NULL);
-	emu_env_w32_export_hook(env, "Sleep", user_hook_Sleep, NULL);
-	emu_env_w32_export_hook(env, "VirtualProtect", user_hook_VirtualProtect, NULL);
-
 	// new hooks
 	emu_env_w32_export_new_hook(env, "GetModuleHandleA", new_user_hook_GetModuleHandleA, NULL);
 	emu_env_w32_export_new_hook(env, "GlobalAlloc", new_user_hook_GlobalAlloc, NULL);
@@ -1345,7 +1304,7 @@ void set_hooks(struct emu_env *env,struct nanny *na){
 
 	//-----handled by the generic stub
 	emu_env_w32_export_new_hook(env, "GetFileSize", new_user_hook_GenericStub, NULL);
-	emu_env_w32_export_new_hook(env, "CreateFileMappingA", new_user_hook_GenericStub, NULL);
+	//emu_env_w32_export_new_hook(env, "CreateFileMappingA", new_user_hook_GenericStub, NULL);
 	emu_env_w32_export_new_hook(env, "InternetReadFile", new_user_hook_GenericStub, NULL);
 	emu_env_w32_export_new_hook(env, "ZwTerminateProcess", new_user_hook_GenericStub, NULL);
 	emu_env_w32_export_new_hook(env, "ZwTerminateThread", new_user_hook_GenericStub, NULL);
@@ -1366,6 +1325,51 @@ void set_hooks(struct emu_env *env,struct nanny *na){
 	emu_env_w32_export_new_hook(env, "InternetOpenA", new_user_hook_GenericStub2String, NULL);
 	emu_env_w32_export_new_hook(env, "InternetOpenUrlA", new_user_hook_GenericStub2String, NULL);
 	emu_env_w32_export_new_hook(env, "SHRegGetBoolUSValueA", new_user_hook_GenericStub2String, NULL);
+
+	//conversions from dll
+    #define ADDHOOK(name) emu_env_w32_export_new_hook(env, #name, new_user_hook_##name, NULL);
+
+	ADDHOOK(URLDownloadToFileA);
+	ADDHOOK(execv);
+	ADDHOOK(fclose);
+	ADDHOOK(fopen);
+	ADDHOOK(fwrite);
+	ADDHOOK(_lcreat);
+	ADDHOOK(_lclose);
+	ADDHOOK(_lwrite);
+	ADDHOOK(_hwrite);
+	ADDHOOK(GetTickCount);
+	ADDHOOK(GetTempPathA);
+	ADDHOOK(WinExec);
+	ADDHOOK(Sleep);
+	ADDHOOK(DeleteFileA);
+	ADDHOOK(ExitProcess);
+	emu_env_w32_export_new_hook(env, "ExitThread", new_user_hook_ExitProcess, NULL);
+	ADDHOOK(CloseHandle);
+	ADDHOOK(CreateFileA);
+	ADDHOOK(CreateProcessA);
+	ADDHOOK(GetVersion);
+	ADDHOOK(GetProcAddress);
+	ADDHOOK(GetSystemDirectoryA);
+	ADDHOOK(malloc);
+	ADDHOOK(memset);
+	ADDHOOK(SetUnhandledExceptionFilter);
+	ADDHOOK(WaitForSingleObject);
+	ADDHOOK(WriteFile);
+	ADDHOOK(VirtualProtect);
+	ADDHOOK(bind);
+	ADDHOOK(accept);
+	ADDHOOK(bind);
+	ADDHOOK(closesocket);
+	ADDHOOK(connect);
+	ADDHOOK(listen);
+	ADDHOOK(recv);
+	ADDHOOK(send);
+	ADDHOOK(sendto);
+	ADDHOOK(socket);
+	ADDHOOK(WSASocketA);
+	ADDHOOK(WSAStartup);
+	ADDHOOK(CreateFileMappingA);
 
 
 }
@@ -1456,7 +1460,7 @@ int handle_seh(struct emu *e,int last_good_eip){
 		printf("\n%x\tException caught SEH=0x%x (seh foffset:%x)\n", last_good_eip, seh_handler, seh_handler - CODE_OFFSET);
 		
 		//now take our saved esp, add two ints to stack (subtract 8) and set org esp pointer there.
-		uint32_t cur_esp = emu_cpu_reg32_get( emu_cpu_get(e), esp);
+		uint32_t cur_esp = cpu->reg[esp];
 		uint32_t new_esp = cur_esp - 8; //make room on stack for seh args
 		
 		if (opts.verbose >= 1) printf("\tcur_esp=%x new_esp=%x\n\n",cur_esp,new_esp); 
@@ -1475,7 +1479,7 @@ int handle_seh(struct emu *e,int last_good_eip){
 		regs[esp] = new_esp;
 
 		//update the registers with our new values
-		for (i=0;i<8;i++) emu_cpu_reg32_set( emu_cpu_get(e), i , regs[i]);
+		for (i=0;i<8;i++) cpu->reg[(emu_reg32)i] = regs[i];
 
 		uint32_t write_at  = new_esp + 8;
 		emu_memory_write_dword(m, write_at, cur_esp); //write saved esp to stack
@@ -1603,7 +1607,7 @@ void init_emu(void){
 	//            0      1      2      3      4      5         6      7    
 	//*regm[] = {"eax", "ecx", "edx", "ebx", "esp", "ebp", "esi", "edi"};
 
-	for (i=0;i<8;i++) emu_cpu_reg32_set( emu_cpu_get(e), i , regs[i]);
+	for (i=0;i<8;i++) cpu->reg[(emu_reg32)i] = regs[i];
 
 	stacksz = regs[ebp] - regs[esp] + 500;
 	stack = malloc(stacksz);
@@ -1662,12 +1666,15 @@ void init_emu(void){
 	free(ldr2);  FAIL */
 
 	//InMemoryOrderModuleList 2nd entry lets swap the ntdll base for kernel32
-	/*emu_memory_write_dword(mem, 0x252f38 + 0x10, 0x7c800000); //k32 base (these dont change basedllname pointer tho)
+	//this breaks other shellcode though cause not complete...
+	emu_memory_write_dword(mem, 0x252f38 + 0x10, 0x7c800000); //k32 base (these dont change basedllname pointer tho)
 	emu_memory_write_dword(mem, 0x252ef0 + 0x10, 0x7C900000); //ntdll
 
+	/*
 	uint32_t a;
 	uint32_t b;
 
+	
 	emu_memory_read_dword(mem, 0x252f38 + 0x2C, &a);
 	emu_memory_read_dword(mem, 0x252ef0 + 0x2C, &b);
 	emu_memory_write_dword(mem, 0x252f38 + 0x2C, b); //k32 basename 
@@ -1691,22 +1698,15 @@ int run_sc(void)
     bool firstchance = true;
 	uint32_t eipsave = 0;
 	bool parse_ok = false;
-	struct emu_vertex *last_vertex = NULL;
-	struct emu_graph *graph = NULL;
+	//struct emu_vertex *last_vertex = NULL;
+	//struct emu_graph *graph = NULL;
 	struct emu_hashtable *eh = NULL;
 	struct emu_hashtable_item *ehi = NULL;
 
 	//printf("Setting eip\n");
 	emu_cpu_eip_set(emu_cpu_get(e), CODE_OFFSET + opts.offset);  //+ opts.offset for getpc mode
 
-	struct nanny *na = nanny_new();
-	set_hooks(env,na);
-
-	if ( opts.graphfile != NULL )
-	{
-		graph = emu_graph_new();
-		eh = emu_hashtable_new(2047, emu_hashtable_ptr_hash, emu_hashtable_ptr_cmp);
-	}
+	set_hooks(env);
 
 	disable_mm_logging = false;
 
@@ -1749,55 +1749,11 @@ int run_sc(void)
 			eipsave = emu_cpu_eip_get(emu_cpu_get(e));
 
 		struct emu_env_hook *hook = NULL;
-		struct emu_vertex *ev = NULL;
-		struct instr_vertex *iv = NULL;
-
-		if ( opts.graphfile != NULL )
-		{
-
-			ehi = emu_hashtable_search(eh, (void *)(uintptr_t)eipsave);
-			if ( ehi != NULL )
-				ev = (struct emu_vertex *)ehi->value;
-
-			if ( ev == NULL )
-			{
-				ev = emu_vertex_new();
-				emu_graph_vertex_add(graph, ev);
-
-				emu_hashtable_insert(eh, (void *)(uintptr_t)eipsave, ev);
-			}
-		}
 
 		hook = emu_env_w32_eip_check(env);
 
 		if ( hook != NULL  && cpu->eip != 0x7c862e62 ) //ignore UnhandledExceptionFilter 
 		{					
-			if ( opts.graphfile != NULL )
-			{
-				if ( ev->data != NULL && strcmp(hook->hook.win->fnname, "CreateProcessA") == 0)
-				{
-					ev = emu_vertex_new();
-					emu_graph_vertex_add(graph, ev);
-				}
-
-//				fnname_from_profile(env->profile, dllhook->fnname);
-				iv = instr_vertex_new(eipsave,hook->hook.win->fnname);
-				emu_vertex_data_set(ev, iv);
-
-				// get the dll
-				int numdlls=0;
-				while ( env->env.win->loaded_dlls[numdlls] != NULL )
-				{
-					if ( eipsave > env->env.win->loaded_dlls[numdlls]->baseaddr && 
-						 eipsave < env->env.win->loaded_dlls[numdlls]->baseaddr + env->env.win->loaded_dlls[numdlls]->imagesize )
-					{
-						iv->dll = env->env.win->loaded_dlls[numdlls];
-					}
-					numdlls++;
-				}
-
-			}
-
 			if ( hook->hook.win->fnhook == NULL )
 			{
 				//if we had a listing of esp size for each api, we wouldnt have to bail
@@ -1808,7 +1764,6 @@ int run_sc(void)
 				printf("unhooked call to %s\n", hook->hook.win->fnname);
 				break;
 			}
-
 		}
 		else
 		{
@@ -1830,47 +1785,12 @@ int run_sc(void)
 
 
 			struct emu_env_hook *hook =NULL;
-			if ( ret != -1 )
-			{
-
-				if ( ( hook = emu_env_linux_syscall_check(env)) != NULL )
-				{
-					if ( opts.graphfile != NULL && ev->data == NULL )
-					{
-						iv = instr_vertex_new(eipsave, hook->hook.lin->name);
-						emu_vertex_data_set(ev, iv);
-						iv->syscall = hook->hook.lin;
-					}
-				}
-				else
-				{
-
-					if ( opts.graphfile != NULL && ev->data == NULL )
-					{
-						emu_disasm_addr(emu_cpu_get(e),eipsave,disasm);
-						iv = instr_vertex_new(eipsave, disasm);
-						emu_vertex_data_set(ev, iv);
-					}
-				}
-			}
-			else
-			{
-				if ( opts.graphfile != NULL && ev->data == NULL )
-				{
-					iv = instr_vertex_new(eipsave, "ERROR");
-					emu_vertex_data_set(ev, iv);
-				}
-			}
 
 			if ( ret != -1 )
 			{
 				if ( hook != NULL )
 				{
-					if ( hook->hook.lin->fnhook != NULL )
-						hook->hook.lin->fnhook(env, hook);
-					else
-						break;
-
+					;
 				}
 				else
 				{
@@ -1941,19 +1861,6 @@ int run_sc(void)
 
 		} 
 
-		if ( opts.graphfile != NULL )
-		{
-			if ( last_vertex != NULL )
-			{
-				struct emu_edge *ee = emu_vertex_edge_add(last_vertex, ev);
-				struct emu_cpu *cpu = emu_cpu_get(e);
-				if ( cpu->instr.is_fpu == 0 && cpu->instr.source.cond_pos == eipsave && cpu->instr.source.has_cond_pos == 1 )
-					ee->data = (void *)0x1;
-			}
-
-			last_vertex = ev;
-		}
-
 //			printf("\n");
 	} //---------------------- end of step loop
 
@@ -2015,17 +1922,13 @@ int run_sc(void)
 
 	}
 
-	if ( opts.graphfile != NULL )
-	{
-		graph_draw(graph);
-	}
-
 	nl();
 	nl();
 	emu_env_free(env);
 	return 0;
 }
 
+/*
 int getpctest(void)
 {
 	struct emu *e = emu_new();
@@ -2047,7 +1950,7 @@ int getpctest(void)
 	end_color();
 	return offset;
 }
-
+*/
 
 void print_help(void)
 {
@@ -2064,7 +1967,7 @@ void print_help(void)
 		{"mm", NULL,       "enabled Memory Monitor (logs access to key addresses)"},
 		{"mdll", NULL,     "Monitor Dll - log direct access to dll memory (hook detection/patches)"},
 		{"nc", NULL,       "no color (if using sending output to other apps)"},
-		{"S", "< file.sc", "read shellcode/buffer from stdin"},
+		//{"S", "< file.sc", "read shellcode/buffer from stdin"},
 		{"f", "fpath"    , "load shellcode from file specified."},
 		{"o", "hexnum"   , "base offset to use (default: 0x401000)"},
 		{"redir", "ip:port","redirect connect to ip (port optional)"},
@@ -2083,7 +1986,7 @@ void print_help(void)
 		{"s", "int"	     , "max number of steps to run (def=2000000, -1 unlimited)"},
 		{"hex", NULL,      "show hex dumps for hook reads/writes"},
 		{"findsc", NULL ,  "detect possible shellcode buffers (brute force)"},
-		{"getpc", NULL ,   "detect possible shellcode buffers (libemu getpc mode)"},
+		//{"getpc", NULL ,   "detect possible shellcode buffers (libemu getpc mode)"},
 		{"dump", NULL,     "view hexdump of the target file (can be used with /foff)"},
 		{"disasm", "int" , "Disasm int lines (can be used with /foff)"},
 		{"fopen", "file" , "Opens a handle to <file> for use with GetFileSize() scanners"},
@@ -2132,14 +2035,14 @@ void show_supported_hooks(void){
 	int j=0;
 	int tot=0;
 
-	struct nanny *na = nanny_new();
-	set_hooks(env,na);
+	//struct nanny *na = nanny_new();
+	set_hooks(env/*,na*/);
 
 	while ( env->env.win->loaded_dlls[i] != 0 ){
 		struct emu_env_w32_dll *dll = env->env.win->loaded_dlls[i]; 
 		printf("\r\n%s\r\n", dll->dllname );
 		while( dll->exportx[j].virtualaddr != 0 ){
-			if( dll->exportx[j].userhook > 0 || dll->exportx[j].fnhook > 0 )
+			if( /*dll->exportx[j].userhook > 0 ||*/ dll->exportx[j].fnhook > 0 )
 			{
 				printf("\t%s\r\n", dll->exportx[j].fnname);
 				tot++;
@@ -2373,58 +2276,6 @@ void loadsc(void){
 		fread(opts.scode, 1, opts.size, fp);
 		fclose(fp);
 		printf("Loaded %x bytes from file %s\n", opts.size, opts.sc_file);
-
-	}
-	else if ( opts.from_stdin )
-	{
-		unsigned buffer[BUFSIZ];
-		int ret, eof=0;
-		int16_t bytes_read=0;
-		uint32_t len=0;
-		fd_set read_fds;
-		struct timeval st;
-
-		while ( !eof )
-		{
-			FD_ZERO(&read_fds);
-			FD_SET(STDIN_FILENO, &read_fds);
-
-			st.tv_sec  = 10;
-			st.tv_usec = 0;
-
-			switch ( ret = select(FD_SETSIZE, &read_fds, NULL, NULL, &st) )
-			{
-			case -1:
-				fprintf(stderr, "Error with select(): %s.\n", strerror(errno));
-				exit(1);
-			case  0:
-				break;
-			default:
-				if ( FD_ISSET(STDIN_FILENO, &read_fds) )
-				{
-					if ( (bytes_read = read(STDIN_FILENO, buffer, BUFSIZ)) <= 0 )
-					{
-						if ( bytes_read == 0 ) eof = 1;
-						else
-						{
-							fprintf(stderr, "Error while reading data: %s.\n", strerror(errno));
-							exit(1);
-						}
-					}
-					if ( !eof )
-					{
-						if ( (opts.scode = (unsigned char *) realloc(opts.scode, len+bytes_read)) == NULL )
-						{
-							fprintf(stderr, "Error while allocating memory: %s.\n", strerror(errno));
-							exit(1);
-						}
-						memcpy(opts.scode+len, buffer, bytes_read);
-						len += bytes_read;
-					}
-				}
-			}
-		}
-		opts.size = len;
 	}
 	
 	if(opts.size==0){
@@ -2439,13 +2290,14 @@ void loadsc(void){
 
 int main(int argc, char *argv[])
 {
-	static struct termios oldt;
+	//static struct termios oldt;
 	int i=0;
 		
 	disable_mm_logging = true;
 	memset(&emm, 0, sizeof(emm));
 	memset(&mallocs, 0 , sizeof(mallocs));
-
+	hCon = GetStdHandle(STD_OUTPUT_HANDLE);
+	/*
 	tcgetattr( STDIN_FILENO, &oldt);
 	orgt = oldt;
 	oldt.c_lflag &= ~(ICANON | ECHO);                
@@ -2455,11 +2307,15 @@ int main(int argc, char *argv[])
 	signal(SIGABRT,restore_terminal);
     signal(SIGTERM,restore_terminal);
 	atexit(atexit_restore_terminal);
-	
+	*/
+
 	e = emu_new();
 	cpu = emu_cpu_get(e);
 	mem = emu_memory_get(e);
 	env = emu_env_new(e);
+	//na = nanny_new();
+	
+	//emu_log_level_set( emu_logging_get(e),  EMU_LOG_DEBUG);
 
 	if ( env == 0 ){ printf("%s\n%s\n", emu_strerror(e), strerror(emu_errno(e))); exit(-1);}
 
@@ -2567,7 +2423,7 @@ int main(int argc, char *argv[])
 	printf("Using base offset: 0x%x\n", CODE_OFFSET);
 	if(opts.verbose>0) printf("Verbosity: %i\n", opts.verbose);
 
-	if(opts.org_getpc == 1){
+	/*if(opts.org_getpc == 1){
 		opts.offset = getpctest();
 		if(opts.offset == -2) return 0;
 		if(opts.offset == -1) {
@@ -2577,7 +2433,7 @@ int main(int argc, char *argv[])
 			opts.offset =0;
 			opts.getpc_mode = true;
 		}
-	}
+	}*/
 
 	if(opts.getpc_mode){
 		opts.offset = find_sc();
@@ -2588,7 +2444,7 @@ int main(int argc, char *argv[])
 	nl();
 	run_sc();
 
-	tcsetattr( STDIN_FILENO, TCSANOW, &orgt);
+	//tcsetattr( STDIN_FILENO, TCSANOW, &orgt);
 	return 0;
 	 
 }

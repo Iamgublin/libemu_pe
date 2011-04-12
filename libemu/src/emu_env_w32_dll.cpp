@@ -28,11 +28,13 @@
 #include <stdlib.h>
 #include <string.h>
 
-#include "emu/emu.h"
-#include "emu/environment/emu_env.h"
-#include "emu/environment/win32/emu_env_w32_dll.h"
-#include "emu/environment/win32/emu_env_w32_dll_export.h"
-#include "emu/emu_hashtable.h"
+#include "emu.h"
+#include "emu_env.h"
+#include "emu_env_w32_dll.h"
+#include "emu_env_w32_dll_export.h"
+extern "C"{
+	#include "emu_hashtable.h"
+}
 
 struct emu_env_w32_dll *emu_env_w32_dll_new(void)
 {
@@ -59,8 +61,8 @@ void emu_env_w32_dll_exports_copy(struct emu_env_w32_dll *to,struct emu_env_w32_
 
 	size = i;
 
-	to->exportx = malloc(sizeof(struct emu_env_w32_dll_export) * size);
-	to->hooks = malloc(sizeof(struct emu_env_hook) * size);
+	to->exportx = (struct emu_env_w32_dll_export*)malloc(sizeof(struct emu_env_w32_dll_export) * size);
+	to->hooks = (struct emu_env_hook*)malloc(sizeof(struct emu_env_hook) * size);
 	memcpy(to->exportx, from, sizeof(struct emu_env_w32_dll_export) * size);
 
 

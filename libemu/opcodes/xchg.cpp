@@ -28,14 +28,14 @@
 
 #include <inttypes.h>
 
-#include "emu/emu.h"
-#include "emu/emu_cpu.h"
-#include "emu/emu_cpu_data.h"
+#include "emu.h"
+#include "emu_cpu.h"
+#include "emu_cpu_data.h"
 
-#include "emu/emu_cpu_stack.h"
-#include "emu/emu_memory.h"
+#include "emu_cpu_stack.h"
+#include "emu_memory.h"
 
-#include "emu/emu_track.h"
+#include "emu_track.h"
 
 /*Intel Architecture Software Developer's Manual Volume 2: Instruction Set Reference (24319102.PDF) page 754*/
 

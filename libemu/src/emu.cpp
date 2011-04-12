@@ -30,10 +30,11 @@
 #include <stdio.h>
 #include <stdarg.h>
 
-#include "emu/emu.h"
-#include "emu/emu_log.h"
-#include "emu/emu_memory.h"
-#include "emu/emu_cpu.h"
+
+#include "emu.h"
+#include "emu_log.h"
+#include "emu_memory.h"
+#include "emu_cpu.h"
 
 struct emu
 {
@@ -41,7 +42,7 @@ struct emu
 	struct emu_memory *memory; 
 	struct emu_cpu *cpu;
 
-	int 	errno;
+	int 	errornum;
 	char 	*errorstr;
 };
 
@@ -61,14 +62,16 @@ struct emu *emu_new(void)
 		return NULL;
 	}
 	e->cpu = emu_cpu_new(e);
-	logDebug(e,"%s %x\n", __PRETTY_FUNCTION__,(unsigned int)e);
+	
+	logDebug(e,"%s %x\n", __FUNCTION__,(unsigned int)e);
 	return e;
+	
 }
 
 
 void emu_free(struct emu *e)
 {
-	logDebug(e,"%s %x\n", __PRETTY_FUNCTION__,(unsigned int)e);
+	logDebug(e,"%s %x\n", __FUNCTION__,(unsigned int)e);
 	emu_cpu_free(e->cpu);
 	emu_memory_free(e->memory);
 	emu_log_free(e->log);
@@ -76,9 +79,10 @@ void emu_free(struct emu *e)
 		free(e->errorstr);
 
 	free(e);
+	 
 }
 
-inline struct emu_memory *emu_memory_get(struct emu *e)
+struct emu_memory *emu_memory_get(struct emu *e)
 {
 	return e->memory;
 }
@@ -88,7 +92,7 @@ inline struct emu_logging *emu_logging_get(struct emu *e)
 	return e->log;
 }
 
-inline struct emu_cpu *emu_cpu_get(struct emu *e)
+struct emu_cpu *emu_cpu_get(struct emu *e)
 {
 	return e->cpu;
 }
@@ -97,12 +101,12 @@ inline struct emu_cpu *emu_cpu_get(struct emu *e)
 
 void emu_errno_set(struct emu *e, int err)
 {
-	e->errno = err;
+	e->errornum = err;
 }
 
 int emu_errno(struct emu *c)
 {
-	return c->errno;
+	return c->errornum ;
 }
 
 void emu_strerror_set(struct emu *e, const char *format, ...)
@@ -110,10 +114,10 @@ void emu_strerror_set(struct emu *e, const char *format, ...)
 	if (e->errorstr != NULL)
     	free(e->errorstr);
 
-	va_list         ap;
-	char            *message;
+	va_list ap;
+	char *message = (char*)malloc(0x800);
 	va_start(ap, format);
-	int va = vasprintf(&message, format, ap);
+	int va = vsnprintf(message, 0x800, format, ap);
 	va_end(ap);
 
 	if (va == -1)

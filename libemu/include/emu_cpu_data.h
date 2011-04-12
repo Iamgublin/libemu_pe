@@ -30,11 +30,12 @@
 #define EMU_CPU_DATA_H_
 
 #include <stdint.h>
-#include <stdbool.h>
+//#include <stdbool.h>
 
-#include <emu/emu.h>
-#include <emu/emu_cpu_instruction.h>
-#include <emu/emu_instruction.h>
+#include <emu.h>
+#include <emu_cpu_instruction.h>
+#include <emu_instruction.h>
+#include <emu_cpu_data.h>
 
 enum emu_cpu_flag {
 	f_cf = 0, f_pf = 2, f_af = 4, f_zf = 6, f_sf = 7, f_tf = 8, f_if = 9,
@@ -290,10 +291,10 @@ memcpy(((char *)&to)+4,&upper,4);
 #define SST "16bit memory access is unsupported"
 
 #define UNIMPLEMENTED(cpu_p, reason) \
-emu_strerror_set((cpu_p)->emu, "The following function is unimplemented %s %s:%i (%s)", __PRETTY_FUNCTION__, __FILE__, __LINE__,  reason); \
+emu_strerror_set((cpu_p)->emu, "The following function is unimplemented %s %s:%i (%s)", __FUNCTION__, __FILE__, __LINE__,  reason); \
 return -1; 
 
-#define STUB(cpu_p) \
-emu_log((cpu_p)->emu, EMU_LOG_INFO, "The following function is a stub %s %s:%i \n", __PRETTY_FUNCTION__, __FILE__, __LINE__);
+//#define //STUB(cpu_p) 
+//emu_log((cpu_p)->emu, EMU_LOG_INFO, "The following function is a stub %s %s:%i \n", __FUNCTION__, __FILE__, __LINE__);
 
 #endif /*EMU_CPU_DATA_H_*/

@@ -27,11 +27,11 @@
 
 #include <stdint.h>
 
-#include "emu/emu_cpu.h"
-#include "emu/emu_cpu_data.h"
-#include "emu/emu_cpu_functions.h"
-#include "emu/emu_cpu_stack.h"
-#include "emu/emu_memory.h"
+#include "emu_cpu.h"
+#include "emu_cpu_data.h"
+#include "emu_cpu_functions.h"
+#include "emu_cpu_stack.h"
+#include "emu_memory.h"
 
 int32_t instr_group_10_8f_pop(struct emu_cpu *c, struct emu_cpu_instruction *i)
 {

@@ -33,7 +33,7 @@
 struct emu;
 struct emu_env_w32_dll;
 struct emu_env_w32_dll_export;
-struct emu_profile;
+//struct emu_profile;
 struct emu_env;
 struct emu_env_hook;
 
@@ -86,11 +86,12 @@ int32_t emu_env_w32_load_dll(struct emu_env_w32 *env, char *path);
  * 
  * @return on success: 0
  *         on failure: -1
- */
+ //disabled now because all hooks are set in user code
 int32_t emu_env_w32_export_hook(struct emu_env *env,
 								const char *exportname, 
 								uint32_t		(*fnhook)(struct emu_env *env, struct emu_env_hook *hook, ...),
 								void *userdata);
+*/
 
 /** -- added dzzie 1-23-11
  * User code will implement its own fresh hook for an dll export from a emu env dll
@@ -106,7 +107,7 @@ int32_t emu_env_w32_export_hook(struct emu_env *env,
 */
 int32_t emu_env_w32_export_new_hook(struct emu_env *env,
 								const char *exportname, 
-								int32_t		(*fnhook)(struct emu_env *env, struct emu_env_hook *hook),
+								int32_t (__stdcall *fnhook)(struct emu_env *env, struct emu_env_hook *hook),
 								void *userdata);
 
 /**

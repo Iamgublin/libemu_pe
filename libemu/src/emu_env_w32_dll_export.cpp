@@ -29,25 +29,27 @@
 #include <string.h>
 
 // for the socket hooks
-#include <sys/types.h>
-#include <sys/socket.h>
-#include <netinet/in.h>
-#include <arpa/inet.h>
+//#include <sys/types.h>
+//#include <sys/socket.h>
+//#include <netinet/in.h>
+//#include <arpa/inet.h>
 
-#include <sys/wait.h>
-#include <unistd.h>
+//#include <sys/wait.h>
+//#include <unistd.h>
 
 
-#include "emu/emu.h"
-#include "emu/emu_memory.h"
-#include "emu/emu_cpu.h"
-#include "emu/emu_cpu_data.h"
-#include "emu/emu_cpu_stack.h"
-#include "emu/emu_hashtable.h"
-#include "emu/environment/win32/emu_env_w32.h"
-#include "emu/environment/win32/emu_env_w32_dll_export.h"
-#include "emu/environment/win32/emu_env_w32_dll.h"
-#include "emu/emu_string.h"
+#include "emu.h"
+#include "emu_memory.h"
+#include "emu_cpu.h"
+#include "emu_cpu_data.h"
+#include "emu_cpu_stack.h"
+extern "C"{
+	#include "emu_hashtable.h"
+}
+#include "emu_env_w32.h"
+#include "emu_env_w32_dll_export.h"
+#include "emu_env_w32_dll.h"
+#include "emu_string.h"
 
 struct emu_env_w32_dll_export *emu_env_w32_dll_export_new(void)
 {
