@@ -1,5 +1,8 @@
 
 #include "emu_memory.h"
+#pragma warning(disable: 4311)
+#pragma warning(disable: 4312)
+#pragma warning(disable: 4267)
 
 #define POP_DWORD(cpu, dst_p) \
 { int32_t ret = emu_memory_read_dword(cpu->mem, cpu->reg[esp], dst_p); \
@@ -103,6 +106,9 @@ int32_t	__stdcall new_user_hook_WSAStartup(struct emu_env *env, struct emu_env_h
 
 //new
 int32_t	__stdcall new_user_hook_CreateFileMappingA(struct emu_env *env, struct emu_env_hook *hook);
+int32_t	__stdcall new_user_hook_WideCharToMultiByte(struct emu_env *env, struct emu_env_hook *hook);
+int32_t	__stdcall new_user_hook_GetLogicalDriveStringsA(struct emu_env *env, struct emu_env_hook *hook);
+
 
 
 

@@ -104,9 +104,11 @@ extern "C"{
 #include "userhooks.h"
 #include "options.h"
 #include <io.h>
-//#include <termios.h>
 #include <signal.h>
 #include <windows.h>
+#include <conio.h>
+
+#pragma warning(disable: 4311)
 
 struct hh{
 	uint32_t eip;
@@ -137,7 +139,6 @@ struct m_allocs mallocs[21];
 
 struct emm_mode emm; //extended memory monitor
 struct run_time_options opts;
-//static struct termios orgt;
 struct emu *e = 0;           //one global object 
 struct emu_cpu *cpu = 0;
 struct emu_memory *mem = 0;
@@ -162,7 +163,9 @@ int mdll_last_read_eip=0;
 int mdll_last_read_addr=0;
 
 bool hexdump_color = false;
+DWORD orgt;
 HANDLE hCon = 0;
+HANDLE hConOut = 0;
 
 //overview stats variables
 bool ov_reads_dll_mem = false;
@@ -248,24 +251,27 @@ enum colors{ mwhite=15, mgreen=10, mred=12, myellow=14, mblue=9, mpurple=5 };
 void end_color(void){
 	if(opts.no_color) return;
 	//printf("\033[0m"); 
-	SetConsoleTextAttribute(hCon,7); 
+	SetConsoleTextAttribute(hConOut,7); 
 }
 void nl(void){ printf("\n"); }
-//void restore_terminal(int arg)    { tcsetattr( STDIN_FILENO, TCSANOW, &orgt); }
-//void atexit_restore_terminal(void){ tcsetattr( STDIN_FILENO, TCSANOW, &orgt); }
+void restore_terminal(int arg)    { SetConsoleMode(hCon, orgt); }
+void atexit_restore_terminal(void){ SetConsoleMode(hCon, orgt); }
 
 void start_color(enum colors c){
 	//char* cc[] = {"\033[37;1m", "\033[32;1m", "\033[31;1m", "\033[33;1m", "\033[34;1m", "\033[35;1m"};
 	if(opts.no_color) return;
 	//printf("%s", cc[c]);
-    SetConsoleTextAttribute(hCon, c);
+    SetConsoleTextAttribute(hConOut, c);
 }
 
-
-void ctrl_c_handler(int arg){ 
-	opts.verbose = 3;             //break next instruction
-	ctrl_c_count++;               //user hit ctrl c a couple times, 
-	if(ctrl_c_count > 1) exit(0); //must want out for real.. (zeroed each step)
+int __stdcall ctrl_c_handler(DWORD arg){
+	if(arg==0){ //ctrl_c event
+			opts.verbose = 3;             //break next instruction
+			ctrl_c_count++;               //user hit ctrl c a couple times, 
+			if(ctrl_c_count > 1) exit(0); //must want out for real.. (zeroed each step)
+			return TRUE;
+	}
+	return FALSE;
 }
 
 void add_malloc(uint32_t base, uint32_t size){
@@ -689,7 +695,7 @@ void real_hexdump(unsigned char* str, int len, int offset, bool hexonly){
 	if(!hexonly) printf(nl);
 	
 	if(offset >=0){
-		printf("        0  1  2  3  4  5  6  7  8  9  A  B  C  D  E  F\n");
+		printf("        0  1  2  3  4  5  6  7   8  9  A  B  C  D  E  F\n");
 		printf("%04x   ", offset);
 	}
 
@@ -708,6 +714,8 @@ void real_hexdump(unsigned char* str, int len, int offset, bool hexonly){
 		 else asc[aspot] = 0x2e;
 
 		aspot++;
+		if(aspot%8==0) printf(" "); //to make figuring out offset easier
+
 		if(aspot%16==0){
 			asc[aspot]=0x00;
 			if(!hexonly){
@@ -839,6 +847,7 @@ unsigned int read_hex(char* prompt, char* buf){
 
 	printf("%s: (hex/reg) 0x", prompt);
 //	getline(&buf, &nBytes, stdin);
+	fgets(buf, nBytes, stdin); 
 
 	if(strlen(buf)==4){
 		for(i=0;i<8;i++){
@@ -866,6 +875,8 @@ int read_string(char* prompt, char* buf){
 
 	printf("%s", prompt);
 //	getline(&buf, &nBytes, stdin);
+	fgets(buf, nBytes, stdin); 
+
 	i = strlen(buf);
 	if(i>0) buf[i-1] = 0; //strip new line
 	nl();
@@ -880,6 +891,8 @@ unsigned int read_int(char* prompt, char* buf){
 
 	printf("%s: (int/reg) ", prompt);
 //	getline(&buf, &nBytes, stdin);
+	fgets(buf, nBytes, stdin); 
+
 
 	if(strlen(buf)==4){
 		for(i=0;i<8;i++){
@@ -1001,7 +1014,7 @@ void interactive_command(struct emu *e){
 		if( (c >= 'a' || c==0) && c != 0x7e) printf("dbg> "); //stop arrow and function key weirdness...
 		if( c == '.') printf("dbg> ");
 
-		c = getchar();		 
+		c = getch();
 
 		if(c=='q'){ opts.steps =0; break; }
 		if(c=='g'){ opts.verbose =0; break; }
@@ -1370,6 +1383,8 @@ void set_hooks(struct emu_env *env /*,struct nanny *na*/){
 	ADDHOOK(WSASocketA);
 	ADDHOOK(WSAStartup);
 	ADDHOOK(CreateFileMappingA);
+	ADDHOOK(WideCharToMultiByte);
+	ADDHOOK(GetLogicalDriveStringsA);
 
 
 }
@@ -1667,8 +1682,10 @@ void init_emu(void){
 
 	//InMemoryOrderModuleList 2nd entry lets swap the ntdll base for kernel32
 	//this breaks other shellcode though cause not complete...
-	emu_memory_write_dword(mem, 0x252f38 + 0x10, 0x7c800000); //k32 base (these dont change basedllname pointer tho)
-	emu_memory_write_dword(mem, 0x252ef0 + 0x10, 0x7C900000); //ntdll
+	if(opts.pebPatch){
+		emu_memory_write_dword(mem, 0x252f38 + 0x10, 0x7c800000); //k32 base (these dont change basedllname pointer tho)
+		emu_memory_write_dword(mem, 0x252ef0 + 0x10, 0x7C900000); //ntdll
+	}
 
 	/*
 	uint32_t a;
@@ -1743,7 +1760,21 @@ int run_sc(void)
 			opts.log_after_va = 0;
 		}
 
+		if( opts.break_above != 0 && last_good_eip > opts.break_above){
+			opts.verbose = 3;
+			start_color(myellow);
+			printf("Break Above hit...\n");
+			end_color();
+		}
 
+		if(opts.break0){
+			if(cpu->instr.cpu.opc == 0 && opts.cur_step > 0){
+				opts.verbose = 3; //interactive dbg prompt
+				start_color(myellow);
+				printf("break 0 hit\n");
+				end_color();
+			}
+		}
 
 		if ( cpu->repeat_current_instr == false )
 			eipsave = emu_cpu_eip_get(emu_cpu_get(e));
@@ -1977,6 +2008,7 @@ void print_help(void)
 		{"e", "int"	     , "verbosity on error (3 = debug shell)"},
 		{"t", "int"	     , "time to delay (ms) between steps when v=1 or 2"},
 		{"h",  NULL		 , "show this help"},
+		{"ba", "hexnum"  , "break above - breaks if eip > hexnum"},
 		{"bp", "hexnum"  , "set breakpoint on addr or api name (same as -laa <hexaddr> -vvv)"},
 		{"bs", "int"     , "break on step (shortcut for -las <int> -vvv)"},
 		{"a",  NULL		 , "adjust offsets to file offsets not virtual"},
@@ -1993,25 +2025,20 @@ void print_help(void)
 		{"- /+", NULL , "increments or decrements GetFileSize, can use multiple times"},
 		{"hooks", NULL , "dumps a list all implemented api hooks"},
 		{"r", NULL ,     "show analysis report at end of run"},
+		{"pp", NULL ,     "peb patch - required for some shellcodes (rare)"},
+		{"b0", NULL ,     "break if 00 00 add [eax],al"},
 	};
 
-	int i;
+	system("cls");
+	start_color(mwhite);
+	printf("\n\n");
+	printf("  scdbg is an adaption of the libemu library and sctest project\n");
+	printf("  Libemu Copyright (C) 2007  Paul Baecher & Markus Koetter\n");
+	printf("  scdbg developer: David Zimmer <dzzie@yahoo.com>\n");
+	printf("  Compile date: %s %s\n\n", __DATE__, __TIME__);
+	end_color();
 
-	 printf("\t\t _______________\n");
-	 printf("\t\t|               |\n");
-	 printf("\t\t|               |\n");
-	 printf("\t\t|    libemu     |\n");
-	 printf("\t\t| x86 emulation |\n");
-	 printf("\t\t|               |\n");
-	 printf("\t\t|               |\n");
-	 printf("\t\t|               |\n");
-	 printf("\t\t\\ O             |\n");
-	 printf("\t\t \\______________|   build: 0.2.dz\n\n");
-
-	 printf("\t-----[ libemu - x86 shellcode emulation ]-----\n");
-	 printf("\tCopyright (C) 2007  Paul Baecher & Markus Koetter\n\n");
-
-	for (i=0;i<sizeof(help_infos)/sizeof(struct help_info); i++)
+	for (int i=0;i<sizeof(help_infos)/sizeof(struct help_info); i++)
 	{
 		printf("  /%1s ", help_infos[i].short_param);
 
@@ -2023,8 +2050,8 @@ void print_help(void)
 		printf("\t%s\n", help_infos[i].description);
 	}
 
-	printf("\n   dbg> shell prompt commands:");
-	show_debugshell_help();
+	printf("\n   in the dbg> shell enter ? to see supported commands\n\n");
+	//show_debugshell_help();
 	exit(0);
 
 }
@@ -2035,15 +2062,14 @@ void show_supported_hooks(void){
 	int j=0;
 	int tot=0;
 
-	//struct nanny *na = nanny_new();
-	set_hooks(env/*,na*/);
+	set_hooks(env);
 
 	while ( env->env.win->loaded_dlls[i] != 0 ){
 		struct emu_env_w32_dll *dll = env->env.win->loaded_dlls[i]; 
 		printf("\r\n%s\r\n", dll->dllname );
-		while( dll->exportx[j].virtualaddr != 0 ){
-			if( /*dll->exportx[j].userhook > 0 ||*/ dll->exportx[j].fnhook > 0 )
-			{
+		while( dll->exportx[j].fnname  != 0 ){
+			if( dll->exportx[j].fnhook != 0 ){
+				if( !IsBadReadPtr(dll->exportx[j].fnname,4) ) break;//for some reason the last null element is optimized out or something?
 				printf("\t%s\r\n", dll->exportx[j].fnname);
 				tot++;
 			}
@@ -2082,6 +2108,7 @@ void parse_opts(int argc, char* argv[] ){
 	opts.exec_till_ret = false;
 	opts.mem_monitor_dlls = false;
 	opts.report = false;
+	opts.pebPatch =false;
 
 	for(i=1; i < argc; i++){
 					
@@ -2100,6 +2127,8 @@ void parse_opts(int argc, char* argv[] ){
 		if(strstr(buf,"/v") > 0 ) opts.verbose++;
 		if(sl==2 && strstr(buf,"/r") > 0 ){ opts.report = true; opts.mem_monitor = true;}
 		if(sl==3 && strstr(argv[i],"/nc") > 0 )   opts.no_color = true;
+		if(sl==3 && strstr(argv[i],"/b0") > 0 )   opts.break0  = true;
+		if(sl==3 && strstr(argv[i],"/pp") > 0 )   opts.pebPatch =true;
 		if(sl==4 && strstr(argv[i],"/hex") > 0 )  opts.show_hexdumps = true;
 		if(sl==7 && strstr(argv[i],"/findsc") > 0 ) opts.getpc_mode = true;
 		if(sl==6 && strstr(argv[i],"/getpc") > 0 ) opts.org_getpc  = 1;
@@ -2137,6 +2166,8 @@ void parse_opts(int argc, char* argv[] ){
 				exit(0);
 			}
 			opts.fopen = fopen(argv[i+1],"r");
+			opts.fopen_fpath = strdup(argv[i+1]);
+			opts.fopen_fsize = file_length(opts.fopen);
 			if((int)opts.fopen < 1){
 				start_color(myellow);
 				printf("FAILED TO OPEN %s", argv[i+1]);
@@ -2162,6 +2193,14 @@ void parse_opts(int argc, char* argv[] ){
 			opts.log_after_va = symbol2addr(argv[i+1]);
 			if(opts.log_after_va == 0) opts.log_after_va = strtol(argv[i+1], NULL, 16);
 			opts.verbosity_after = 3;
+		}
+
+		if(sl==3 && strstr(argv[i],"/ba") > 0 ){
+			if(i+1 >= argc){
+				printf("Invalid option /ba must specify hex breakpoint above addr as next arg\n");
+				exit(0);
+			}
+			opts.break_above = strtol(argv[i+1], NULL, 16);
 		}
 
 		if(sl==3 && strstr(argv[i],"/bs") > 0 ){
@@ -2290,30 +2329,31 @@ void loadsc(void){
 
 int main(int argc, char *argv[])
 {
-	//static struct termios oldt;
 	int i=0;
 		
 	disable_mm_logging = true;
 	memset(&emm, 0, sizeof(emm));
 	memset(&mallocs, 0 , sizeof(mallocs));
-	hCon = GetStdHandle(STD_OUTPUT_HANDLE);
-	/*
-	tcgetattr( STDIN_FILENO, &oldt);
-	orgt = oldt;
-	oldt.c_lflag &= ~(ICANON | ECHO);                
-	tcsetattr( STDIN_FILENO, TCSANOW, &oldt); 
+	
+	SetConsoleCtrlHandler(ctrl_c_handler, TRUE); //http://msdn.microsoft.com/en-us/library/ms686016
 
-	signal(SIGINT, ctrl_c_handler); //we break into debugger, they can q from there..or x2 to exit
+	hCon = GetStdHandle( STD_INPUT_HANDLE );
+	hConOut = GetStdHandle( STD_OUTPUT_HANDLE );
+
+	DWORD old;
+	GetConsoleMode(hCon, &old);
+	orgt = old;
+	old &= ~ENABLE_LINE_INPUT;
+	SetConsoleMode(hCon, old);
+
 	signal(SIGABRT,restore_terminal);
     signal(SIGTERM,restore_terminal);
 	atexit(atexit_restore_terminal);
-	*/
 
 	e = emu_new();
 	cpu = emu_cpu_get(e);
 	mem = emu_memory_get(e);
 	env = emu_env_new(e);
-	//na = nanny_new();
 	
 	//emu_log_level_set( emu_logging_get(e),  EMU_LOG_DEBUG);
 
@@ -2323,6 +2363,13 @@ int main(int argc, char *argv[])
 	loadsc();
 	init_emu();	
 	
+	if(opts.interactive_hooks==1){
+		WORD wVersionRequested;
+		WSADATA wsaData;
+        wVersionRequested = MAKEWORD(2, 2);
+	    WSAStartup(wVersionRequested, &wsaData);
+	}
+
 	//---- mem_monitor init - always started now to generate reports.. mm & mdll still shows more specifics in log output
 	i=0;
 	if(opts.mem_monitor || opts.report ){
@@ -2444,7 +2491,6 @@ int main(int argc, char *argv[])
 	nl();
 	run_sc();
 
-	//tcsetattr( STDIN_FILENO, TCSANOW, &orgt);
 	return 0;
 	 
 }

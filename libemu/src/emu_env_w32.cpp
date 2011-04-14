@@ -240,10 +240,10 @@ struct emu_env_w32_known_dll known_dlls[] =
 	   * it should be possible to have this working without such
 	   * hacks, but ... for now it works
 	   */
-		/*.dllname =*/ "self",
+		/*.dllname =*/ "process.exe",
 		/*.baseaddress =*/ 0x7C800000,
 		/*.imagesize =*/ 0xf6000, //0x00106000, -changed dz 
-	},
+	}, 
 	{
 		/*.dllname =*/ "kernel32",      //this must always be first dll -dz
 		/*.baseaddress =*/ 0x7C800000, 
@@ -257,7 +257,7 @@ struct emu_env_w32_known_dll known_dlls[] =
 		/*.imagesize =*/ 0xB2000,
 		/*.exports =*/ ntdll_exports,
 		/*.memory_segments =*/ ntdll_segments,
-	},  
+	}, 
 	{
 		/*.dllname =*/ "ws2_32",
 		/*.baseaddress =*/ 0x71A10000,

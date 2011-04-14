@@ -987,7 +987,7 @@ struct emu_env_w32_dll_export kernel32_exports[] =
 	{"lstrlen", 0x0000BDB6, NULL, NULL},
 	{"lstrlenA", 0x0000BDB6, NULL, NULL},
 	{"lstrlenW", 0x00009A09, NULL, NULL},
-	{0,0,NULL},
+	{0,0,NULL,NULL},
 };
 
 struct emu_env_w32_dll_export ws2_32_exports[] = 
@@ -1109,7 +1109,7 @@ struct emu_env_w32_dll_export ws2_32_exports[] =
 	{"WSACleanup", 0x00004428, NULL, NULL},
 	{"__WSAFDIsSet", 0x00004544, NULL, NULL},
 	{"WEP", 0x00012105, NULL, NULL},
-	{0,0,NULL},
+	{0,0,NULL,NULL},
 };
 
 struct emu_env_w32_dll_export msvcrt_exports[] = 
@@ -1945,7 +1945,7 @@ struct emu_env_w32_dll_export msvcrt_exports[] =
 	{"wctomb", 0x0000DEB0, NULL, NULL},
 	{"wprintf", 0x0003225B, NULL, NULL},
 	{"wscanf", 0x000322C6, NULL, NULL},
-	{0, 0, NULL}
+	{0, 0, NULL,NULL}
 };
 
 
@@ -2776,7 +2776,7 @@ struct emu_env_w32_dll_export user32_exports[] =
 	{"wsprintfW", 0x0000A9B6, NULL, NULL},
 	{"wvsprintfA", 0x0000A610, NULL, NULL},
 	{"wvsprintfW", 0x0000A9D1, NULL, NULL},
-	{0,0,NULL},
+	{0,0,NULL,NULL},
 };
 
 struct emu_env_w32_dll_export shell32_exports[] =
@@ -3090,7 +3090,7 @@ struct emu_env_w32_dll_export shell32_exports[] =
 	{"SHLimitInputEdit", 0x0011614A, NULL, NULL},
 	{"SHGetShellStyleHInstance", 0x000D5574, NULL, NULL},
 	{"SHGetAttributesFromDataObject", 0x000D2B61, NULL, NULL},
-	{0,0,NULL},
+	{0,0,NULL,NULL},
 };
 
 struct emu_env_w32_dll_export wininet_exports[] = 
@@ -3321,7 +3321,7 @@ struct emu_env_w32_dll_export wininet_exports[] =
 		{"UnlockUrlCacheEntryStream", 0x0001F913, NULL, NULL},
 		{"UpdateUrlCacheContentPath", 0x000843B4, NULL, NULL},
 		{"UrlZonesDetach", 0x0007F3B2, NULL, NULL},
-		{0,0,NULL},
+		{0,0,NULL,NULL},
 };
 
 
@@ -4644,7 +4644,7 @@ struct emu_env_w32_dll_export ntdll_exports[] =
 		{"wcstol", 0x00029F23, NULL, NULL},
 		{"wcstombs", 0x00072131, NULL, NULL},
 		{"wcstoul", 0x00034DC1, NULL, NULL},
-		{0,0,NULL},
+		{0,0,NULL,NULL},
 };
 
 
@@ -4964,7 +4964,7 @@ struct emu_env_w32_dll_export shlwapi_exports[] =
 		{"wnsprintfW", 0x000093F6, NULL, NULL},
 		{"wvnsprintfA", 0x00008012, NULL, NULL},
 		{"wvnsprintfW", 0x00009201, NULL, NULL},
-		{0,0,NULL},
+		{0,0,NULL,NULL},
 };
 
 
@@ -5647,7 +5647,7 @@ struct emu_env_w32_dll_export advapi32_exports[] =
 		{"WmiSetSingleItemW", 0x0005BE15, NULL, NULL},
 		{"Wow64Win32ApiEntry", 0x00068423, NULL, NULL},
 		{"WriteEncryptedFileRaw", 0x00043486, NULL, NULL},
-		{0,0,NULL},
+		{0,0,NULL,NULL},
 };
 
 struct emu_env_w32_dll_export shdocvw_exports[] = 
@@ -5680,6 +5680,6 @@ struct emu_env_w32_dll_export shdocvw_exports[] =
 	{"SoftwareUpdateMessageBox", 0x000447B6, NULL, NULL},
 	{"URLQualifyA", 0x00044216, NULL, NULL},
 	{"URLQualifyW", 0x00044261, NULL, NULL},
-	{0,0,NULL},
+	{0,0,NULL,NULL},
 };
 

@@ -1,11 +1,14 @@
 		Changelog for libemu
 
-4.x.11
+4.11.11
 	exe - /dump mode highlights possible start offsets (90,E8.E9)
 	    - kinda added: MultiByteToWideChar, URLDownloadToCacheFileW,CreateProcessInternalW, CreateFileW
+	    - ported code base to Visual Studio 2008. some features stripped like graphing, linux hooks, getpc
+	    - new hooks CreateFileMappingA, WideCharToMultiByte, GetLogicalDriveStringsA
+	    - still some fixups required from port.
 
 3.31.11
-    exe - added logging stub for ZwQueryVirtualMemory (not really implemented though)
+    exe - added logging stub for ZwQueryVirtualMemory (only Section Name class implemented)
 	    - added bunch of signed to unsigned casts to make gcc 4.x happy
 		- dbgshell dump words now lets you walk mem negative with -1/-2 options
 		- added hooks GetEnvironmentVariableA,VirtualAllocEx,WriteProcessMemory,CreateRemoteThread,DialogBoxIndirectParamA

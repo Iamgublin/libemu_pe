@@ -130,10 +130,10 @@ uint32_t get_ret(struct emu_env *env, int arg_adjust){
 
 char* get_client_ip(struct sockaddr *clientInformation)
 {	
-	/*if (clientInformation->sa_family == AF_INET) {
+	if (clientInformation->sa_family == AF_INET) {
 		struct sockaddr_in *ipv4 = (struct sockaddr_in *)clientInformation;
 		return inet_ntoa(ipv4->sin_addr);
-	}*/
+	}
 	return 0;
 }
 
@@ -755,18 +755,30 @@ int32_t	__stdcall new_user_hook_MapViewOfFile(struct emu_env *env, struct emu_en
 	uint32_t size   = a[5];
 	uint32_t baseMemAddress = next_alloc;
 
-	if(size==0) size = 0x5000; //size was specified in CreateFileMapping...so we default it...
+	//if size=0 then it could be set in CreateFIleMapping. 
+	//If was set in CreateFileMapping call and its > opts.fopen_fsize then opts.fopen_fsize is reset
+	//if were not in interactive mode, then opts.fopen_fsize == 0 anyway. 
+	if(size==0) size = opts.fopen_fsize; 
 
 	if(size > 0 && size < MAX_ALLOC){
 		set_next_alloc(size);
 		void *buf = malloc(size);
-		memset(buf,0,size); //to do this right, we would be grabbing the file data and writing it in..
+		
+		if(opts.interactive_hooks==1){
+			void* view = MapViewOfFile((HANDLE)a[1],a[2],a[3],a[4],a[5]);
+			printf("\tInteractive mode view=%x\n",(int)view);
+			if((int)view != 0) memcpy(buf,view,size);
+		}else{
+			memset(buf,0,size); 
+		}
+
 		emu_memory_write_block(mem,baseMemAddress,buf, size);
-		printf("%x\tMapViewOfFile(h=%x, offset=%x, sz=%x) = %x\n", a[0], offset, size, baseMemAddress);
+
+		printf("%x\tMapViewOfFile(h=%x, offset=%x, sz=%x) = %x\n", a[0], h, offset, size, baseMemAddress);
 		free(buf);
 		set_ret(baseMemAddress);
 	}else{
-		printf("%x\tMapViewOfFile(h=%x, offset=%x, sz=%x)\n", a[0], offset, size);
+		printf("%x\tMapViewOfFile(h=%x, offset=%x, sz=%x)\n", a[0], h, offset, size);
 		set_ret(0);
 	}
 
@@ -1583,20 +1595,16 @@ int32_t	__stdcall new_user_hook_ZwQueryVirtualMemory(struct emu_env *env, struct
 	printf("%x\tZwQueryVirtualMemory(pid=%x, base=%x, cls=%x (%s), buf=%x, sz=%x, *retval=%x)\n",
 		eip_save, hproc, base, mem_info_class, mic[safe_mic], mem_info, mem_info_len, ret_len);
 
-	/*if(mem_info_class == 2){ //sectname
-		//char* sectname = "c:\\Program Files\\parent\\parentapp.exe";
-		unsigned char sectname[25] = {
-			0x63, 0x00, 0x3A, 0x00, 0x5C, 0x00, 0x70, 0x00, 0x61, 0x00, 0x72, 0x00, 0x65, 0x00, 0x6E, 0x00, 
-			0x74, 0x00, 0x2E, 0x00, 0x65, 0x00, 0x78, 0x00, 0x65
-		};
-		int sl = sizeof(sectname);
+	if(mem_info_class == 2){ //sectname
+		char* sectname = "\\Device\\HarddiskVolume1\\parent_file.doc"; //technically this should be unicode..but they will convert it anyway so skip that shit
+		int sl = strlen(sectname);
 		if(sl < mem_info_len){
 			emu_memory_write_block(mem, mem_info, sectname, sl);
 			if(ret_len != 0) emu_memory_write_dword(mem, ret_len, sl);
 		}else{
 			printf("\tBuffer not large enough to embed Section Name\n");
 		}
-	}*/
+	}
 
 	cpu->reg[eax] = 1;	 
 	emu_cpu_eip_set(c, eip_save);
@@ -2432,16 +2440,19 @@ int32_t	__stdcall new_user_hook_CreateFileA(struct emu_env *env, struct emu_env_
 	uint32_t templatefile;
 	POP_DWORD(c, &templatefile);
 
+	char *localfile = 0;
+
 	if(opts.interactive_hooks == 1 ){
-		char *localfile = SafeTempFile();
+		localfile = SafeTempFile();
 		FILE *f = fopen(localfile,"w");
-		printf("\tInteractive mode local file %s\n", localfile);
 	    set_ret((int)f);
 	}else{
 		set_ret( get_fhandle() );
 	}
 	
 	printf("%x\t%s(%s) = %x\n", eip_save, hook->hook.win->fnname, emu_string_char(filename), cpu->reg[eax]  );
+
+	if(opts.interactive_hooks) printf("\tInteractive mode local file %s\n", localfile);
 
 	emu_string_free(filename);
 	emu_cpu_eip_set(c, eip_save);
@@ -2669,10 +2680,17 @@ int32_t	__stdcall new_user_hook_memset(struct emu_env *env, struct emu_env_hook 
 	/*	void *memset(   void* dest,    int c,    size_t count );*/
 	uint32_t dest;
 	POP_DWORD(c, &dest);
+	
 	uint32_t writeme;
 	POP_DWORD(c, &writeme);
+	
 	uint32_t size;
 	POP_DWORD(c, &size);
+
+	PUSH_DWORD(c, size);     /* not a bug, apparently ntdll.memset is cdecl not stdcall doesnt clean up stack */
+	PUSH_DWORD(c, writeme);
+	PUSH_DWORD(c, dest);
+
 	printf("%x\tmemset(buf=%x, c=%x, sz=%x)\n",eip_save,dest,writeme,size);
 	set_ret(dest);
     emu_cpu_eip_set(c, eip_save);
@@ -2859,9 +2877,20 @@ int32_t	__stdcall new_user_hook_accept(struct emu_env *env, struct emu_env_hook 
 	POP_DWORD(c, &addrlen);
 
 	uint32_t returnvalue = 0x68;
-	printf("%x\taccept(h=%x)\n",eip_save, (int)s);
+	
+	printf("%x\taccept(h=%x, sa=%x, len=%x)",eip_save, (int)s, addr, addrlen);
 
-    if(opts.interactive_hooks == 1) returnvalue = accept((SOCKET)s, &sa, (int*)&addrlen);
+	if(addrlen < sizeof(struct sockaddr)) addrlen = sizeof(struct sockaddr);
+
+	if(opts.interactive_hooks == 1){
+		int al = addrlen;
+		returnvalue = accept((SOCKET)s, &sa, &al);
+		emu_memory_write_dword(mem, addrlen, al);
+		emu_memory_write_block(mem, addr, &sa, sizeof(struct sockaddr) );
+	}
+
+	printf(" = %x\n", returnvalue);
+	if(returnvalue == SOCKET_ERROR) printf("\tlisten failed with error: %ld\n", WSAGetLastError());
 
 	set_ret(returnvalue);
 	emu_cpu_eip_set(c, eip_save);
@@ -2885,14 +2914,14 @@ int32_t	__stdcall new_user_hook_bind(struct emu_env *env, struct emu_env_hook *h
 
 	uint32_t namelen;
 	POP_DWORD(c, &namelen);
+	if (namelen != sizeof(struct sockaddr)) namelen = sizeof(struct sockaddr);
 
-	uint32_t returnvalue = 0 ;
+	uint32_t returnvalue = 21 ;
+	if(opts.interactive_hooks == 1) returnvalue = bind((SOCKET)s, &sa, namelen);
+
+	printf("%x\tbind(h=%x, port:%d, sz=%x) = %x\n",eip_save, s, get_client_port(&sa),namelen, returnvalue );
+
 	set_ret(returnvalue);
-	
-	printf("%x\tbind(port:%d)\n",eip_save, get_client_port(&sa) );
-
-    //if(opts.interactive_hooks ==1) returnvalue = bind(s, sa, namelen);
-
 	emu_cpu_eip_set(c, eip_save);
 	return 0;
 }
@@ -2961,10 +2990,10 @@ int32_t	__stdcall new_user_hook_listen(struct emu_env *env, struct emu_env_hook 
 	uint32_t backlog;
 	POP_DWORD(c, &backlog);
 
-	uint32_t returnvalue = 0;	
-	printf("%x\tlisten(h=%x)\n",eip_save,s);
-
+	uint32_t returnvalue = 0x21;	
 	if(opts.interactive_hooks == 1 ) returnvalue = listen((SOCKET)s, backlog);
+
+	printf("%x\tlisten(h=%x) = %x\n",eip_save,s,returnvalue);
 
 	set_ret(returnvalue);
 	emu_cpu_eip_set(c, eip_save);
@@ -3125,9 +3154,11 @@ int32_t	__stdcall new_user_hook_socket(struct emu_env *env, struct emu_env_hook 
 	POP_DWORD(c, &protocol);
 
 	uint32_t returnvalue = 65;
-	printf("%x\tsocket(%i, %i, %i)\n",eip_save, af, type, protocol);
+	if(opts.interactive_hooks == 1 ){
+		returnvalue = (int)socket(af, type, protocol);
+	}
 
-	if(opts.interactive_hooks == 1 ) returnvalue = socket(af, type, protocol);
+	printf("%x\tsocket(%i, %i, %i) = %x\n",eip_save, af, type, protocol, returnvalue);
 
 	set_ret(returnvalue);
 	emu_cpu_eip_set(c, eip_save);
@@ -3215,20 +3246,92 @@ int32_t	__stdcall new_user_hook_CreateFileMappingA(struct emu_env *env, struct e
 	uint32_t rv = 0;
 	uint32_t h = a[1];
 
-	/*if(opts.interactive_hooks == 1){
-		if(h == 1 || h == 4){
-			h = (uint32_t)opts.fopen; 
-			//printf("\tAdjusting handle to /fopen handle %x\n",h);
+	if(opts.interactive_hooks == 1){
+		if(a[5] > opts.fopen_fsize) opts.fopen_fsize = a[5]; //reset if max size of file map > file size
+		if(h == 1 || h == 4){ 
+			if(opts.fopen_fpath == NULL){
+				printf("\tUse /fopen <file> to do interactive mode for CreateFileMapping\n");
+			}else{
+				//handle from GetFileSizeScanner...We need a specific type of handle for this though
+				h = (uint32_t)CreateFile(opts.fopen_fpath, GENERIC_READ,FILE_SHARE_READ,NULL,OPEN_EXISTING,FILE_ATTRIBUTE_NORMAL,NULL); 
+			}
 		}
-		rv = (uint32_t)CreateFileMapping( (HANDLE)h, (LPSECURITY_ATTRIBUTES)a[2],a[3],a[4],a[5],0);
-	}*/
+		rv = (uint32_t)CreateFileMapping((HANDLE)h, 0,2,0,0,0);
+	}
 	
-	printf("%x\tCreateFileMappingA(h=%x,%x,p=%x,%x,%x,lpName=%x) = %x\n", a[0], h ,a[2],a[3],a[4],a[5],a[6],rv);
+	printf("%x\tCreateFileMappingA(h=%x,%x,%x,%x,%x,lpName=%x) = %x\n", a[0], a[1] ,a[2],a[3],a[4],a[5],a[6],rv);
 
 	set_ret(rv);
 	emu_cpu_eip_set(cpu, a[0]);
 	return 0;
 }
 
+int32_t	__stdcall new_user_hook_WideCharToMultiByte(struct emu_env *env, struct emu_env_hook *hook)
+{
+	uint32_t a[10] = {0,0,0,0,0,0,0,0,0,0};
+	loadargs(8, a);
+	/*
+		int WideCharToMultiByte(
+		  __in   UINT CodePage,
+		  __in   DWORD dwFlags,
+		  __in   LPCWSTR lpWideCharStr,
+		  __in   int cchWideChar,
+		  __out  LPSTR lpMultiByteStr,
+		  __in   int cbMultiByte,
+		  __in   LPCSTR lpDefaultChar,
+		  __out  LPBOOL lpUsedDefaultChar
+		);
+	*/
 
+	uint32_t rv = 0;
+	uint32_t bufIn = a[3];
+	uint32_t bufInSz = a[4];
+	uint32_t bufOut = a[5];
+	uint32_t bufOutSz = a[6];
+
+	//we dont feed the shellcode any unicode data from any api hooks, chances they use it native are very low
+	//so they are probably trying to convert our api output which is already ansi, so just copy it 
+	if(bufInSz < MAX_ALLOC ){
+		char* tmp = (char*)malloc(bufInSz);
+		emu_memory_read_block(mem,bufIn,tmp,bufInSz);
+		emu_memory_write_block(mem, bufOut,tmp,bufOutSz); //if > bufInSz thats their problem emu will allocate
+		rv = strlen(tmp);
+		free(tmp);
+	}
+		
+	printf("%x\tWideCharToMultiByte(%x,%x,in=%x,sz=%x,out=%x,sz=%x,%x,%x) = %x\n", a[0], a[1] ,a[2],a[3],a[4],a[5],a[6],a[7],a[8],rv);
+
+	set_ret(rv);
+	emu_cpu_eip_set(cpu, a[0]);
+	return 0;
+}
+
+int32_t	__stdcall new_user_hook_GetLogicalDriveStringsA(struct emu_env *env, struct emu_env_hook *hook)
+{
+	uint32_t a[10] = {0,0,0,0,0,0,0,0,0,0};
+	loadargs(2, a);
+	/*
+		DWORD WINAPI GetLogicalDriveStrings(
+		  __in   DWORD nBufferLength,
+		  __out  LPTSTR lpBuffer
+		);
+	*/
+
+	uint32_t rv = 0;
+	uint32_t bufIn = a[2];
+	uint32_t bufInSz = a[1];
+	
+	//a: c: 613A0063 3A 00 00 00
+	if( bufInSz >=8){
+		emu_memory_write_dword(mem,bufIn, 0x63003a61);
+		emu_memory_write_dword(mem,bufIn+4, 0x0000003a);
+		rv = 8;
+	}
+
+	printf("%x\tGetLogicalDriveStringsA(sz=%x, buf=%x) = %x\n", a[0], a[1] ,a[2],rv);
+
+	set_ret(rv);
+	emu_cpu_eip_set(cpu, a[0]);
+	return 0;
+}
 

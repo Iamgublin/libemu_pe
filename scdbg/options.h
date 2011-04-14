@@ -31,8 +31,13 @@ struct run_time_options
 	int   disasm_mode;
 	uint32_t step_over_bp;
 	FILE *fopen;
+	char* fopen_fpath;
+	uint32_t fopen_fsize;
 	int	  adjust_getfsize;
 	bool  report;
+	bool  pebPatch;
+	bool  break0;
+	uint32_t break_above;
 
 	struct 
 	{
