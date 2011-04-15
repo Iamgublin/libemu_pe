@@ -37,13 +37,13 @@ extern "C"{
 	#include "emu_hashtable.h"
 }
 #include "emu_env.h"
-//#include "emu_profile.h"
 #include "emu_env_w32.h"
 #include "emu_env_w32_dll.h"
 #include "emu_env_w32_dll_export.h"
 #include "env_w32_dll_export_hooks.h"
-
 #include "emu_log.h"
+
+#pragma warning (disable:4311)
 
 extern const char kernel32_dll_7c800000[];
 extern const char kernel32_dll_7c801000[];

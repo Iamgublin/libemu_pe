@@ -35,6 +35,7 @@
 #include "emu_log.h"
 #include "emu_memory.h"
 #include "emu_cpu.h"
+#pragma warning (disable:4311)
 
 struct emu
 {

@@ -149,6 +149,9 @@ void debugCPU(struct emu *e, bool showdisasm);
 int fulllookupAddress(int eip, char* buf255);
 void init_emu(void);
 void disasm_addr_simple(int);
+void LoadPatch(char* fpath);
+void HandleDirMode(char* folder);
+
 
 uint32_t FS_SEGMENT_DEFAULT_OFFSET = 0x7ffdf000;
 int CODE_OFFSET = 0x00401000;
@@ -702,7 +705,7 @@ void real_hexdump(unsigned char* str, int len, int offset, bool hexonly){
 	for(i=0;i<len;i++){
 
 		color_on = false;
-		if(str[i] == 0x90 || str[i]== 0xE9 || str[i]== 0xE8) color_on = true;
+		if(str[i] == 0x90 || str[i]== 0xE9 || str[i]== 0xE8 || str[i]== 0xEB) color_on = true;
 		if(color_on && hexdump_color) start_color(myellow);
 
 		sprintf(tmp, "%02x ", str[i]);
@@ -1669,17 +1672,6 @@ void init_emu(void){
 	memset(tmp, 0, sizeof(tmp));
 	emu_memory_write_block(mem, CODE_OFFSET + opts.size+1,tmp, sizeof(tmp));
 
-	//peb.ldrdata.InMemoryOrderModuleList lets swap 1st and 2nd entry so ntdll comes first, k32 second
-	/*int sz_ldr_data = 0x30;
-	char* ldr1 = (char*)malloc(sz_ldr_data); //sizeof(_LDR_DATA_TABLE_ENTRY)
-	char* ldr2 = (char*)malloc(sz_ldr_data); //sizeof(_LDR_DATA_TABLE_ENTRY)
-	emu_memory_read_block(mem, 0x252f38, ldr1,sz_ldr_data);
-	emu_memory_read_block(mem, 0x252ef0, ldr2,sz_ldr_data);
-	emu_memory_write_block(mem, 0x252f38, ldr2,sz_ldr_data);
-	emu_memory_write_block(mem, 0x252ef0, ldr1,sz_ldr_data);
-	free(ldr1);
-	free(ldr2);  FAIL */
-
 	//InMemoryOrderModuleList 2nd entry lets swap the ntdll base for kernel32
 	//this breaks other shellcode though cause not complete...
 	if(opts.pebPatch){
@@ -1687,19 +1679,6 @@ void init_emu(void){
 		emu_memory_write_dword(mem, 0x252ef0 + 0x10, 0x7C900000); //ntdll
 	}
 
-	/*
-	uint32_t a;
-	uint32_t b;
-
-	
-	emu_memory_read_dword(mem, 0x252f38 + 0x2C, &a);
-	emu_memory_read_dword(mem, 0x252ef0 + 0x2C, &b);
-	emu_memory_write_dword(mem, 0x252f38 + 0x2C, b); //k32 basename 
-	emu_memory_write_dword(mem, 0x252ef0 + 0x2C, a); //ntdll basename
-	*/
-
-
-	
 	
 	
 
@@ -1762,6 +1741,7 @@ int run_sc(void)
 
 		if( opts.break_above != 0 && last_good_eip > opts.break_above){
 			opts.verbose = 3;
+			opts.break_above = 0;
 			start_color(myellow);
 			printf("Break Above hit...\n");
 			end_color();
@@ -2002,7 +1982,7 @@ void print_help(void)
 		{"f", "fpath"    , "load shellcode from file specified."},
 		{"o", "hexnum"   , "base offset to use (default: 0x401000)"},
 		{"redir", "ip:port","redirect connect to ip (port optional)"},
-		{"G", "fpath"    , "save a dot formatted callgraph in filepath"},
+		//{"G", "fpath"    , "save a dot formatted callgraph in filepath"},
 		{"i",  NULL		 , "enable interactive hooks"},
 		{"v",  NULL		 , "verbosity, can be used up to 4 times, ex. /v /v /vv"},
 		{"e", "int"	     , "verbosity on error (3 = debug shell)"},
@@ -2027,6 +2007,8 @@ void print_help(void)
 		{"r", NULL ,     "show analysis report at end of run"},
 		{"pp", NULL ,     "peb patch - required for some shellcodes (rare)"},
 		{"b0", NULL ,     "break if 00 00 add [eax],al"},
+		{"patch", "fpath","load patch file <fpath> for libemu memory"},
+		{"dir", " folder","process all .sc files in <folder> echo results to <fname>.txt"},
 	};
 
 	system("cls");
@@ -2067,13 +2049,15 @@ void show_supported_hooks(void){
 	while ( env->env.win->loaded_dlls[i] != 0 ){
 		struct emu_env_w32_dll *dll = env->env.win->loaded_dlls[i]; 
 		printf("\r\n%s\r\n", dll->dllname );
-		while( dll->exportx[j].fnname  != 0 ){
-			if( dll->exportx[j].fnhook != 0 ){
-				if( !IsBadReadPtr(dll->exportx[j].fnname,4) ) break;//for some reason the last null element is optimized out or something?
-				printf("\t%s\r\n", dll->exportx[j].fnname);
+		emu_env_w32_dll_export e = dll->exportx[0];
+		while( e.fnname != 0 ){
+			if( e.fnhook != 0 ){
+				if( IsBadReadPtr(e.fnname ,4) ) break;//for some reason the last null element is optimized out or something?
+				printf("\t%s\r\n", e.fnname);
 				tot++;
 			}
 			j++;
+			e = dll->exportx[j];
 		}
 		i++;
 		j=0;
@@ -2151,6 +2135,23 @@ void parse_opts(int argc, char* argv[] ){
 			strncpy(opts.sc_file, argv[i+1],499);
 			opts.file_mode = true;
 		}
+		
+		if(sl==6 && strstr(argv[i],"/patch") > 0 ){
+			if(i+1 >= argc){
+				printf("Invalid option /patch must specify a file path as next arg\n");
+				exit(0);
+			}
+			opts.patch_file = strdup(argv[i+1]);
+		}
+
+		if(sl==4 && strstr(argv[i],"/dir") > 0 ){
+			if(i+1 >= argc){
+				printf("Invalid option /dir must specify a folder path as next arg\n");
+				exit(0);
+			}
+			HandleDirMode(argv[i+1]);
+			exit(0);
+		}
 
 		if(strstr(buf,"/o") > 0 ){
 			if(i+1 >= argc){
@@ -2165,16 +2166,18 @@ void parse_opts(int argc, char* argv[] ){
 				printf("Invalid option /foopen must specify file to open as next arg\n");
 				exit(0);
 			}
-			opts.fopen = fopen(argv[i+1],"r");
+			//opts.fopen = fopen(argv[i+1],"r");  //ms implemented of fread barfs after 0x27000?
+			opts.h_fopen = CreateFile(argv[i+1],GENERIC_READ,0,0,OPEN_EXISTING,FILE_ATTRIBUTE_NORMAL,0);
 			opts.fopen_fpath = strdup(argv[i+1]);
-			opts.fopen_fsize = file_length(opts.fopen);
-			if((int)opts.fopen < 1){
+			opts.fopen_fsize = GetFileSize(opts.h_fopen,0);//file_length(opts.fopen);
+			//if((int)opts.fopen < 1){
+			if( opts.h_fopen == INVALID_HANDLE_VALUE){
 				start_color(myellow);
 				printf("FAILED TO OPEN %s", argv[i+1]);
 				end_color();
 				exit(0);
 			}
-			printf("fopen(%s) = %x\n", argv[i+1], (int)opts.fopen);
+			printf("fopen(%s) = %x\n", argv[i+1], (int)opts.h_fopen);
 		}
 
 		if(sl==5 && strstr(argv[i],"/foff") > 0 ){
@@ -2363,6 +2366,8 @@ int main(int argc, char *argv[])
 	loadsc();
 	init_emu();	
 	
+	if(opts.patch_file != NULL) LoadPatch(opts.patch_file);
+
 	if(opts.interactive_hooks==1){
 		WORD wVersionRequested;
 		WSADATA wsaData;
@@ -2495,9 +2500,107 @@ int main(int argc, char *argv[])
 	 
 }
 
+void LoadPatch(char* fpath){
+	
+	patch p;
+	size_t r = sizeof(patch);
+	long curpos=0;
+	int i = 0;
+	char *buf = 0;
+	char addr[12];
+	uint32_t memAddress=0;
 
+	//patch file format is an array of patch structures at beginning 
+	//of file terminated by empty struct at end. field dataOffset points
+	//to the raw start file offset of the patch file for the data to load.
 
+	FILE *f = fopen(fpath, "rb");
+	if( f == 0 ){
+		printf("Failed to open patch file: %s\n", fpath);
+		return;
+	}
 
+	printf("Loading patch file %s\n", fpath);
+
+	r = fread(&p, 16,1,f);
+
+	while( p.dataOffset > 0 ){
+		curpos = ftell(f);
+
+		if( fseek(f, p.dataOffset, SEEK_SET) != 0 ){
+			printf("Patch: %d  - Error seeking data offset %x\n", i, p.dataOffset);
+			break;
+		}
+
+		buf = (char*)malloc(p.dataSize); 
+		r = fread(buf, 1, p.dataSize, f);
+		if( r != p.dataSize ){
+			printf("patch %d - failed to read full size %x readsz=%x\n", i, p.dataSize, r);
+			break;
+		}
+
+		memset(addr, 0, 12);
+		memcpy(addr, p.memAddress, 8); //no trailing null to keep each entry at 16 bytes
+		memAddress = strtol(addr, NULL, 16);	
+
+		emu_memory_write_block(mem, memAddress, buf, p.dataSize);
+		printf("Applied patch %d va=%x sz=%x\n", i, memAddress, p.dataSize); 
+		free(buf);
+
+		fseek(f, curpos, SEEK_SET);
+		r = fread(&p, sizeof(patch),1,f); //load next patch
+		i++;
+	}
+
+	fclose(f);
+
+}
+
+bool FolderExists(char* folder)
+{
+	DWORD rv = GetFileAttributes(folder);
+	if( !(rv & FILE_ATTRIBUTE_DIRECTORY) ) return false;
+	return true;
+}
+
+void HandleDirMode(char* folder){
+
+	if( !FolderExists(folder) ){
+		printf("Could not find folder %s\n", folder);
+		return;
+	}
+
+	WIN32_FIND_DATA FileData;
+	HANDLE hSearch;
+	char cmdline[1000];
+	char shortname[500];
+	int i=0;
+
+	if(strlen(folder) > 300) return;
+	sprintf(cmdline, "%s\\%s", folder, "*.sc");
+
+	hSearch = FindFirstFile(cmdline, &FileData); 
+	if (hSearch == INVALID_HANDLE_VALUE){ 
+	    printf("No .sc files found in %s\n",folder); 
+	    return;
+	} 
+	
+	system("cls");
+	printf("\n\n  Processing all sc files in %s\n\n", folder);
+
+	while(1){ 
+		printf("  %s\n", FileData.cFileName); 
+		sprintf(cmdline, "%s\\%s", folder, FileData.cFileName);
+		GetShortPathName(cmdline, (char*)&shortname, 500);
+		sprintf(cmdline, "scdbg -f %s > %s.txt", shortname, shortname);  
+		system(cmdline);
+		i++;
+		if (!FindNextFile(hSearch, &FileData)) break;
+	}
+
+	printf("\n  Found %d files\n\n", i);
+	FindClose(hSearch);
+}
 
 
 

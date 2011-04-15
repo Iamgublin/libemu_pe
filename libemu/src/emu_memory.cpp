@@ -40,6 +40,8 @@
 #define PAGE_BITS 12 /* size of one page, 2^12 = 4096 */
 #define PAGESET_BITS 10 /* number of pages in one pageset, 2^10 = 1024 */
 
+#pragma warning (disable:4311)
+#pragma warning (disable:4312)
 
 #define PAGE_SIZE (1 << PAGE_BITS)
 #define PAGESET_SIZE (1 << PAGESET_BITS)

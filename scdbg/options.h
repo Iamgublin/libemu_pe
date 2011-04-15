@@ -1,3 +1,4 @@
+#include <windows.h>
 
 struct run_time_options
 {
@@ -30,14 +31,16 @@ struct run_time_options
 	int   hexdump_file;
 	int   disasm_mode;
 	uint32_t step_over_bp;
-	FILE *fopen;
+	//FILE *fopen;
 	char* fopen_fpath;
 	uint32_t fopen_fsize;
+	HANDLE h_fopen;
 	int	  adjust_getfsize;
 	bool  report;
 	bool  pebPatch;
 	bool  break0;
 	uint32_t break_above;
+	char* patch_file;
 
 	struct 
 	{
@@ -64,6 +67,11 @@ struct mmm_range{
 	uint32_t end_at;
 };
 
+struct patch{
+	char memAddress[8];
+	uint32_t dataSize;
+	uint32_t dataOffset;
+};
 
 extern struct mmm_point mm_points[];
 extern struct mmm_range mm_ranges[];

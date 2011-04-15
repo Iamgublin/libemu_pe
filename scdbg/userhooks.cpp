@@ -62,6 +62,7 @@ extern uint32_t FS_SEGMENT_DEFAULT_OFFSET;
 extern void hexdump(unsigned char*, int);
 extern int file_length(FILE *f);
 extern void add_malloc(uint32_t, uint32_t);
+extern bool FolderExists(char* folder);
 extern struct emu_memory *mem;
 extern struct emu_cpu *cpu;    //these two are global in main code
 //extern struct nanny* na;       //this was passed around as user data in case of multithreading..but were not.
@@ -557,6 +558,7 @@ int32_t	__stdcall new_user_hook_GenericStub(struct emu_env *env, struct emu_env_
 
 	if(strcmp(func, "GlobalFree") ==0 ){
 		log_val = get_ret(env,0);  //hmem
+		ret_val = 0;
 		arg_count = 1;
 	}
 
@@ -566,12 +568,8 @@ int32_t	__stdcall new_user_hook_GenericStub(struct emu_env *env, struct emu_env_
 
 	if(strcmp(func, "GetFileSize") == 0){
 		log_val = get_ret(env,0); //handle
-		ret_val = -1;
-		if((int)opts.fopen > 0){
-			if( log_val == (int)opts.fopen || log_val == 4 || log_val == 1){ //scanners start at 1 or 4 so no spam this way..
-				ret_val = file_length(opts.fopen)+opts.adjust_getfsize; //sometimes necessary..
-			}
-		}
+		//ret_val = -1;
+		ret_val = GetFileSize( (HANDLE)log_val, 0)+opts.adjust_getfsize;
 		arg_count = 2;
 	}
 
@@ -1098,17 +1096,22 @@ int32_t	__stdcall new_user_hook_SetFilePointer(struct emu_env *env, struct emu_e
 	if(dwMoveMethod > 2 || dwMoveMethod < 0) dwMoveMethod = 3; //this shouldnt happen..
 	char* method[4] = {"FILE_BEGIN", "FILE_CURRENT", "FILE_END","UNKNOWN"};
 
-	printf("%x\tSetFilePointer(hFile=%x, dist=%x, %s)\n", eip_save, hfile, lDistanceToMove, method[dwMoveMethod]);
-
-	if((int)opts.fopen > 0){
-		if( hfile == (int)opts.fopen || hfile == 4){ //scanners start at 4 so no spam this way..
-			if(dwMoveMethod == 0) fseek (opts.fopen, lDistanceToMove, SEEK_SET);
-			if(dwMoveMethod == 1) fseek (opts.fopen, lDistanceToMove, SEEK_CUR);
-			if(dwMoveMethod == 2) fseek (opts.fopen, lDistanceToMove, SEEK_END);
+	DWORD rv = 0;
+	uint32_t m_hFile = hfile;
+	long distanceHigh = 0;
+	if( (int)opts.h_fopen != 0 ){
+		if(m_hFile < 10) m_hFile = (uint32_t)opts.h_fopen; //from a scanner
+		if(lDistanceToMoveHigh != 0){
+			rv = SetFilePointer((HANDLE)m_hFile, lDistanceToMove, &distanceHigh ,dwMoveMethod); //doesnt work with fopen handles?
+			emu_memory_write_dword(mem, lDistanceToMoveHigh, distanceHigh);
+		}else{
+			rv = SetFilePointer((HANDLE)m_hFile, lDistanceToMove, 0 ,dwMoveMethod); //doesnt work with fopen handles?
 		}
 	}
 
-	cpu->reg[eax] = lDistanceToMove;
+	printf("%x\tSetFilePointer(hFile=%x, dist=%x, %x, %s) = %x\n", eip_save, hfile, lDistanceToMove, lDistanceToMoveHigh, method[dwMoveMethod], rv);
+
+	cpu->reg[eax] = rv;
 	emu_cpu_eip_set(c, eip_save);
 	return 0;
 }
@@ -1143,21 +1146,22 @@ int32_t	__stdcall new_user_hook_ReadFile(struct emu_env *env, struct emu_env_hoo
 	POP_DWORD(c, &lpNumBytes);
 	POP_DWORD(c, &lpOverlap);
 
-	printf("%x\tReadFile(hFile=%x, buf=%x, numBytes=%x)\n", eip_save, hfile, lpBuffer, numBytes);
 	
-	numBytes++;
-	if((int)opts.fopen > 0){
-		if( hfile == (int)opts.fopen || hfile == 4){ //scanners start at 4 so no spam this way..
-			char* tmp = (char*)malloc(numBytes);
-			fread(tmp, numBytes, 1, opts.fopen);
-			emu_memory_write_block(mem, lpBuffer,tmp,numBytes);
-			free(tmp);
-		}
+	//numBytes++;
+	uint32_t m_hfile = hfile;
+	uint32_t bytesRead=0;
+	BOOL rv;
+
+	if((int)opts.h_fopen != 0){
+		if( hfile  < 10 ) m_hfile = (uint32_t)opts.h_fopen; //scanners start at 1 or 4 so no spam this way..
+		char* tmp = (char*)malloc(numBytes);
+		rv = ReadFile( (HANDLE)m_hfile, tmp, numBytes, &bytesRead, 0);
+		emu_memory_write_block(mem, lpBuffer,tmp, numBytes);
+		if( bytesRead != numBytes) printf("\tReadFile error? numBytes=%x bytesRead=%x rv=%x\n", numBytes, bytesRead, rv);
+		free(tmp);
 	}
 
-	//todo support interactive mode here..(no file read functions yet supported w/nanny for i mode)
-	//nanny should only be invoked for opening with write access..allow interactive mode to open
-	//real files if in read mode?
+	printf("%x\tReadFile(hFile=%x, buf=%x, numBytes=%x) = %x\n", eip_save, hfile, lpBuffer, numBytes, rv);
 
 	if(lpNumBytes != 0) emu_memory_write_dword(mem, lpNumBytes, numBytes);
 
@@ -2395,7 +2399,7 @@ int32_t	__stdcall new_user_hook_CloseHandle(struct emu_env *env, struct emu_env_
 	set_ret(1);
 	printf("%x\tCloseHandle(%x)\n", eip_save,(int)object);
 	if(opts.interactive_hooks == 1){
-		set_ret( fclose((FILE*)object) );
+		set_ret( CloseHandle((HANDLE)object) );
 	}
 	emu_cpu_eip_set(c, eip_save);
 	return 0;
@@ -2444,7 +2448,8 @@ int32_t	__stdcall new_user_hook_CreateFileA(struct emu_env *env, struct emu_env_
 
 	if(opts.interactive_hooks == 1 ){
 		localfile = SafeTempFile();
-		FILE *f = fopen(localfile,"w");
+		//FILE *f = fopen(localfile,"w");
+		HANDLE f = CreateFile(localfile,GENERIC_READ | GENERIC_WRITE,0,0,CREATE_ALWAYS,FILE_ATTRIBUTE_NORMAL,0); 
 	    set_ret((int)f);
 	}else{
 		set_ret( get_fhandle() );
@@ -2782,8 +2787,6 @@ BOOL WriteFile(
 
 	emu_memory_write_dword(emu_memory_get(env->emu), p_byteswritten, bytestowrite);
 
-	printf("%x\tWriteFile(h=%x, buf=%x, len=%x)\n",eip_save, (int)file, p_buffer, bytestowrite);
-
 	if(opts.show_hexdumps && bytestowrite > 0){
 		int display_size = bytestowrite;
 		if(display_size > 300){
@@ -2793,10 +2796,15 @@ BOOL WriteFile(
 		hexdump(buffer, display_size);
 	}
 
-	uint32_t returnvalue = bytestowrite;
+	uint32_t returnvalue = 1;
+	uint32_t written=0;
 	if(opts.interactive_hooks == 1 ){
-		returnvalue = fwrite(buffer, bytestowrite, 1, (FILE*)file);
+		//technically we should check if overlapped was used...
+		returnvalue = WriteFile( (HANDLE)file, buffer, bytestowrite, &written,0);
+		if( p_byteswritten != 0) emu_memory_write_dword(mem, p_byteswritten, written);
 	}
+
+	printf("%x\tWriteFile(h=%x, buf=%x, len=%x, lpw=%x, lap=%x) = %x\n",eip_save, (int)file, p_buffer, bytestowrite, p_byteswritten,p_overlapped, returnvalue );
 
 	set_ret(returnvalue);
 	free(buffer);
@@ -3248,7 +3256,7 @@ int32_t	__stdcall new_user_hook_CreateFileMappingA(struct emu_env *env, struct e
 
 	if(opts.interactive_hooks == 1){
 		if(a[5] > opts.fopen_fsize) opts.fopen_fsize = a[5]; //reset if max size of file map > file size
-		if(h == 1 || h == 4){ 
+		if(h < 10){ 
 			if(opts.fopen_fpath == NULL){
 				printf("\tUse /fopen <file> to do interactive mode for CreateFileMapping\n");
 			}else{
