@@ -5,11 +5,27 @@ Begin VB.Form Form1
    ClientHeight    =   4860
    ClientLeft      =   60
    ClientTop       =   345
-   ClientWidth     =   7365
+   ClientWidth     =   8205
    LinkTopic       =   "Form1"
    ScaleHeight     =   4860
-   ScaleWidth      =   7365
+   ScaleWidth      =   8205
    StartUpPosition =   3  'Windows Default
+   Begin VB.CommandButton Command2 
+      Caption         =   "New"
+      Height          =   285
+      Left            =   6705
+      TabIndex        =   16
+      Top             =   540
+      Width           =   1410
+   End
+   Begin VB.CommandButton Command1 
+      Caption         =   "..."
+      Height          =   285
+      Left            =   5805
+      TabIndex        =   15
+      Top             =   135
+      Width           =   780
+   End
    Begin MSComctlLib.ListView lv 
       Height          =   3840
       Left            =   90
@@ -38,24 +54,24 @@ Begin VB.Form Form1
    Begin VB.CommandButton cmdRemove 
       Caption         =   "Remove"
       Height          =   375
-      Left            =   4050
+      Left            =   4365
       TabIndex        =   12
-      Top             =   4005
+      Top             =   3960
       Width           =   1365
    End
    Begin VB.CommandButton cmdUpdate 
       Caption         =   "Update"
       Enabled         =   0   'False
       Height          =   375
-      Left            =   6030
+      Left            =   6885
       TabIndex        =   11
-      Top             =   4005
+      Top             =   3960
       Width           =   1275
    End
    Begin VB.CommandButton cmdSaveAs 
       Caption         =   "Save As"
       Height          =   330
-      Left            =   6030
+      Left            =   6885
       TabIndex        =   10
       Top             =   4455
       Width           =   1275
@@ -65,7 +81,7 @@ Begin VB.Form Form1
       Left            =   570
       TabIndex        =   9
       Top             =   4455
-      Width           =   5295
+      Width           =   6150
    End
    Begin VB.CommandButton cmdAdd 
       Caption         =   "Insert"
@@ -77,12 +93,13 @@ Begin VB.Form Form1
    End
    Begin VB.TextBox txtHexData 
       Height          =   2490
-      Left            =   2115
+      Left            =   2025
       MultiLine       =   -1  'True
+      OLEDropMode     =   1  'Manual
       ScrollBars      =   2  'Vertical
       TabIndex        =   6
-      Top             =   1395
-      Width           =   5145
+      Top             =   1350
+      Width           =   6045
    End
    Begin VB.TextBox txtMemAddress 
       Height          =   330
@@ -95,7 +112,7 @@ Begin VB.Form Form1
    Begin VB.CommandButton cmdLoad 
       Caption         =   "Load Existing"
       Height          =   330
-      Left            =   5895
+      Left            =   6705
       TabIndex        =   2
       Top             =   135
       Width           =   1410
@@ -108,6 +125,24 @@ Begin VB.Form Form1
       Top             =   120
       Width           =   5295
    End
+   Begin VB.Label Label5 
+      Caption         =   "load file"
+      BeginProperty Font 
+         Name            =   "MS Sans Serif"
+         Size            =   8.25
+         Charset         =   0
+         Weight          =   400
+         Underline       =   -1  'True
+         Italic          =   0   'False
+         Strikethrough   =   0   'False
+      EndProperty
+      ForeColor       =   &H00FF0000&
+      Height          =   240
+      Left            =   7380
+      TabIndex        =   14
+      Top             =   1080
+      Width           =   690
+   End
    Begin VB.Label Label4 
       Caption         =   "File"
       Height          =   255
@@ -117,12 +152,12 @@ Begin VB.Form Form1
       Width           =   735
    End
    Begin VB.Label Label3 
-      Caption         =   "HexData"
+      Caption         =   "HexData  (can also drop file to load)"
       Height          =   285
       Left            =   2070
       TabIndex        =   5
       Top             =   1035
-      Width           =   915
+      Width           =   4020
    End
    Begin VB.Label Label2 
       Caption         =   "Hex MemAddr"
@@ -154,6 +189,60 @@ Private Type patch '16 bytes 1 line in hexeditor
     Datasize As Long
     foffset As Long
 End Type
+
+ 
+       Private Declare Function GetOpenFileName Lib "comdlg32.dll" Alias _
+         "GetOpenFileNameA" (pOpenfilename As OPENFILENAME) As Long
+
+       Private Type OPENFILENAME
+         lStructSize As Long
+         hwndOwner As Long
+         hInstance As Long
+         lpstrFilter As String
+         lpstrCustomFilter As String
+         nMaxCustFilter As Long
+         nFilterIndex As Long
+         lpstrFile As String
+         nMaxFile As Long
+         lpstrFileTitle As String
+         nMaxFileTitle As Long
+         lpstrInitialDir As String
+         lpstrTitle As String
+         flags As Long
+         nFileOffset As Integer
+         nFileExtension As Integer
+         lpstrDefExt As String
+         lCustData As Long
+         lpfnHook As Long
+         lpTemplateName As String
+       End Type
+
+Function OpenFileDialog()
+         Dim OpenFile As OPENFILENAME
+         Dim lReturn As Long
+         Dim sFilter As String
+         OpenFile.lStructSize = Len(OpenFile)
+         OpenFile.hwndOwner = Form1.hWnd
+         OpenFile.hInstance = App.hInstance
+         sFilter = "Batch Files (*.bat)" & Chr(0) & "*.BAT" & Chr(0)
+         OpenFile.lpstrFilter = sFilter
+         OpenFile.nFilterIndex = 1
+         OpenFile.lpstrFile = String(257, 0)
+         OpenFile.nMaxFile = Len(OpenFile.lpstrFile) - 1
+         OpenFile.lpstrFileTitle = OpenFile.lpstrFile
+         OpenFile.nMaxFileTitle = OpenFile.nMaxFile
+         OpenFile.lpstrInitialDir = "C:\"
+         OpenFile.lpstrTitle = "Use the Comdlg API not the OCX"
+         OpenFile.flags = 0
+         lReturn = GetOpenFileName(OpenFile)
+         If lReturn = 0 Then
+            'MsgBox "The User pressed the Cancel Button"
+         Else
+            OpenFileDialog = Trim(OpenFile.lpstrFile)
+         End If
+End Function
+
+
 
 
 Sub reloadLV()
@@ -212,7 +301,7 @@ End Function
 
 
 Private Sub cmdLoad_Click()
-    
+        
     On Error GoTo hell
     
     Dim f As Long
@@ -220,6 +309,9 @@ Private Sub cmdLoad_Click()
     
     Dim p As patch
     Dim pp As cPatch
+    
+    lv.ListItems.Clear
+    Set patches = New Collection
     
     Open txtLoad For Binary As f
     Do While 1
@@ -285,7 +377,7 @@ End Sub
 
 Private Sub cmdSaveAs_Click()
         
-    On Error Resume Next
+    On Error GoTo hell
     
     Dim pp() As patch
     Dim p As cPatch
@@ -295,7 +387,6 @@ Private Sub cmdSaveAs_Click()
     Dim f_offset As Long
     f_offset = LenB(pp(i)) * UBound(pp)
     Align16 f_offset
-    
     
     For i = 1 To lv.ListItems.Count
     
@@ -332,12 +423,12 @@ Private Sub cmdSaveAs_Click()
     Next
     
     Close f
-
-    If Err.Number <> 0 Then
-        MsgBox "Error: " & Err.Description
-    Else
-        MsgBox "File Created"
-    End If
+ 
+    MsgBox "File Created"
+     
+    Exit Sub
+hell:
+    MsgBox "Error: " & Err.Description, vbExclamation
     
 End Sub
 
@@ -393,6 +484,34 @@ Function GetMemAddr() As String
     
 End Function
  
+Private Sub Command1_Click()
+    txtLoad = OpenFileDialog
+    txtSave = txtLoad
+    If Len(txtLoad) > 0 Then cmdLoad_Click
+End Sub
+
+Private Sub Command2_Click()
+    lv.ListItems.Clear
+    Set patches = New Collection
+End Sub
+
+Private Sub Label5_Click()
+    Dim p As String
+    p = OpenFileDialog()
+    If Len(p) = 0 Then Exit Sub
+     Dim f As Long
+    Dim b() As Byte
+    
+    f = FreeFile
+    Open p For Binary As f
+    ReDim b(LOF(f))
+    Get f, , b()
+    Close f
+    
+    txtHexData = StringToHex(b())
+
+End Sub
+
 Private Sub lv_ItemClick(ByVal Item As MSComctlLib.ListItem)
     Set selLi = Item
     Dim p As cPatch
@@ -403,8 +522,27 @@ Private Sub lv_ItemClick(ByVal Item As MSComctlLib.ListItem)
     cmdRemove.Enabled = True
 End Sub
 
+Private Sub txtHexData_OLEDragDrop(Data As DataObject, Effect As Long, Button As Integer, Shift As Integer, X As Single, Y As Single)
+    On Error Resume Next
+    Dim p As String
+    Dim f As Long
+    Dim b() As Byte
+    
+    p = Data.Files(1)
+    f = FreeFile
+    Open p For Binary As f
+    ReDim b(LOF(f))
+    Get f, , b()
+    Close f
+    
+    txtHexData = StringToHex(b())
+    
+    
+End Sub
+
 Private Sub txtLoad_OLEDragDrop(Data As DataObject, Effect As Long, Button As Integer, Shift As Integer, X As Single, Y As Single)
     On Error Resume Next
     txtLoad = Data.Files(1)
     txtSave = txtLoad
+    cmdLoad_Click
 End Sub

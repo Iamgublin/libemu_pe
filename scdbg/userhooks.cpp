@@ -1099,8 +1099,8 @@ int32_t	__stdcall new_user_hook_SetFilePointer(struct emu_env *env, struct emu_e
 	DWORD rv = 0;
 	uint32_t m_hFile = hfile;
 	long distanceHigh = 0;
-	if( (int)opts.h_fopen != 0 ){
-		if(m_hFile < 10) m_hFile = (uint32_t)opts.h_fopen; //from a scanner
+	if(opts.interactive_hooks == 1){
+		if((int)opts.h_fopen != 0 && m_hFile < 10) m_hFile = (uint32_t)opts.h_fopen; //from a scanner
 		if(lDistanceToMoveHigh != 0){
 			rv = SetFilePointer((HANDLE)m_hFile, lDistanceToMove, &distanceHigh ,dwMoveMethod); //doesnt work with fopen handles?
 			emu_memory_write_dword(mem, lDistanceToMoveHigh, distanceHigh);
@@ -1152,13 +1152,17 @@ int32_t	__stdcall new_user_hook_ReadFile(struct emu_env *env, struct emu_env_hoo
 	uint32_t bytesRead=0;
 	BOOL rv;
 
-	if((int)opts.h_fopen != 0){
-		if( hfile  < 10 ) m_hfile = (uint32_t)opts.h_fopen; //scanners start at 1 or 4 so no spam this way..
+	if( opts.interactive_hooks == 1){
+		if( (int)opts.h_fopen != 0 && hfile  < 10 ) m_hfile = (uint32_t)opts.h_fopen; //scanners start at 1 or 4 we let them go with it..
 		char* tmp = (char*)malloc(numBytes);
-		rv = ReadFile( (HANDLE)m_hfile, tmp, numBytes, &bytesRead, 0);
-		emu_memory_write_block(mem, lpBuffer,tmp, numBytes);
-		if( bytesRead != numBytes) printf("\tReadFile error? numBytes=%x bytesRead=%x rv=%x\n", numBytes, bytesRead, rv);
-		free(tmp);
+		if(tmp==0){
+			printf("\tFailed to allocate %x bytes skipping ReadFile\n",numBytes);
+		}else{
+			rv = ReadFile( (HANDLE)m_hfile, tmp, numBytes, &bytesRead, 0);
+			emu_memory_write_block(mem, lpBuffer,tmp, numBytes);
+			if( bytesRead != numBytes) printf("\tReadFile error? numBytes=%x bytesRead=%x rv=%x\n", numBytes, bytesRead, rv);
+			free(tmp);
+		}
 	}
 
 	printf("%x\tReadFile(hFile=%x, buf=%x, numBytes=%x) = %x\n", eip_save, hfile, lpBuffer, numBytes, rv);
