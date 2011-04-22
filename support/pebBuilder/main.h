@@ -39,8 +39,7 @@ struct emu_env_w32_known_dll
 		/* 0x2c */ UNICODE_STRING BaseDllName;
 	} LDR;
 
-		// http://www.nirsoft.net/kernel_struct/vista/PEB_LDR_DATA.html
-	typedef struct _PEB
+	typedef struct _PEB		// http://www.nirsoft.net/kernel_struct/vista/PEB_LDR_DATA.html
 	{
 		 /* 0x00 */ uint32_t Length;
 		 /* 0x04 */ uint8_t Initialized[4];

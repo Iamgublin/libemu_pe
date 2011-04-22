@@ -27,4 +27,6 @@ this was the only sane way I could think of to develop and really
 test this complex code.
 
 
+See the following article for more details on these structures:
 
+http://sandsprite.com/CodeStuff/Understanding_the_Peb_Loader_Data_List.html

@@ -1,5 +1,8 @@
 		Changelog for libemu
 
+4.22.11
+    dll - switched over to using a static PEB, see ./support/pebBuilder project
+    
 4.14.11
 	exe - added /patch /b0 /ba /dir commands
 	    - fread in vc is different that in gcc.. had to switch fopen mode to use CreateFile

@@ -1281,7 +1281,6 @@ void set_hooks(struct emu_env *env /*,struct nanny *na*/){
 	emu_env_w32_load_dll(env->env.win,"urlmon.dll");
 	emu_env_w32_load_dll(env->env.win,"ws2_32.dll");
 	emu_env_w32_load_dll(env->env.win,"wininet.dll");
-	emu_env_w32_load_dll(env->env.win,"ntdll.dll");
 	emu_env_w32_load_dll(env->env.win,"shlwapi.dll");
 	emu_env_w32_load_dll(env->env.win,"advapi32.dll");
 	emu_env_w32_load_dll(env->env.win,"shdocvw.dll");
@@ -2008,7 +2007,7 @@ void print_help(void)
 		{"pp", NULL ,     "peb patch - required for some shellcodes (rare)"},
 		{"b0", NULL ,     "break if 00 00 add [eax],al"},
 		{"patch", "fpath","load patch file <fpath> for libemu memory"},
-		{"dir", " folder","process all .sc files in <folder> echo results to <fname>.txt"},
+		{"dir", " folder","process all .sc files in <folder> (can be used with -r)"},
 	};
 
 	system("cls");
@@ -2592,7 +2591,12 @@ void HandleDirMode(char* folder){
 		printf("  %s\n", FileData.cFileName); 
 		sprintf(cmdline, "%s\\%s", folder, FileData.cFileName);
 		GetShortPathName(cmdline, (char*)&shortname, 500);
-		sprintf(cmdline, "scdbg -f %s > %s.txt", shortname, shortname);  
+		
+		if(opts.report)
+			sprintf(cmdline, "scdbg -f %s >> %s\\report.txt", shortname, folder);  //one long report
+		else
+			sprintf(cmdline, "scdbg -f %s > %s.txt", shortname, shortname);      //individual files
+
 		system(cmdline);
 		i++;
 		if (!FindNextFile(hSearch, &FileData)) break;

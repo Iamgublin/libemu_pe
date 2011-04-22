@@ -158,7 +158,7 @@ void test_1(uint32_t peb_base){
 			mov k32_base, eax
 	}
 
-	printf("Test 1 InMemoryOrder> Kernel32 base is %x ?= %x\n", k32_base, GetModuleHandle(L"kernel32") );
+	printf("Test 1 InMemoryOrder> Kernel32 base is %x ?= 7C800000\n", k32_base );
 
  }
 
@@ -182,7 +182,7 @@ void test_2(uint32_t peb_base){
 	}
 
 
-	printf("test2> ntdll base is %x ?= %x\n", k32_base, GetModuleHandle(L"ntdll") );
+	printf("test2> ntdll base is %x ?= 7C900000\n", k32_base );
 
  }
 
@@ -204,9 +204,47 @@ void test_3(uint32_t base){
 			mov k32_base, ecx
 	}
 
-	printf("Test 3 InInitOrder> k32 base = %x ?= %x\n", k32_base, GetModuleHandle(L"kernel32"));
+	printf("Test 3 InInitOrder> k32 base = %x ?= 7C800000\n", k32_base);
 
 }
+
+void test_4(uint32_t base){
+
+	//this one is unsupported right now...
+
+	uint32_t ntdll=0;
+	uint32_t k32=0;
+	//EBX 7C900000 ntdll.7C900000
+	//EBP 7C800000 kernel32.7C800000
+	
+	_asm{
+		int 3
+		AND ECX,0
+		//MOV ESI,DWORD PTR FS:[30]
+		//MOV ESI,DWORD PTR DS:[ESI+C]
+		mov esi, base
+		MOV ESI,DWORD PTR DS:[ESI+0x1C]   ; InInitOrder
+		MOV EBX,DWORD PTR DS:[ESI+8]      ; 1st entries module base (ntdll)
+		mov ntdll, ebx
+    scan_next:
+		MOV eax,DWORD PTR DS:[ESI+8]      ; module base (scanning)
+		mov k32, eax
+		MOV EDI,DWORD PTR DS:[ESI+0x20]   ; base dll name
+		MOV ESI,DWORD PTR DS:[ESI]        ; InInitOrder.flink
+		CMP BYTE PTR DS:[EDI+0x18],CL     ; start of unicode string + 0x18 is it null? (looking for terminating null after kernel32.dll)
+		JNZ SHORT scan_next               ; in real peb ntdll + 0x18 is into some other data, in my peb, it is a null spot so this fails       
+                                          ; I could support this..but I am not going to get that fussy for one sample, use the patch or poke if you hit this.
+
+	}
+
+	printf("test 4 > ntdll = %x =? 7C900000 \t k32 = %x =? 7C800000\n", ntdll, k32);
+
+
+
+
+}
+
+
 void harmony_enum_inmemlist(uint32_t peb_base){
 
 	int names[30];
@@ -382,8 +420,16 @@ void main(int argc, char* argv[]){
 	test_1(base);
 	test_2(base);
 	test_3(base);
+	//test_4(base);  //unsupported right now
 	harmony_enum_inmemlist(base);
-	harmony_lookup(base);
+	
+	if( (uint32_t)GetModuleHandle(L"kernel32") == 0x7C800000){
+		//the embedded base address of k32 in my test PEB must line up to
+		//its address on your system for an export lookup to work...
+		harmony_lookup(base);
+	}
+
+
 	getch();
 
 
