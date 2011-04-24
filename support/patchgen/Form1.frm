@@ -120,6 +120,7 @@ Begin VB.Form Form1
    Begin VB.TextBox txtLoad 
       Height          =   315
       Left            =   480
+      OLEDropMode     =   1  'Manual
       TabIndex        =   1
       Text            =   "Drag and Drop file here"
       Top             =   120
