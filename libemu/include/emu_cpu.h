@@ -118,7 +118,7 @@ int32_t emu_cpu_parse(struct emu_cpu *c);
  */
 int32_t emu_cpu_step(struct emu_cpu *c);
 
-int32_t emu_cpu_run(struct emu_cpu *c);
+int32_t emu_cpu_run(struct emu_cpu *c, uint32_t limit);
 
 void emu_cpu_free(struct emu_cpu *c);
 

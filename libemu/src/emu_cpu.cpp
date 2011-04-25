@@ -143,33 +143,33 @@ struct emu_cpu *emu_cpu_new(struct emu *e)
 	return c;
 }
 
-inline uint32_t emu_cpu_reg32_get(struct emu_cpu *cpu_p, enum emu_reg32 reg)
+uint32_t emu_cpu_reg32_get(struct emu_cpu *cpu_p, enum emu_reg32 reg)
 {
 	return cpu_p->reg[reg];
 }
 
-inline void  emu_cpu_reg32_set(struct emu_cpu *cpu_p, enum emu_reg32 reg, uint32_t val)
+void  emu_cpu_reg32_set(struct emu_cpu *cpu_p, enum emu_reg32 reg, uint32_t val)
 {
 	cpu_p->reg[reg] = val;
 }
 
-inline uint16_t emu_cpu_reg16_get(struct emu_cpu *cpu_p, enum emu_reg16 reg)
+uint16_t emu_cpu_reg16_get(struct emu_cpu *cpu_p, enum emu_reg16 reg)
 {
 	return *cpu_p->reg16[reg];
 }
 
-inline void emu_cpu_reg16_set(struct emu_cpu *cpu_p, enum emu_reg16 reg, uint16_t val)
+void emu_cpu_reg16_set(struct emu_cpu *cpu_p, enum emu_reg16 reg, uint16_t val)
 {
 	*cpu_p->reg16[reg] = val; 
 }
 
-inline uint8_t emu_cpu_reg8_get(struct emu_cpu *cpu_p, enum emu_reg8 reg)
+uint8_t emu_cpu_reg8_get(struct emu_cpu *cpu_p, enum emu_reg8 reg)
 {
 	return *cpu_p->reg8[reg];
 }
 
 
-inline void emu_cpu_reg8_set(struct emu_cpu *cpu_p, enum emu_reg8 reg, uint8_t val)
+void emu_cpu_reg8_set(struct emu_cpu *cpu_p, enum emu_reg8 reg, uint8_t val)
 {
 	*cpu_p->reg8[reg] = val;
 }
@@ -893,7 +893,7 @@ int32_t emu_cpu_step(struct emu_cpu *c)
 	return ret;
 }
 
-int32_t emu_cpu_run(struct emu_cpu *c)
+int32_t emu_cpu_run(struct emu_cpu *c, uint32_t limit)
 {
 	int steps=0;
 	while (emu_cpu_parse(c) == 0)
@@ -904,6 +904,7 @@ int32_t emu_cpu_run(struct emu_cpu *c)
 			break;
 
 		steps++;
+		if(steps > limit) break;
 	}
 //	printf("%s \n", emu_strerror(c->emu));
 	return steps;
