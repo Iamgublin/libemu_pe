@@ -1,10 +1,9 @@
 Attribute VB_Name = "Module1"
-
+Global emu As New CLibemu
 Global e As Long
 Global cpu As Long
 Global mem As Long
 Global env As Long
-
 
 Public Enum emu_reg32
     eax = 0
@@ -21,6 +20,9 @@ Public Declare Sub CopyMemory Lib "kernel32" Alias "RtlMoveMemory" ( _
                         Destination As Byte, _
                         ByVal Source As Long, _
                         ByVal Length As Long)
+
+'int32_t emu_memory_read_dword(struct emu_memory *m, uint32_t addr, uint32_t *dword);
+Public Declare Function emu_memory_read_dword Lib "vslibemu" (ByVal hMem As Long, ByVal addr As Long, ByRef value As Long) As Long
 
 'struct emu_env_hook *emu_env_w32_eip_check(struct emu_env *env);
 Public Declare Function emu_env_w32_eip_check Lib "vslibemu" (ByVal hEnv As Long) As Long
@@ -97,10 +99,23 @@ Public Declare Function emu_env_w32_export_new_hook Lib "vslibemu" _
               ByVal lpfnHook As Long, _
               ByVal userdata As Long) As Long
               
+
+
+
 'int32_t __stdcall new_user_hook_LoadLibraryA(struct emu_env *env, struct emu_env_hook *hook)
 Public Function LoadLibrary(ByVal env As Long, ByVal hook As Long) As Long
     
-    Form1.List1.AddItem "Loadlibrary hook called!"
-    emu_cpu_reg32_set cpu, eax, &H7C80000
+    Dim eip_save As Long
+    Dim dll As String
+    
+    eip_save = emu.pop_dword()
+    dll = emu.ReadAndPopStringArg()
+    
+    Form1.List1.AddItem ""
+    Form1.List1.AddItem "Loadlibrary( " & dll & " ) returns to: " & Hex(eip_save)
+    Form1.List1.AddItem ""
+    
+    emu.reg32(eax) = &H7C80000
+    emu.eip = eip_save
     
 End Function
