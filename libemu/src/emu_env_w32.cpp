@@ -72,6 +72,9 @@ extern const char shdocvw_7E2A4480[];
 extern const char process_mz[]; //the main process needs an entry in peb, and also needs some MZ headers
 extern const char peb_data[];   //we use a static peb now, see ./support/pebBuilder for generator/test suite
 
+//typedef void (__stdcall *genericApi_callback)(emu_env_w32_dll_export*);
+//genericApi_callback generic_api_callback=0;
+
 struct emu_env_w32_known_dll_segment kernel32_segments[] = 
 {
 	{0x7c800000,kernel32_dll_7c800000,641},
@@ -439,7 +442,7 @@ int32_t emu_env_w32_load_dll(struct emu_env_w32 *env, char *dllname)
 }
 
 
-struct emu_env_hook *emu_env_w32_eip_check(struct emu_env *env)
+struct emu_env_w32_dll_export *emu_env_w32_eip_check(struct emu_env *env)
 {
 	uint32_t eip = emu_cpu_eip_get(emu_cpu_get(env->emu));
 
@@ -462,21 +465,25 @@ struct emu_env_hook *emu_env_w32_eip_check(struct emu_env *env)
 			//void* ehi= NULL;
 			if ( ehi == NULL )
 			{
-				logDebug(env->emu, "unknown call to %08x\n", eip);
+				logDebug(env->emu, "unknown call to %08x\n", eip); //this can happen if dll address is not api start (ex: jmp api+5)
 				return NULL;
 			}
 
-			struct emu_env_hook *hook = (struct emu_env_hook *)ehi->value;
+			struct emu_env_w32_dll_export *ex = (struct emu_env_w32_dll_export *)ehi->value;
 
-			if (hook != NULL && hook->hook.win->fnhook != NULL )
+			if( ex == NULL){
+				return NULL; //this shouldnt happen because the lookup was successful..
+			}
+
+			if (ex->fnhook != NULL )
 			{
-				hook->hook.win->fnhook(env, hook);
-				return hook;
+				ex->fnhook(env, ex);
+				return ex;
 			}
 			else
 			{
-				logDebug(env->emu, "unhooked call to %s\n", hook->hook.win->fnname);
-				return hook;
+				logDebug(env->emu, "unhooked call to %s\n", ex->fnname);
+				return ex;	
 			}
 		}
 		numdlls++;
@@ -490,7 +497,7 @@ struct emu_env_hook *emu_env_w32_eip_check(struct emu_env *env)
 //-----------------------------------------------------------------------
 int32_t emu_env_w32_export_new_hook(struct emu_env *env,
 								const char *exportname, 
-								int32_t	(__stdcall *fnhook)(struct emu_env *env, struct emu_env_hook *hook),
+								int32_t	(__stdcall *fnhook)(struct emu_env *env, struct emu_env_w32_dll_export *ex),
 								void *userdata)
 {
 	int numdlls=0;
@@ -503,10 +510,10 @@ int32_t emu_env_w32_export_new_hook(struct emu_env *env,
 			if (ehi != NULL)
 			{
 				//printf("hooked %s\n",  exportname);
-				struct emu_env_hook *hook = (struct emu_env_hook *)ehi->value;
-				if(hook != NULL){
-					hook->hook.win->fnhook = fnhook;
-					hook->hook.win->userdata = userdata;
+				struct emu_env_w32_dll_export *ex = (struct emu_env_w32_dll_export *)ehi->value;
+				if(ex != NULL){
+					ex->fnhook = fnhook;
+					ex->userdata = userdata;
 				}
 				return 0;
 			}
@@ -518,42 +525,14 @@ int32_t emu_env_w32_export_new_hook(struct emu_env *env,
  
 	return -1;
 }
+
+/*void emu_env_w32_generic_api_handler(uint32_t lpfnCallback){
+	generic_api_callback = (genericApi_callback)lpfnCallback;
+}*/
+
+
 //----------------------------------------------------------
 
-/*
-int32_t emu_env_w32_export_hook(struct emu_env *env,
-								const char *exportname, 
-								uint32_t		(*fnhook)(struct emu_env *env, struct emu_env_hook *hook, ...),
-								void *userdata)
-{
-	int numdlls=0;
-	while ( env->env.win->loaded_dlls[numdlls] != NULL )
-	{
-		if (1)//dllname == NULL || strncasecmp(env->loaded_dlls[numdlls]->dllname, dllname, strlen(env->loaded_dlls[numdlls]->dllname)) == 0)
-		{
-			struct emu_hashtable_item *ehi = emu_hashtable_search(env->env.win->loaded_dlls[numdlls]->exports_by_fnname, (void *)exportname);
-			//void* ehi = NULL;
-			if (ehi != NULL)
-			{
-#if 0
-				printf("hooked %s\n",  exportname);
-#endif
-				struct emu_env_hook *hook = (struct emu_env_hook *)ehi->value;
-				if(hook != NULL){
-					hook->hook.win->userhook = fnhook;
-					hook->hook.win->userdata = userdata;
-				}
-				return 0;
-			}
-		}
-		numdlls++;
-	}
-#if 0
-	printf("hooking %s failed\n", exportname);
-#endif
-	return -1;
-}
-*/
 
 const char peb_data[] = 
 /* 251EA0 */   "\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\xE0\x1E\x25\x00"   //............à.%.

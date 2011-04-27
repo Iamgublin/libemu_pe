@@ -436,8 +436,8 @@ uint32_t symbol2addr(char* symbol){
 		struct emu_env_w32_dll *dll = env->env.win->loaded_dlls[numdlls]; 
 		struct emu_hashtable_item *ehi = emu_hashtable_search(dll->exports_by_fnname, (void *)symbol);	
 		if ( ehi != 0 ){ 
-			struct emu_env_hook *hook = (struct emu_env_hook *)ehi->value;
-			return dll->baseaddr + hook->hook.win->virtualaddr;
+			struct emu_env_w32_dll_export *ex = (struct emu_env_w32_dll_export *)ehi->value;
+			return dll->baseaddr + ex->virtualaddr;
 		}	
 		numdlls++;
 	}
@@ -479,8 +479,8 @@ void symbol_lookup(char* symbol){
 
 			if ( ehi != 0 ){
 				int dllBase = dll->baseaddr; 
-				struct emu_env_hook *hook = (struct emu_env_hook *)ehi->value;
-				printf("\tAddress found: %s - > %x\n", symbol, dllBase + hook->hook.win->virtualaddr);
+				struct emu_env_w32_dll_export *ex = (struct emu_env_w32_dll_export *)ehi->value;
+				printf("\tAddress found: %s - > %x\n", symbol, dllBase + ex->virtualaddr);
 				return;
 			}	
 		}
@@ -526,8 +526,8 @@ int fulllookupAddress(int eip, char* buf255){
 
 			if ( ehi == 0 )	return 0;
 
-			struct emu_env_hook *hook = (struct emu_env_hook *)ehi->value;
-			strncpy(buf255, hook->hook.win->fnname, 254);
+			struct emu_env_w32_dll_export *ex = (struct emu_env_w32_dll_export *)ehi->value;
+			strncpy(buf255, ex->fnname, 254);
 			return 1;
 
 		}
@@ -1758,20 +1758,23 @@ int run_sc(void)
 		if ( cpu->repeat_current_instr == false )
 			eipsave = emu_cpu_eip_get(emu_cpu_get(e));
 
-		struct emu_env_hook *hook = NULL;
+		struct emu_env_w32_dll_export *ex = NULL;
 
-		hook = emu_env_w32_eip_check(env);
+		ex = emu_env_w32_eip_check(env);
 
-		if ( hook != NULL  && cpu->eip != 0x7c862e62 ) //ignore UnhandledExceptionFilter 
-		{					
-			if ( hook->hook.win->fnhook == NULL )
+		if ( ex != NULL  && cpu->eip != 0x7c862e62 ) //ignore UnhandledExceptionFilter 
+		{				
+			if ( (int)ex == 1 ){ //not ideal way to do this but it cant return null 
+				printf("Generic ApiHandler took this call\n");
+			}
+			else if ( ex->fnhook == NULL )
 			{
 				//if we had a listing of esp size for each api, we wouldnt have to bail
 				//on this condition and see if it would just continue on some more..
 				//not perfect but might be an easy way to get a little further and not have
 				//to implement literally every api used. (like sleep or gettickcount would be fine)
 				//maybe scan the disasm of the dll looking for stack adjustments? -dzzie
-				printf("unhooked call to %s\n", hook->hook.win->fnname);
+				printf("unhooked call to %s\n", ex->fnname);
 				break;
 			}
 		}

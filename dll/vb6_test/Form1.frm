@@ -52,8 +52,9 @@ Private Sub Form_Load()
     ReDim b(&H12FFF0 - &H12FE00 + 500)
     emu.WriteByteBuf &H12FE00 - 250, b()
   
+    'comment out next line to have LoadLibraryA run through the GenericApiHandler
     emu.SetHook "LoadLibraryA", AddressOf LoadLibrary
-    
+   
     Dim sc As String
 '        00436A3D     68 6C333200    PUSH 32336C
 '        00436A42     68 7368656C    PUSH 6C656873
@@ -61,11 +62,16 @@ Private Sub Form_Load()
 '        00436A48     68 771D807C    PUSH 7C801D77 ;LoadLibrary Address
 '        00436A4D     59             POP ECX
 '        00436A4E     FFD1           CALL ECX
+'        00436A48     68 A0AD807C    PUSH 7c80ada0 ;GetProcAddress (stack not setup properly though for legit call)
+'        00436A4D     59             POP ECX
+'        00436A4E     FFD1           CALL ECX
 
     sc = Chr("&h68") & Chr("&h6C") & Chr("&h33") & Chr("&h32") & Chr("&h00") & _
          Chr("&h68") & Chr("&h73") & Chr("&h68") & Chr("&h65") & Chr("&h6C") & _
          Chr("&h54") & Chr("&h68") & Chr("&h77") & Chr("&h1D") & Chr("&h80") & _
-         Chr("&h7C") & Chr("&h59") & Chr("&hFF") & Chr("&hD1") & Chr("&hCC")
+         Chr("&h7C") & Chr("&h59") & Chr("&hFF") & Chr("&hD1") & Chr("&h68") & _
+         Chr("&hA0") & Chr("&hAD") & Chr("&h80") & Chr("&h7C") & Chr("&h59") & _
+         Chr("&hFF") & Chr("&hD1") & Chr("&hCC")
             
     eip = &H401000
     emu.WriteBlock eip, sc
@@ -76,11 +82,18 @@ Private Sub Form_Load()
     emu.eip = eip
     List1.AddItem "Eip = " & Hex(emu_cpu_eip_get(cpu))
      
+    Dim hExport As Long, export As dll_export
+    
     For i = 0 To 100
         
-        hook = emu_env_w32_eip_check(env)
+        hExport = emu_env_w32_eip_check(env)
         
-        If hook = 0 Then
+        If hExport <> 0 Then 'eip = a dll export start address
+            ToUdt VarPtr(export), hExport, LenB(export)
+            If export.lpfnHookCallback = 0 Then  'else the proper callback was called automatically by the library
+                If Not GenericApiHandler(export) Then Exit For  'you can replace this with just an error message and exit loop if you dont want a generic handler
+            End If
+        Else
             eip = emu_cpu_eip_get(cpu)
             List1.AddItem Hex(eip) & vbTab & emu.GetDisasm(eip)
             If Not emu.Step() Then Exit For

@@ -86,6 +86,7 @@ enum emu_env_type
 	//emu_env_type_linux,
 };
 
+/*
 struct emu_env_hook
 {
 	enum emu_env_type type;
@@ -96,6 +97,7 @@ struct emu_env_hook
 		//struct emu_env_linux_syscall  *lin;
 	} hook;
 };
+*/
 
 struct emu_env
 {

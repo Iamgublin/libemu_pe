@@ -21,7 +21,7 @@ typedef int _Bool;
 typedef void (*mm_callback)(uint32_t);
 typedef void (*mm_range_callback)(char, char, uint32_t);
 typedef void (*emu_log_logcb)(struct emu *e, enum emu_log_level level, const char *msg);
-
+//typedef void (*genericApi_callback)(emu_env_w32_dll_export*);
 
 enum emu_reg32 { eax = 0, ecx, edx, ebx, esp, ebp, esi, edi};
 enum emu_reg16{  ax =  0, cx, dx, bx, sp, bp, si, di };
@@ -177,7 +177,7 @@ struct emu_cpu
 {
 	struct emu *emu;
 	struct emu_memory *mem;
-	
+	bool repeat_current_instr;
 	uint32_t debugflags;
 
 	uint32_t eip;
@@ -193,7 +193,7 @@ struct emu_cpu
 
 	char *instr_string;
 
-	bool repeat_current_instr;
+	
 
 	struct emu_track_and_source *tracking;
 };
@@ -214,32 +214,26 @@ struct emu_env_w32_dll_export
 {
 	char 		*fnname;
 	uint32_t 	virtualaddr;
-    int32_t		(__stdcall *fnhook)(struct emu_env *env, struct emu_env_hook *hook);
+    int32_t		(__stdcall *fnhook)(struct emu_env *env, struct emu_env_w32_dll_export *ex);
 	void 		*userdata;
 	//uint32_t	(*userhook)(struct emu_env *env, struct emu_env_hook *hook, ...);
 };
 
-/*
-struct emu_env_w32_dll_export
-{
-	char 		*fnname;
-	uint32_t 	virtualaddr;
-    int32_t		(__stdcall *fnhook)(struct emu_env *env, struct emu_env_hook *hook);
-	void 		*userdata;
-	//uint32_t	(*userhook)(struct emu_env *env, struct emu_env_hook *hook, ...);
-};
-*/
 
-struct emu_env_hook
+/*struct emu_env_w32_dll
 {
-	enum emu_env_type type;
+	char 		*dllname;
 
-	union 
-	{
-		struct emu_env_w32_dll_export *win;
-		//struct emu_env_linux_syscall  *lin;
-	} hook;
-};
+	char 		*image;
+	uint32_t	imagesize;
+
+	uint32_t	baseaddr;
+
+	struct emu_env_w32_dll_export *exportx;
+	//struct emu_env_hook *hooks;
+	struct emu_hashtable *exports_by_fnptr;
+	struct emu_hashtable *exports_by_fnname;
+};*/
 
 struct emu_env
 {
@@ -333,7 +327,7 @@ void emu_cpu_eip_set(struct emu_cpu *c, uint32_t eip);
 uint32_t emu_cpu_eip_get(struct emu_cpu *c);
 int32_t emu_cpu_parse(struct emu_cpu *c);
 int32_t emu_cpu_step(struct emu_cpu *c);
-int32_t emu_cpu_run(struct emu_cpu *c);
+int32_t emu_cpu_run(struct emu_cpu *c, uint32_t limit);
 void emu_cpu_free(struct emu_cpu *c);
 void emu_cpu_debug_print(struct emu_cpu *c);
 void emu_cpu_debugflag_set(struct emu_cpu *c, uint8_t flag);
@@ -347,10 +341,11 @@ int32_t emu_env_w32_load_dll(struct emu_env_w32 *env, char *path);
 
 int32_t emu_env_w32_export_new_hook(struct emu_env *env,
 								const char *exportname, 
-								int32_t (__stdcall *fnhook)(struct emu_env *env, struct emu_env_hook *hook),
+								int32_t (__stdcall *fnhook)(struct emu_env *env, struct emu_env_w32_dll_export *ex),
 								void *userdata);
 
-struct emu_env_hook *emu_env_w32_eip_check(struct emu_env *env);
+
+struct emu_env_w32_dll_export *emu_env_w32_eip_check(struct emu_env *env);
 struct emu_env_w32_dll *emu_env_w32_dll_new(void);
 void emu_env_w32_dll_free(struct emu_env_w32_dll *dll);
 void emu_env_w32_dll_exports_copy(struct emu_env_w32_dll *to, struct emu_env_w32_dll_export *from);
@@ -421,5 +416,7 @@ void emu_string_free(struct emu_string *s);
 char *emu_string_char(struct emu_string *s);
 void emu_string_append_char(struct emu_string *s, const char *data);
 void emu_string_append_format(struct emu_string *s, const char *format, ...);
+
+//void emu_env_w32_generic_api_handler(uint32_t lpfnCallback);
 
 //}

@@ -86,25 +86,28 @@ Function ReadString(addr As Long, Optional maxLen As Long = 256) As String
 End Function
 
 Function GetError() As String
+    Dim lpError  As Long
+    lpError = emu_strerror(e)
+    GetError = CStrToVB(lpError)
+End Function
+
+'used for reading char* pointers from the dll messages, (not from the emulator memory)
+Function CStrToVB(ByVal addr As Long) As String
     Dim b() As Byte
     ReDim b(1000)
-    Dim lpError  As Long
     
-    lpError = emu_strerror(e)
+    If addr = 0 Then Exit Function
     
-    If lpError <> 0 Then
-        CopyMemory b(0), lpError, 999
+    CopyMemory b(0), addr, 999
+    CStrToVB = StrConv(b(), vbUnicode, &H409)
+    
+    addr = InStr(CStrToVB, Chr(0))
+    
+    If addr > 0 Then
+        CStrToVB = Mid(CStrToVB, 1, addr - 1)
     End If
     
-    GetError = StrConv(b(), vbUnicode, &H409)
-    
-    lpError = InStr(GetError, Chr(0))
-    
-    If lpError > 0 Then
-        GetError = Mid(GetError, 1, lpError - 1)
-    End If
-    
-    GetError = Replace(GetError, vbLf, Empty)
+    CStrToVB = Replace(CStrToVB, vbLf, Empty)
     
 End Function
 

@@ -48,7 +48,7 @@ void emu_env_w32_dll_free(struct emu_env_w32_dll *dll)
 	emu_hashtable_free(dll->exports_by_fnptr);
 	emu_hashtable_free(dll->exports_by_fnname);
 	free(dll->exportx);
-	free(dll->hooks);
+//	free(dll->hooks);
 	free(dll->dllname);
 	free(dll);
 }
@@ -62,7 +62,7 @@ void emu_env_w32_dll_exports_copy(struct emu_env_w32_dll *to,struct emu_env_w32_
 	size = i;
 
 	to->exportx = (struct emu_env_w32_dll_export*)malloc(sizeof(struct emu_env_w32_dll_export) * size);
-	to->hooks = (struct emu_env_hook*)malloc(sizeof(struct emu_env_hook) * size);
+//	to->hooks = (struct emu_env_hook*)malloc(sizeof(struct emu_env_hook) * size);
 	memcpy(to->exportx, from, sizeof(struct emu_env_w32_dll_export) * size);
 
 
@@ -72,11 +72,13 @@ void emu_env_w32_dll_exports_copy(struct emu_env_w32_dll *to,struct emu_env_w32_
 	for (i=0;from[i].fnname != 0; i++)
 	{
 		struct emu_env_w32_dll_export *ex = &to->exportx[i];
-		struct emu_env_hook *hook = &to->hooks[i];
-		hook->type = emu_env_type_win32;
-		hook->hook.win = ex;
+		//struct emu_env_hook *hook = &to->hooks[i];
+		//hook->type = emu_env_type_win32;
+		//hook->hook.win = ex;
 
-		emu_hashtable_insert(to->exports_by_fnptr, (void *)(uintptr_t)from[i].virtualaddr, hook);
-		emu_hashtable_insert(to->exports_by_fnname, (void *)(uintptr_t)from[i].fnname, hook);
+		//emu_hashtable_insert(to->exports_by_fnptr, (void *)(uintptr_t)from[i].virtualaddr, hook);
+		//emu_hashtable_insert(to->exports_by_fnname, (void *)(uintptr_t)from[i].fnname, hook);
+		emu_hashtable_insert(to->exports_by_fnptr, (void *)(uintptr_t)from[i].virtualaddr, ex);
+		emu_hashtable_insert(to->exports_by_fnname, (void *)(uintptr_t)from[i].fnname, ex);
 	}
 }

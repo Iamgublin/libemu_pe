@@ -101,7 +101,7 @@ namespace c_sharp
       public static UInt32 mem;
       public static UInt32 env;
 
-      private static UInt32 hook_LoadLibraryA(UInt32 hEnv, UInt32 hHook)
+      private static UInt32 hook_LoadLibraryA(UInt32 hEnv, UInt32 hExport)
       {
           uint eip_save = POP_DWORD();
           uint p_dll = POP_DWORD();

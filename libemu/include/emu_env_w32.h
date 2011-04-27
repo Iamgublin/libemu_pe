@@ -77,22 +77,6 @@ void emu_env_w32_free(struct emu_env_w32 *env);
 
 int32_t emu_env_w32_load_dll(struct emu_env_w32 *env, char *path);
 
-/**
- * Hook an dll export from a dll
- * 
- * @param env        the env
- * @param exportname the exportname, f.e. "socket"
- * @param fnhook     pointer to the hook function
- * 
- * @return on success: 0
- *         on failure: -1
- //disabled now because all hooks are set in user code
-int32_t emu_env_w32_export_hook(struct emu_env *env,
-								const char *exportname, 
-								uint32_t		(*fnhook)(struct emu_env *env, struct emu_env_hook *hook, ...),
-								void *userdata);
-*/
-
 /** -- added dzzie 1-23-11
  * User code will implement its own fresh hook for an dll export from a emu env dll
  * 
@@ -103,12 +87,13 @@ int32_t emu_env_w32_export_hook(struct emu_env *env,
  * @return on success: 0
  *         on failure: -1
  *
- * NOTE: you can not hook exports already handled by libemu dll with this func. use above version instead.
 */
 int32_t emu_env_w32_export_new_hook(struct emu_env *env,
 								const char *exportname, 
-								int32_t (__stdcall *fnhook)(struct emu_env *env, struct emu_env_hook *hook),
+								int32_t (__stdcall *fnhook)(struct emu_env *env, struct emu_env_w32_dll_export *ex),
 								void *userdata);
+
+//void emu_env_w32_generic_api_handler(uint32_t lpfnCallback); //dzzie 4.27.11
 
 /**
  * Check if eip is within a loaded dll,
@@ -119,7 +104,7 @@ int32_t emu_env_w32_export_new_hook(struct emu_env *env,
  * @return on success: pointer to the dll_export
  *         on failure: NULL
  */
-struct emu_env_hook *emu_env_w32_eip_check(struct emu_env *env);
+struct emu_env_w32_dll_export *emu_env_w32_eip_check(struct emu_env *env);
 
 #endif
 

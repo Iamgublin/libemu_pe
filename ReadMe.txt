@@ -10,9 +10,10 @@ Also there have been some changes from the original. All hooks
 are now implemented in application code instead of the dll. 
 Actually right now this is a monolithic build. (no dll)
 
-I will be making another project file so the dll compiles 
-as stdcall and uses C exports so that it can be used from
-C# and VB6
+A project file to compile this as a stdcall dll is in the ./dll
+subdirectory. This dll is compatiable with any language which can
+use standard Windows dlls. Example projects are provided for C,
+Visual Basic 6, and C#
 
 I ported this because:
 

@@ -1,5 +1,6 @@
 #include <stdio.h>
 #include <windows.h>
+#include <conio.h>
 
 #pragma comment( lib, "./../vslibemu.lib" )
 #include "libemu.h"
@@ -19,7 +20,7 @@ struct emu_memory *mem = 0;
 struct emu_env *env = 0;
 
 
-int32_t	__stdcall new_user_hook_LoadLibraryA(struct emu_env *env, struct emu_env_hook *hook)
+int32_t	__stdcall new_user_hook_LoadLibraryA(struct emu_env *env, struct emu_env_w32_dll_export *ex)
 {
 /* LoadLibraryA(LPCTSTR lpFileName); */
    struct emu_string *dllstr = emu_string_new();
@@ -32,7 +33,8 @@ int32_t	__stdcall new_user_hook_LoadLibraryA(struct emu_env *env, struct emu_env
     emu_memory_read_string(mem, dllname_ptr, dllstr, 256);
 	char *dllname = emu_string_char(dllstr);
 
-	printf("%x\tLoadLibraryA(%s)\t--> HOOK RAN OK\n",eip_save, dllname);
+	printf("%x\tLoadLibraryA(%s) = 0x7800000\t\n", cpu->eip , dllname);
+	printf("\t--> HOOK RAN OK returns to: %x\n", eip_save);
 
 	cpu->reg[eax] = 0x7800000;
 	
@@ -99,27 +101,37 @@ void __cdecl main(void){
 
 	while(1){
 		
-		struct emu_env_hook *hook = NULL;
-		hook = emu_env_w32_eip_check(env);
+		struct emu_env_w32_dll_export *ex = NULL;
+		ex = emu_env_w32_eip_check(env);
 
-		if(hook == NULL){
+		if(ex != NULL){ 
+			//eip was found to be the start address of some dll export
+			if(ex->fnhook == NULL){ //if fnhook != 0 then handler was executed by library already
+				printf("Unhooked call to api %s\n", ex->fnname); //can insert generic handler here
+				break;
+			}
+		}
+		else{
+			
+			emu_disasm_addr(cpu, cpu->eip, buf);
+			printf("%x\t%s\n", cpu->eip, buf);
+
 			if( emu_cpu_parse(cpu) == -1){
 				printf("step %d  parse failed error: %s", step, emu_strerror(e));
 				break;
 			}
 			
-			emu_disasm_addr(cpu, cpu->eip, buf);
-			printf("%x\t%s\n", cpu->eip, buf);
-			
 			if( emu_cpu_step(cpu) == -1){
 				printf("step %d  step failed error: %s", step, emu_strerror(e));
 				break;
 			}
+			step++;
 		}
 			
 	}
 
-	printf("Run complete eax is: %x\n\n", cpu->reg[eax]);
+	printf("Run complete step=%d eax is: %x\n\n", step, cpu->reg[eax]);
+	getch();
 	
 
 }

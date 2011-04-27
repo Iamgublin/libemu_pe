@@ -64,7 +64,7 @@ struct emu_cpu
 {
 	struct emu *emu;
 	struct emu_memory *mem;
-	
+	bool repeat_current_instr;
 	uint32_t debugflags;
 
 	uint32_t eip;
@@ -73,15 +73,12 @@ struct emu_cpu
 	uint16_t *reg16[8];
 	uint8_t *reg8[8];
 
-	struct emu_instruction 			instr;
-	struct emu_cpu_instruction_info 	*cpu_instr_info;
+	struct emu_instruction instr;
+	struct emu_cpu_instruction_info *cpu_instr_info;
 	
 	uint32_t last_fpu_instr[2];
 
 	char *instr_string;
-
-	bool repeat_current_instr;
-
 	struct emu_track_and_source *tracking;
 };
 
