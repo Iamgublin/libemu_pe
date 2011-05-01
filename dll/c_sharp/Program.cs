@@ -7,7 +7,7 @@ using System.Runtime.InteropServices;
 
 namespace c_sharp
 {
-    static class test
+    static unsafe class test
     {
 
         [StructLayout(LayoutKind.Sequential, Pack = 1)]
@@ -43,37 +43,37 @@ namespace c_sharp
         public enum emu_reg32{eax = 0,ecx,edx,ebx,esp,ebp,esi,edi}
 
         [DllImport("kernel32.dll", EntryPoint = "RtlMoveMemory")]
-        static extern unsafe void CopyMemory(byte* Destination, uint Source, uint Length);
+        static extern  void CopyMemory(byte* Destination, uint Source, uint Length);
 
         [DllImport("KERNEL32.DLL")]
         public static extern int IsBadReadPtr(uint lpBase, uint ucb);  
 
         [DllImport("vslibemu.dll")]//struct emu_env_hook *emu_env_w32_eip_check(struct emu_env *env);
-        private static unsafe extern
+        private static  extern
         emu_env_w32_dll_export* emu_env_w32_eip_check(UInt32 hEnv);
         
         [DllImport("vslibemu.dll")]//'uint32_t emu_disasm_addr(struct emu_cpu *c, uint32_t eip, char *str);
-        private static unsafe extern 
+        private static  extern 
         UInt32 emu_disasm_addr(emu_cpu* hCpu, UInt32 eip, StringBuilder buf99);
 
        [DllImport("vslibemu.dll")]//int32_t emu_cpu_run(struct emu_cpu *c);
-        private static unsafe extern 
+        private static  extern 
         UInt32 emu_cpu_run(emu_cpu* hCpu);
 
        [DllImport("vslibemu.dll")]//uint32_t emu_cpu_eip_get(struct emu_cpu *c);
-        private static unsafe extern 
+        private static  extern 
         UInt32 emu_cpu_eip_get(emu_cpu* hCpu);
 
        [DllImport("vslibemu.dll")]//int32_t emu_cpu_parse(struct emu_cpu *c);
-        private static unsafe extern 
+        private static  extern 
         Int32 emu_cpu_parse(emu_cpu* hCpu);
 
        [DllImport("vslibemu.dll")]//
-        private static unsafe extern 
+        private static  extern 
         Int32 emu_cpu_step(emu_cpu* hCpu);
 
        [DllImport("vslibemu.dll")]//
-        private static unsafe extern 
+        private static  extern 
         UInt32 emu_cpu_eip_set(emu_cpu* hCpu, UInt32 eip);
 
         [DllImport("vslibemu.dll")]//
@@ -81,7 +81,7 @@ namespace c_sharp
         UInt32 emu_new();
 
         [DllImport("vslibemu.dll")]//
-        private static extern unsafe 
+        private static extern  
         emu_cpu* emu_cpu_get(UInt32 hEmu);
 
         [DllImport("vslibemu.dll")]//struct emu_memory *emu_memory_get(struct emu *e);
@@ -98,34 +98,34 @@ namespace c_sharp
         string emu_strerror(UInt32 hEmu);
 
         [DllImport("vslibemu.dll")]//uint32_t emu_cpu_reg32_get(struct emu_cpu *cpu_p, enum emu_reg32 reg);
-        private static unsafe extern 
+        private static extern 
         UInt32 emu_cpu_reg32_get(emu_cpu* hCpu, emu_reg32 reg32);
 
         [DllImport("vslibemu.dll")]//'void emu_cpu_reg32_set(struct emu_cpu *cpu_p, enum emu_reg32 reg, uint32_t val);
-        private static unsafe extern 
+        private static  extern 
         UInt32 emu_cpu_reg32_set(emu_cpu* hCpu, emu_reg32 reg32, UInt32 val);
 
         [DllImport("vslibemu.dll")]//int32_t emu_memory_write_block(struct emu_memory *m, uint32_t addr, void *src, size_t len);
-        private static extern unsafe 
+        private static extern  
          UInt32 emu_memory_write_block(UInt32 hMem, UInt32 addr, byte* src, UInt32 length);
 
         [DllImport("vslibemu.dll")]//int32_t emu_memory_read_block(struct emu_memory *m, uint32_t addr, void *dest, size_t len);
-        private static extern unsafe
+        private static extern 
         UInt32 emu_memory_read_block(UInt32 hMem, UInt32 addr, byte* dest, UInt32 length);
     
        [DllImport("vslibemu.dll")]//int32_t emu_memory_read_byte(struct emu_memory *m, uint32_t addr, uint8_t *byte);
-       private static extern unsafe
+       private static extern 
        UInt32 emu_memory_read_byte(UInt32 hMem, UInt32 addr, byte* b);
 
        [DllImport("vslibemu.dll")]//int32_t emu_memory_read_dword(struct emu_memory *m, uint32_t addr, uint32_t *dword);
-       private static extern unsafe
+       private static extern 
        UInt32 emu_memory_read_dword(UInt32 hMem, UInt32 addr, uint* b);
 
       [DllImport("vslibemu.dll")]//int32_t emu_env_w32_export_new_hook(struct emu_env *env, const char *exportname, lpfnCallback, void* Userdata
       private static extern 
       UInt32 emu_env_w32_export_new_hook(UInt32 hEnv, string ExportName, ApiHookProc ah, UInt32 userData);
       
-    private static unsafe UInt32 hook_LoadLibraryA(UInt32 hEnv, UInt32 hExport)
+    private static  UInt32 hook_LoadLibraryA(UInt32 hEnv, UInt32 hExport)
     {
         uint eip_save = POP_DWORD();
         uint p_dll = POP_DWORD();
@@ -138,7 +138,7 @@ namespace c_sharp
         return 0;
     }
 
-    public static unsafe string ReadString(uint addr, uint maxLen){
+    public static  string ReadString(uint addr, uint maxLen){
         string s = System.String.Empty;
         byte b;
         for(int i=0;i<maxLen;i++){
@@ -149,7 +149,7 @@ namespace c_sharp
         return s.ToString(); 
     }
 
-    public static unsafe uint POP_DWORD(){
+    public static  uint POP_DWORD(){
         uint esp = cpu->esp;  // emu_cpu_reg32_get(cpu, emu_reg32.esp);
         uint rval = 0;
         emu_memory_read_dword(mem, esp, &rval);
@@ -158,14 +158,14 @@ namespace c_sharp
         return rval;
     }
         
-      public static unsafe void WriteShellcode(UInt32 addr, byte[] b){
+      public static  void WriteShellcode(UInt32 addr, byte[] b){
           fixed (byte* bb = &b[0])
           {
               emu_memory_write_block(mem, addr, bb, (uint)b.Length);
           }
       }
 
-      public static unsafe string CString(uint lpString, uint maxLen)
+      public static string CString(uint lpString, uint maxLen)
       {
           string s = System.String.Empty;
           byte[] b = new byte[maxLen];
@@ -179,7 +179,7 @@ namespace c_sharp
           return s ;
 
       }
-      public static unsafe void print_disasm()
+      public static  void print_disasm()
       {
           uint eip = emu_cpu_eip_get(cpu);
           StringBuilder buf = new StringBuilder(500);
@@ -187,7 +187,7 @@ namespace c_sharp
           Console.WriteLine(eip.ToString("X") + "\t" + buf);
       }
 
-      public static unsafe bool Step()
+      public static  bool Step()
       {
           if (emu_cpu_parse(cpu) == -1) return false;
           if (emu_cpu_step(cpu) == -1) return false;
@@ -195,11 +195,11 @@ namespace c_sharp
       }
 
         public static UInt32 e;
-        public static unsafe emu_cpu* cpu;
+        public static  emu_cpu* cpu;
         public static UInt32 mem;
         public static UInt32 env;
 
-      static unsafe void Main(string[] args)
+      static  void Main(string[] args)
         {
           
             e = emu_new();

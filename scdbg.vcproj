@@ -151,6 +151,7 @@
 			<Tool
 				Name="VCManifestTool"
 				EmbedManifest="false"
+				AdditionalOptions="/validate_manifest "
 			/>
 			<Tool
 				Name="VCXDCMakeTool"

@@ -1558,7 +1558,7 @@ int find_sc(void){ //loose brute force let user decide...
 		emu_memory_write_block(mem, CODE_OFFSET, opts.scode,  opts.size);
 		for (j=0;j<8;j++) cpu->reg[j] = regs[j];
 
-		if( opts.scode[i] != 0 && get_instr_length( CODE_OFFSET + i ) > 0 ){
+		if( opts.scode[i] != 0 ){
 			cpu->eip = CODE_OFFSET + i;
 			s = mini_run(limit);
 			if(s > 100 && cpu->eip > (CODE_OFFSET + i + 100) ){
@@ -1764,16 +1764,9 @@ int run_sc(void)
 
 		if ( ex != NULL  && cpu->eip != 0x7c862e62 ) //ignore UnhandledExceptionFilter 
 		{				
-			if ( (int)ex == 1 ){ //not ideal way to do this but it cant return null 
-				printf("Generic ApiHandler took this call\n");
-			}
-			else if ( ex->fnhook == NULL )
+			if ( ex->fnhook == NULL )
 			{
-				//if we had a listing of esp size for each api, we wouldnt have to bail
-				//on this condition and see if it would just continue on some more..
-				//not perfect but might be an easy way to get a little further and not have
-				//to implement literally every api used. (like sleep or gettickcount would be fine)
-				//maybe scan the disasm of the dll looking for stack adjustments? -dzzie
+				//insert generic api handler here
 				printf("unhooked call to %s\n", ex->fnname);
 				break;
 			}
