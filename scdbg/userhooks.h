@@ -108,9 +108,9 @@ int32_t	__stdcall new_user_hook_WSAStartup(struct emu_env *env, struct emu_env_w
 int32_t	__stdcall new_user_hook_CreateFileMappingA(struct emu_env *env, struct emu_env_w32_dll_export *ex);
 int32_t	__stdcall new_user_hook_WideCharToMultiByte(struct emu_env *env, struct emu_env_w32_dll_export *ex);
 int32_t	__stdcall new_user_hook_GetLogicalDriveStringsA(struct emu_env *env, struct emu_env_w32_dll_export *ex);
-
-
-
+int32_t	__stdcall new_user_hook_FindWindowA(struct emu_env *env, struct emu_env_w32_dll_export *ex);
+int32_t	__stdcall new_user_hook_DeleteUrlCacheEntryA(struct emu_env *env, struct emu_env_w32_dll_export *ex);
+int32_t	__stdcall new_user_hook_FindFirstFileA(struct emu_env *env, struct emu_env_w32_dll_export *ex);
 
 
 

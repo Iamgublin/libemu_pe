@@ -1,5 +1,8 @@
 		Changelog for libemu
-
+		
+5.5.11
+	exe - FinFirstFileA, FindClose, DeleteUrlCacheEntryA, FindWindow
+	
 4.22.11
     dll - switched over to using a static PEB, see ./support/pebBuilder project
     

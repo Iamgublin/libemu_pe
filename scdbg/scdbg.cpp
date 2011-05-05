@@ -1335,7 +1335,8 @@ void set_hooks(struct emu_env *env /*,struct nanny *na*/){
 	emu_env_w32_export_new_hook(env, "RtlExitUserThread", new_user_hook_GenericStub, NULL);
 	emu_env_w32_export_new_hook(env, "FlushViewOfFile", new_user_hook_GenericStub, NULL);
     emu_env_w32_export_new_hook(env, "UnmapViewOfFile", new_user_hook_GenericStub, NULL);
-	
+	emu_env_w32_export_new_hook(env, "FindClose", new_user_hook_GenericStub, NULL);
+
 	//-----handled by the generic stub 2 string
 	emu_env_w32_export_new_hook(env, "InternetOpenA", new_user_hook_GenericStub2String, NULL);
 	emu_env_w32_export_new_hook(env, "InternetOpenUrlA", new_user_hook_GenericStub2String, NULL);
@@ -1387,6 +1388,9 @@ void set_hooks(struct emu_env *env /*,struct nanny *na*/){
 	ADDHOOK(CreateFileMappingA);
 	ADDHOOK(WideCharToMultiByte);
 	ADDHOOK(GetLogicalDriveStringsA);
+	ADDHOOK(FindWindowA);
+	ADDHOOK(DeleteUrlCacheEntryA);
+	ADDHOOK(FindFirstFileA);
 
 
 }
@@ -2144,8 +2148,7 @@ void parse_opts(int argc, char* argv[] ){
 				printf("Invalid option /dir must specify a folder path as next arg\n");
 				exit(0);
 			}
-			HandleDirMode(argv[i+1]);
-			exit(0);
+			opts.scan_dir = strdup(argv[i+1]);
 		}
 
 		if(strstr(buf,"/o") > 0 ){
@@ -2358,6 +2361,12 @@ int main(int argc, char *argv[])
 	if ( env == 0 ){ printf("%s\n%s\n", emu_strerror(e), strerror(emu_errno(e))); exit(-1);}
 
 	parse_opts(argc, argv);
+
+	if(opts.scan_dir != NULL){
+		HandleDirMode(opts.scan_dir);
+		exit(0);
+	}
+
 	loadsc();
 	init_emu();	
 	

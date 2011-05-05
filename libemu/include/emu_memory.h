@@ -68,7 +68,7 @@ enum emu_segment emu_memory_segment_get(struct emu_memory *m);
 int32_t emu_memory_alloc(struct emu_memory *m, uint32_t *addr, size_t len);
 /*int32_t emu_memory_alloc_at(struct emu_memory *m, uint32_t addr, size_t len);*/
 
-/* information */
+/* information  */
 uint32_t emu_memory_get_usage(struct emu_memory *m);
 
 void emu_memory_mode_ro(struct emu_memory *m);

@@ -41,6 +41,7 @@ struct run_time_options
 	bool  break0;
 	uint32_t break_above;
 	char* patch_file;
+	char* scan_dir;
 
 	struct 
 	{

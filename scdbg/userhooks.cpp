@@ -82,6 +82,21 @@ int get_fhandle(void){
 	return nextFhandle;
 }
 
+uint32_t popd(void){
+	uint32_t x=0;
+	emu_memory_read_dword(cpu->mem, cpu->reg[esp], &x); 
+	cpu->reg[esp] += 4; 
+	return x;
+}
+
+struct emu_string* popstring(void){
+	uint32_t addr = popd();
+	struct emu_string *str = emu_string_new();
+	emu_memory_read_string(mem, addr, str, 1256);
+	return str;
+}
+
+
 void loadargs(int count, uint32_t ary[]){
 	for(int i=0;i<count;i++){
 		int32_t ret = emu_memory_read_dword(cpu->mem, cpu->reg[esp], &ary[i]); 
@@ -431,6 +446,9 @@ int32_t	__stdcall new_user_hook_GenericStub(struct emu_env *env, struct emu_env_
 	);
 
   BOOL WINAPI UnmapViewOfFile(  __in  LPCVOID lpBaseAddress );
+  BOOL WINAPI FindClose(  __inout  HANDLE hFindFile );
+
+
 
 
 );
@@ -451,6 +469,10 @@ int32_t	__stdcall new_user_hook_GenericStub(struct emu_env *env, struct emu_env_
 	}
 
 	if(strcmp(func, "RtlDestroyEnvironment") ==0 ){
+		arg_count = 1;
+	}
+
+	if(strcmp(func, "FindClose") == 0 ){
 		arg_count = 1;
 	}
 
@@ -3279,3 +3301,76 @@ int32_t	__stdcall new_user_hook_GetLogicalDriveStringsA(struct emu_env *env, str
 	return 0;
 }
 
+int32_t	__stdcall new_user_hook_FindWindowA(struct emu_env *env, struct emu_env_w32_dll_export *ex)
+{
+	/*
+		HWND WINAPI FindWindow(
+		  __in_opt  LPCTSTR lpClassName,
+		  __in_opt  LPCTSTR lpWindowName
+		);
+	*/
+
+	uint32_t eip_save = popd();
+	struct emu_string* sClass  = popstring();
+	struct emu_string* sWindow = popstring();
+	
+	printf("%x\tFindWindowA(class=%s, window=%s)\n", eip_save, emu_string_char(sClass), emu_string_char(sWindow) );
+
+	emu_string_free(sClass);
+	emu_string_free(sWindow);
+
+	set_ret(0);
+	emu_cpu_eip_set(cpu, eip_save);
+	return 0;
+}
+
+int32_t	__stdcall new_user_hook_DeleteUrlCacheEntryA(struct emu_env *env, struct emu_env_w32_dll_export *ex)
+{
+	/*
+		BOOLAPI DeleteUrlCacheEntry(
+		  __in  LPCTSTR lpszUrlName
+		);
+	*/
+
+	uint32_t eip_save = popd();
+	struct emu_string* sUrl  = popstring();
+	
+	printf("%x\tDeleteUrlCacheEntryA(%s)\n", eip_save, emu_string_char(sUrl) );
+
+	emu_string_free(sUrl);
+	set_ret(1);
+	emu_cpu_eip_set(cpu, eip_save);
+	return 0;
+}
+
+int32_t	__stdcall new_user_hook_FindFirstFileA(struct emu_env *env, struct emu_env_w32_dll_export *ex)
+{
+	/*
+		HANDLE WINAPI FindFirstFile(
+		  __in   LPCTSTR lpFileName,
+		  __out  LPWIN32_FIND_DATA lpFindFileData
+		);
+	*/
+
+	uint32_t eip_save = popd();
+	struct emu_string* sFile  = popstring();
+	uint32_t lpFind = popd();
+
+	uint32_t ret = -1;
+	WIN32_FIND_DATA wfd;
+	memset(&wfd, 0 , sizeof(WIN32_FIND_DATA));
+
+	printf("%x\tFindFirstFileA(%s, %x)\n", eip_save, emu_string_char(sFile), lpFind );
+
+	if(opts.interactive_hooks == 1 ){
+		ret = (uint32_t)FindFirstFile( emu_string_char(sFile), &wfd);
+		//todo: copy the strings from our memory file name pointers to the ones in emu memory...
+	}
+
+	emu_memory_write_block(mem, lpFind, &wfd, sizeof(WIN32_FIND_DATA) );
+
+	emu_string_free(sFile);
+	set_ret(ret);
+	emu_cpu_eip_set(cpu, eip_save);
+	return 0;
+}
