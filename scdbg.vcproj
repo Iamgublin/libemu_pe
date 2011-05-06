@@ -167,6 +167,7 @@
 			/>
 			<Tool
 				Name="VCPostBuildEventTool"
+				CommandLine="upx $(TargetPath)"
 			/>
 		</Configuration>
 	</Configurations>

@@ -2,6 +2,7 @@
 		
 5.5.11
 	exe - FinFirstFileA, FindClose, DeleteUrlCacheEntryA, FindWindow
+	    - copying kernel32 from live memory so all opcodes are present for scanners
 	
 4.22.11
     dll - switched over to using a static PEB, see ./support/pebBuilder project
