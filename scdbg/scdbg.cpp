@@ -1318,6 +1318,8 @@ void set_hooks(struct emu_env *env){
 	emu_env_w32_export_new_hook(env, "InternetOpenUrlA", new_user_hook_GenericStub2String, NULL);
 	emu_env_w32_export_new_hook(env, "SHRegGetBoolUSValueA", new_user_hook_GenericStub2String, NULL);
 
+	emu_env_w32_export_new_hook_ordial(env, "shdocvw", 0x65, new_user_hook_shdocvw65);
+
 	//conversions from dll
     #define ADDHOOK(name) emu_env_w32_export_new_hook(env, #name, new_user_hook_##name, NULL);
 
@@ -1727,16 +1729,18 @@ int run_sc(void)
 
 		ex = emu_env_w32_eip_check(env);
 
-		if ( ex != NULL  && cpu->eip != 0x7c862e62 ) //ignore UnhandledExceptionFilter 
+		//ignore UnhandledExceptionFilter && MessageBeep
+		if ( ex != NULL  && cpu->eip != 0x7c862e62 && cpu->eip != 0x7e431f7b) 
 		{				
 			if ( ex->fnhook == NULL )
 			{
 				//insert generic api handler here
+				start_color(myellow);
 				if( strlen(ex->fnname) == 0)
-					printf("unhooked call to ordial %s.0x%x\n", dllFromAddress(cpu->eip), ex->ordial);
+					printf("%x\tunhooked call to ordial %s.0x%x\tstep=%d\n", previous_eip , dllFromAddress(cpu->eip), ex->ordial, opts.cur_step );
 				else
-					printf("unhooked call to %s.%s\n", dllFromAddress(cpu->eip), ex->fnname);
-
+					printf("%x\tunhooked call to %s.%s\tstep=%d\n", previous_eip, dllFromAddress(cpu->eip), ex->fnname, opts.cur_step );
+				end_color();
 				break;
 			}
 		}

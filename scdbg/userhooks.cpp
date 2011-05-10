@@ -3334,3 +3334,32 @@ int32_t	__stdcall new_user_hook_FindFirstFileA(struct emu_env *env, struct emu_e
 	emu_cpu_eip_set(cpu, eip_save);
 	return 0;
 }
+
+int32_t	__stdcall new_user_hook_shdocvw65(struct emu_env *env, struct emu_env_w32_dll_export *ex)
+{   //ordial 101 = IEWinMain http://www.kakeeware.com/i_launchie.php
+	//since k32 opcodes are from live mem and not static, we dont control compiled in GetCommandLineW string pointer
+	//unless we patch it in, which might be a good idea if they use it (see link above)
+	uint32_t eip_save = popd();
+	struct emu_string* sCmdLine = popstring();
+	uint32_t nShowWindow = popd();
+
+	if( sCmdLine->size == 0 )
+		printf("%x\tIEWinMain(%x, %x)\n", eip_save, sCmdLine->emu_offset, nShowWindow );
+	else
+		printf("%x\tIEWinMain(%s, %x)\n", eip_save, emu_string_char(sCmdLine), nShowWindow );
+
+	set_ret(0);
+
+	uint32_t MsgBeepOpcodes;
+	emu_memory_read_dword(mem, 0x7e431f7b, &MsgBeepOpcodes);
+	if ( MsgBeepOpcodes != 0 ){ //this breaks if we ever add user32 opcodes in.
+		//or should i do a MessageBeep hook, and transfer execution to MessageBeep on error if IEWinMain has been called..(messy)
+		printf("\tPassing execution to patched MessageBeep()\n");
+		emu_cpu_eip_set(cpu, 0x7e431f7b); //messagebeep
+	}
+	else{ 
+		emu_cpu_eip_set(cpu, eip_save);
+	}
+	
+	return 0;
+}

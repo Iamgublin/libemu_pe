@@ -508,6 +508,41 @@ struct emu_env_w32_dll_export *emu_env_w32_eip_check(struct emu_env *env)
 	return NULL;
 }
 
+int32_t emu_env_w32_export_new_hook_ordial(struct emu_env *env,
+								const char *dllname,
+								uint32_t ordial,
+								int32_t	(__stdcall *fnhook)(struct emu_env *env, struct emu_env_w32_dll_export *ex)
+								)
+{
+	int numdlls=0;
+	while ( env->env.win->loaded_dlls[numdlls] != NULL )
+	{
+		struct emu_env_w32_dll* dll = env->env.win->loaded_dlls[numdlls];
+
+		if (strncmp(dll->dllname, dllname, strlen(dll->dllname)) == 0)
+		{
+			struct emu_hashtable_item *ehi = emu_hashtable_search(dll->exports_by_ordial, (void *)ordial);
+			
+			if (ehi != NULL)
+			{
+				//printf("hooked %s\n",  exportname);
+				struct emu_env_w32_dll_export *ex = (struct emu_env_w32_dll_export *)ehi->value;
+				if(ex != NULL){
+					ex->fnhook = fnhook;
+				}
+				return 0;
+			}
+			break;
+		}
+		numdlls++;
+	}
+ 
+	printf("hooking ordial failed for %s.0x%x\n", dllname, ordial);
+ 
+	return -1;
+}
+
+
 //dzzie this new export allows dll clients to hook api not implemented by libemu
 //note that the fnhook prototypes are different user must handle stack and eip on own..
 //-----------------------------------------------------------------------
