@@ -44,6 +44,7 @@ struct emu_env_w32_dll_export
 	uint32_t 	virtualaddr;
     int32_t		(__stdcall *fnhook)(struct emu_env *env, struct emu_env_w32_dll_export *ex);
 	void 		*userdata;
+	uint32_t	ordial;
 	//uint32_t	(*userhook)(struct emu_env *env, struct emu_env_hook *hook, ...);
 };
 

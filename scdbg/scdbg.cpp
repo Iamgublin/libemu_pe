@@ -427,6 +427,18 @@ void mm_range_callback(char id, char mode, uint32_t address){
 	 
 }
 
+char* dllFromAddress(uint32_t addr){
+	int numdlls=0;
+	while ( env->env.win->loaded_dlls[numdlls] != 0 ){
+		struct emu_env_w32_dll *dll = env->env.win->loaded_dlls[numdlls]; 
+		if( addr >= dll->baseaddr && addr <= (dll->baseaddr + dll->imagesize) ){
+			return dll->dllname;
+		}
+		numdlls++;
+	}
+	return strdup(""); //mem leak but no crash choose your fights
+}
+
 uint32_t symbol2addr(char* symbol){
 	if(symbol == NULL) return 0;
 	if(strcmp(symbol,"peb") == 0) return 0x00251ea0;
@@ -1248,44 +1260,8 @@ void debugCPU(struct emu *e, bool showdisasm){
 
 }
 
-void set_hooks(struct emu_env *env /*,struct nanny *na*/){
+void set_hooks(struct emu_env *env){
 
-	/* (as far as i understand it..)
-	   api function hooking in libemu works in 3 layers. first the addresses
-	   of each api are kept in a table with api name, pointer to libemudll primary hook 
-	   and pointer to a secondary user hook.
-	   
-	   if execution is sent to one of these addresses, then the libemu dll primary hook
-	   is called, which handles stack cleanup, arg dereferencing, setting return
-	   address, and setting eip to return value on stack. If a user hook has been
-	   set with emu_env_w32_export_hook, then the libemu dll hook will (in most cases)
-	   call the user hook. In the original dll, not all libemu hooked functions supported
-	   setting user hooks. That is one update i did. The second update was a new export
-	   called emu_env_w32_export_new_hook which allows application developers to set
-	   primary hooks for api functions which are unimplemented by the dll itself. 
-	   
-       (design seems to say that dll is used as an application/plugin in itself, and use as an app
-	   library is secondary)
-
-	   If you want to use this note that the function prototype is slightly different, 
-	   and you will now be the one responsible for the emu stack cleanup and resetting
-	   eip to return address at completion of your function. This mod allows for the development
-	   and testing of new hooks in applications without requiring further modifications to the
-	   dll itself. -dzzie
-	
-	*/
-
-	emu_env_w32_load_dll(env->env.win,"user32.dll");
-	emu_env_w32_load_dll(env->env.win,"shell32.dll");
-	emu_env_w32_load_dll(env->env.win,"msvcrt.dll");
-	emu_env_w32_load_dll(env->env.win,"urlmon.dll");
-	emu_env_w32_load_dll(env->env.win,"ws2_32.dll");
-	emu_env_w32_load_dll(env->env.win,"wininet.dll");
-	emu_env_w32_load_dll(env->env.win,"shlwapi.dll");
-	emu_env_w32_load_dll(env->env.win,"advapi32.dll");
-	emu_env_w32_load_dll(env->env.win,"shdocvw.dll");
-
-	// new hooks
 	emu_env_w32_export_new_hook(env, "GetModuleHandleA", new_user_hook_GetModuleHandleA, NULL);
 	emu_env_w32_export_new_hook(env, "GlobalAlloc", new_user_hook_GlobalAlloc, NULL);
 	emu_env_w32_export_new_hook(env, "CreateProcessInternalA", new_user_hook_CreateProcessInternalA, NULL);
@@ -1664,25 +1640,10 @@ void init_emu(void){
 	
 	//write shellcode to memory
 	emu_memory_write_block(mem, CODE_OFFSET, opts.scode,  opts.size);
-
-	//some shellcode locates GetProcAddress by the following signature
-	//.text:GetProcAddress+9 8B 7D 0C                          mov     edi, [ebp+lpProcName]
-    //.text:GetProcAddress+C BB FF FF 00 00                    mov     ebx, 0FFFFh
-	unsigned char gp[25] = {0x8B, 0xFF, 0x55, 0x8B, 0xEC, 0x51, 0x51, 0x53, 0x57, 0x8B, 0x7D, 0x0C, 0xBB, 0xFF, 0xFF, 0x00, 0x00, 0x3B, 0xFB, 0x0F, 0x86, 0xD1, 0xF2, 0xFF, 0xFF};
-	emu_memory_write_block(mem, 0x7c80ada0, gp, 25); 
 	
 	unsigned char tmp[0x1000]; //extra buffer on end in case they expect it..
 	memset(tmp, 0, sizeof(tmp));
 	emu_memory_write_block(mem, CODE_OFFSET + opts.size+1,tmp, sizeof(tmp));
-
-	//InMemoryOrderModuleList 2nd entry lets swap the ntdll base for kernel32
-	//this breaks other shellcode though cause not complete...
-	if(opts.pebPatch){
-		emu_memory_write_dword(mem, 0x252f38 + 0x10, 0x7c800000); //k32 base (these dont change basedllname pointer tho)
-		emu_memory_write_dword(mem, 0x252ef0 + 0x10, 0x7C900000); //ntdll
-	}
-
-	
 	
 
 }
@@ -1771,7 +1732,11 @@ int run_sc(void)
 			if ( ex->fnhook == NULL )
 			{
 				//insert generic api handler here
-				printf("unhooked call to %s\n", ex->fnname);
+				if( strlen(ex->fnname) == 0)
+					printf("unhooked call to ordial %s.0x%x\n", dllFromAddress(cpu->eip), ex->ordial);
+				else
+					printf("unhooked call to %s.%s\n", dllFromAddress(cpu->eip), ex->fnname);
+
 				break;
 			}
 		}

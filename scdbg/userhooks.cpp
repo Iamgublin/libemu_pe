@@ -62,6 +62,7 @@ extern uint32_t FS_SEGMENT_DEFAULT_OFFSET;
 extern void hexdump(unsigned char*, int);
 extern int file_length(FILE *f);
 extern void add_malloc(uint32_t, uint32_t);
+extern char* dllFromAddress(uint32_t addr);
 extern bool FolderExists(char* folder);
 extern struct emu_memory *mem;
 extern struct emu_cpu *cpu;    //these two are global in main code
@@ -82,6 +83,7 @@ int get_fhandle(void){
 	return nextFhandle;
 }
 
+/*these next 2 (maybe 3) seem to be the cleanest way to load args from the stack...*/
 uint32_t popd(void){
 	uint32_t x=0;
 	emu_memory_read_dword(cpu->mem, cpu->reg[esp], &x); 
@@ -214,25 +216,10 @@ void GetSHFolderName(int id, char* buf255){
 }
 
 int32_t	__stdcall new_user_hook_GetModuleHandleA(struct emu_env *env, struct emu_env_w32_dll_export *ex)
-{
-
-	struct emu_cpu *c = emu_cpu_get(env->emu);
-
-	uint32_t eip_save;
-
-	POP_DWORD(c, &eip_save);
- 
-	//HMODULE WINAPI GetModuleHandle( __in_opt  LPCTSTR lpModuleName);
-
-	uint32_t filename;
-	POP_DWORD(c, &filename);
-
-	struct emu_memory *mem = emu_memory_get(env->emu);
-	struct emu_string *s_filename = emu_string_new();
-	emu_memory_read_string(mem, filename, s_filename, 256);
-
+{   //HMODULE WINAPI GetModuleHandle( __in_opt  LPCTSTR lpModuleName);
+	uint32_t eip_save = popd();
+	struct emu_string *s_filename = popstring();
 	char *dllname = emu_string_char(s_filename);
-
 
 	int i=0;
 	int found_dll = 0;
@@ -260,50 +247,25 @@ int32_t	__stdcall new_user_hook_GetModuleHandleA(struct emu_env *env, struct emu
 	printf("%x\tGetModuleHandleA(%s)\n",eip_save,  dllname);
 
 	emu_string_free(s_filename);
-	emu_cpu_eip_set(c, eip_save);
+	emu_cpu_eip_set(cpu, eip_save);
 	return 0;
 }
 
 int32_t	__stdcall new_user_hook_MessageBoxA(struct emu_env *env, struct emu_env_w32_dll_export *ex)
-{
-
-	struct emu_cpu *c = emu_cpu_get(env->emu);
-
-	uint32_t eip_save;
-
-	POP_DWORD(c, &eip_save);
-
-/*
-int WINAPI MessageBox(
-  __in_opt  HWND hWnd,
-  __in_opt  LPCTSTR lpText,
-  __in_opt  LPCTSTR lpCaption,
-  __in      UINT uType
-);
-*/
-	uint32_t hwnd;
-	POP_DWORD(c, &hwnd);
-
-	uint32_t p_text;
-	POP_DWORD(c, &p_text);
-
-	uint32_t p_caption;
-	POP_DWORD(c, &p_caption);
-
-	uint32_t utype;
-	POP_DWORD(c, &utype);
-
-	struct emu_memory *mem = emu_memory_get(env->emu);
-	struct emu_string *s_text = emu_string_new();
-	emu_memory_read_string(mem, p_text, s_text, 256);
-
-	char *stext = emu_string_char(s_text);
-	printf("%x\tMessageBoxA(%s)\n",eip_save,  stext );
+{	/*int WINAPI MessageBox(HWND hWnd,LPCTSTR lpText,LPCTSTR lpCaption, UINT uType);*/
+	uint32_t eip_save = popd();
+	uint32_t hwnd = popd();
+	struct emu_string *s_text = popstring();
+	struct emu_string *s_cap = popstring();
+	uint32_t utype = popd();
+	
+	printf("%x\tMessageBoxA(%s, %s)\n", eip_save, emu_string_char(s_text), emu_string_char(s_cap) );
 	
 	emu_string_free(s_text);
+	emu_string_free(s_cap);
 
 	cpu->reg[eax] = 0;
-	emu_cpu_eip_set(c, eip_save);
+	emu_cpu_eip_set(cpu, eip_save);
 	return 0;
 }
 
@@ -2539,40 +2501,33 @@ int32_t	__stdcall new_user_hook_GetVersion(struct emu_env *env, struct emu_env_w
 }
 
 int32_t	__stdcall new_user_hook_GetProcAddress(struct emu_env *env, struct emu_env_w32_dll_export *ex)
-{
-	struct emu_cpu *c = emu_cpu_get(env->emu);
-	struct emu_memory *mem = emu_memory_get(env->emu);
-	uint32_t eip_save;
-	POP_DWORD(c, &eip_save);
-	/* FFARPROC WINAPI GetProcAddress(  HMODULE hModule,  LPCSTR lpProcName);*/
-	uint32_t module;
-	POP_DWORD(c, &module);
-	uint32_t p_procname;
-	POP_DWORD(c, &p_procname);
+{ /* FFARPROC WINAPI GetProcAddress(  HMODULE hModule,  LPCSTR lpProcName);*/
+	uint32_t eip_save = popd();
+	uint32_t module = popd();
+	struct emu_string *procname = popstring();
 
-	struct emu_string *procname = emu_string_new();
-	emu_memory_read_string(mem, p_procname, procname, 256);
-
+	uint32_t ordial = 0;
+	uint32_t index  = 0;
 	int i;
-	set_ret(0); //set default value of 0 (not found) //dzzie
+	bool invalid = false;
+	set_ret(0); //set default value of 0 (not found) //dzzie		
 
 	for ( i=0; env->env.win->loaded_dlls[i] != NULL; i++ )
 	{
-		if ( env->env.win->loaded_dlls[i]->baseaddr == module )
-		{
-			/*logDebug(env->emu, "dll is %s %08x %08x \n", 
-				   env->env.win->loaded_dlls[i]->dllname, 
-				   module, 
-				   env->env.win->loaded_dlls[i]->baseaddr);*/
+		struct emu_env_w32_dll* dll = env->env.win->loaded_dlls[i];
 
-			struct emu_env_w32_dll *dll = env->env.win->loaded_dlls[i];
-			struct emu_hashtable_item *ehi = emu_hashtable_search(dll->exports_by_fnname, (void *)emu_string_char(procname));
-			if ( ehi == NULL )
-			{
+		if ( dll->baseaddr == module )
+		{
+			if( procname->size == 0 ){ //either an error or an ordial
+				ordial = procname->emu_offset;
+				struct emu_hashtable_item *ehi = emu_hashtable_search(dll->exports_by_ordial, (void *)ordial);
+				if ( ehi == NULL ) break;
+				struct emu_env_w32_dll_export *ex = (struct emu_env_w32_dll_export *)ehi->value;
+				set_ret(dll->baseaddr + ex->virtualaddr);
 				break;
-			}
-			else
-			{
+			}else{
+				struct emu_hashtable_item *ehi = emu_hashtable_search(dll->exports_by_fnname, (void *)emu_string_char(procname));
+				if ( ehi == NULL ) break;
 				struct emu_env_w32_dll_export *ex = (struct emu_env_w32_dll_export *)ehi->value;
 				//logDebug(env->emu, "found %s at addr %08x\n",emu_string_char(procname), dll->baseaddr + hook->hook.win->virtualaddr );
 				set_ret(dll->baseaddr + ex->virtualaddr);
@@ -2581,11 +2536,16 @@ int32_t	__stdcall new_user_hook_GetProcAddress(struct emu_env *env, struct emu_e
 		}	
 	}
 
-	printf("%x\tGetProcAddress(%s)\n",eip_save, emu_string_char(procname));
-	if(module == 0 || cpu->reg[eax] == 0 ) printf("\tLookup not found: module base = %x\n", module);  
+	if(ordial==0){
+		printf("%x\tGetProcAddress(%s)\n",eip_save, emu_string_char(procname));
+	}else{
+		printf("%x\tGetProcAddress(%s.0x%x) - ordial\n",eip_save, dllFromAddress(module), ordial);
+	}
+
+	if(module == 0 || cpu->reg[eax] == 0 ) printf("\tLookup not found: module base=%x dllName=%s\n", module, dllFromAddress(module) );  
 
 	emu_string_free(procname);
-	emu_cpu_eip_set(c, eip_save);
+	emu_cpu_eip_set(cpu, eip_save);
 	return 0;
 }
 

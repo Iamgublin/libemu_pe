@@ -39,7 +39,8 @@ struct emu_string
     uint32_t    size;
     void        *data;
 	uint32_t	allocated;
-
+	uint32_t    emu_offset;  /*dzzie 5.5.11*/
+	uint32_t    invalidAddress; /*dzzie 5.5.11*/
 };
 
 /**

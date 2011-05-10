@@ -27,7 +27,6 @@ Begin VB.Form Form1
       _ExtentX        =   24262
       _ExtentY        =   7646
       _Version        =   393217
-      Enabled         =   -1  'True
       ScrollBars      =   2
       TextRTF         =   $"Form1.frx":0000
       BeginProperty Font {0BE35203-8F91-11CE-9DE3-00AA004BB851} 
@@ -157,10 +156,11 @@ Private Sub Command4_Click()
     s = Replace(s, """", "")
     s = Split(s, vbCrLf)
     For Each X In s
-        If Len(X) > 0 And InStr(X, ",") > 0 And InStr(X, "n/a") < 1 Then
+        If Len(X) > 0 And InStr(X, ",") > 0 Then
             csv = Split(X, ",") 'ordial,rva,name
             '{"getpeername", 0x00010B50, NULL, NULL},
-            tmp = tmp & "{""" & csv(2) & """, " & csv(1) & ", NULL, NULL}," & vbCrLf
+            If csv(2) = "n/a" Then csv(2) = ""
+            tmp = tmp & "{""" & csv(2) & """, " & csv(1) & ", NULL, NULL, " & csv(0) & " }," & vbCrLf
         End If
     Next
     

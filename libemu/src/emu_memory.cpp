@@ -429,6 +429,7 @@ int32_t emu_memory_read_string(struct emu_memory *m, uint32_t addr, struct emu_s
 }*/
 
 //modified so that even if it fails it still returns an empty string..makes logging easier.. -dzzie 3.10.11
+//note reads to first null, size is set to strlen(), error size = 0
 int32_t emu_memory_read_string(struct emu_memory *m, uint32_t addr, struct emu_string *s, uint32_t maxsize)
 {
 	uint32_t i = 0;
@@ -444,10 +445,14 @@ int32_t emu_memory_read_string(struct emu_memory *m, uint32_t addr, struct emu_s
 		i++;
 	}
 
+	s->emu_offset = addr;
+	s->invalidAddress = 0;
+
 	if(address == NULL){
 		s->data = malloc(4);
-		strcpy((char*)s->data, "");
+		strcpy((char*)s->data, ""); 
 		s->size = 0;
+		s->invalidAddress = 1;
 		return 0;
 	}else{
 		s->data = malloc(i + 1);

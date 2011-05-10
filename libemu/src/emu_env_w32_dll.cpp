@@ -65,7 +65,7 @@ void emu_env_w32_dll_exports_copy(struct emu_env_w32_dll *to,struct emu_env_w32_
 //	to->hooks = (struct emu_env_hook*)malloc(sizeof(struct emu_env_hook) * size);
 	memcpy(to->exportx, from, sizeof(struct emu_env_w32_dll_export) * size);
 
-
+	to->exports_by_ordial = emu_hashtable_new(size, emu_hashtable_ptr_hash,emu_hashtable_ptr_cmp);
 	to->exports_by_fnptr = emu_hashtable_new(size, emu_hashtable_ptr_hash,emu_hashtable_ptr_cmp);
 	to->exports_by_fnname = emu_hashtable_new(size, emu_hashtable_string_hash, emu_hashtable_string_cmp);
 
@@ -80,5 +80,6 @@ void emu_env_w32_dll_exports_copy(struct emu_env_w32_dll *to,struct emu_env_w32_
 		//emu_hashtable_insert(to->exports_by_fnname, (void *)(uintptr_t)from[i].fnname, hook);
 		emu_hashtable_insert(to->exports_by_fnptr, (void *)(uintptr_t)from[i].virtualaddr, ex);
 		emu_hashtable_insert(to->exports_by_fnname, (void *)(uintptr_t)from[i].fnname, ex);
+		emu_hashtable_insert(to->exports_by_ordial, (void *)(uintptr_t)from[i].ordial, ex);
 	}
 }
