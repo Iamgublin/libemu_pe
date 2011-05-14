@@ -1,5 +1,11 @@
 		Changelog for libemu
-		
+	
+5.14.11
+	dll - updated ws2_32, urlmon, and msvcrt dlls (and peb) all have saved binaries now
+	    - added ordials for all dlls exports, added hook by ordial function
+	    - GetProcAddress now support ordial lookups.
+	    - updated memory monitor dll ranges for new and updated dlls
+	    - error handling tweaks for invalid memory disasm and step requests
 5.5.11
 	exe - FinFirstFileA, FindClose, DeleteUrlCacheEntryA, FindWindow
 	    - copying kernel32 from live memory so all opcodes are present for scanners

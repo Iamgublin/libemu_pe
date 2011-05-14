@@ -484,7 +484,13 @@ int32_t emu_cpu_parse(struct emu_cpu *c)
 //	emu_cpu_debug_print(c);
 
 	uint8_t dis[32];
-	emu_memory_read_block(c->mem,c->eip,dis,32);
+	uint32_t readOk = emu_memory_read_block(c->mem,c->eip,dis,32);
+
+	if(readOk != 0){ //dzzie 5.14.11
+		emu_strerror_set(c->emu,"emu_parse no memory found at 0x%x\n", c->eip);
+		emu_errno_set(c->emu, EOPNOTSUPP);
+		return -1;
+	}
 
 	uint32_t expected_instr_size = 0;
 	if( CPU_DEBUG_FLAG_ISSET(c, instruction_string ) || CPU_DEBUG_FLAG_ISSET(c, instruction_size ) )
@@ -932,7 +938,10 @@ uint32_t emu_disasm_addr(struct emu_cpu *c, uint32_t eip, char *str)
 
 	uint8_t data[32];
 
-	if(emu_memory_read_block(c->mem,eip,data,32)==-1) return 0;
+	if(emu_memory_read_block(c->mem,eip,data,32)==-1){
+		snprintf(str, 5, "????");			
+		return 0;
+	}
     //uint32_t expected_instr_size = dasm_print_instruction(c->eip,dis,0,c->instr_string);
 
 
