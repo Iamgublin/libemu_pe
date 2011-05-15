@@ -715,6 +715,15 @@ void real_hexdump(unsigned char* str, int len, int offset, bool hexonly){
 	char *nl="\n";
 	char *tmp = (char*)malloc(75);
     bool color_on = false;
+	uint32_t display_rows = -1;
+    uint32_t displayed_lines = -1;
+	CONSOLE_SCREEN_BUFFER_INFO csb;
+
+	if(GetConsoleScreenBufferInfo( GetStdHandle(STD_OUTPUT_HANDLE) , &csb) !=0){
+		display_rows = csb.srWindow.Bottom - csb.srWindow.Top - 2;
+	}
+
+	printf("Display rows: %x\n", display_rows);
 
 	if(!hexonly) printf(nl);
 	
@@ -743,8 +752,16 @@ void real_hexdump(unsigned char* str, int len, int offset, bool hexonly){
 		if(aspot%16==0){
 			asc[aspot]=0x00;
 			if(!hexonly){
+				displayed_lines++;
 				sprintf(tmp,"    %s\n", asc);
 				printf("%s",tmp);
+				if( display_rows > 0 && displayed_lines == display_rows){
+					displayed_lines = 0;
+					printf("-- More --");
+					char qq = getch();
+					if(qq == 'q') break;
+					printf("\n");
+				}
 			}
 			if(offset >=0){
 				offset += 16;
