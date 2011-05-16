@@ -48,7 +48,7 @@ int32_t prefix_repne_handler(struct emu_cpu *c, struct emu_cpu_instruction *i)
 		instr_repcc_f2ae(c,i);
 		c->eip += 1; //since we jumped ahead and handled the scasb instruction too set eip past it.
 	}else{
-		printf("\t--> Warning repne opcode %x %x not implemented\n", i->opc);
+		printf("\t--> Warning repne opcode %x %x not implemented\n", i->opc, repInstruction );
 	}
 
 	return 0;
