@@ -61,7 +61,7 @@ char *emu_string_char(struct emu_string *s)
 void emu_string_append_char(struct emu_string *s, const char *data)
 {
 //	printf("before %i %i|%s|\n", s->size, strlen(data), (char *)s->data);
-	s->data = realloc(s->data, s->size + strlen(data) + 1);
+	s->data = (char*)realloc((void*)s->data, s->size + strlen(data) + 1);
 	memcpy((unsigned char *)s->data + s->size, data, strlen(data));
 	char* uc = ((char*)s->data + s->size + strlen(data));
 	*uc = 0;

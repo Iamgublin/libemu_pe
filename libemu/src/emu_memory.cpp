@@ -449,13 +449,13 @@ int32_t emu_memory_read_string(struct emu_memory *m, uint32_t addr, struct emu_s
 	s->invalidAddress = 0;
 
 	if(address == NULL){
-		s->data = malloc(4);
+		s->data = (char*)malloc(4);
 		strcpy((char*)s->data, ""); 
 		s->size = 0;
 		s->invalidAddress = 1;
 		return 0;
 	}else{
-		s->data = malloc(i + 1);
+		s->data = (char*)malloc(i + 1);
 		memset(s->data, 0, i + 1);
 		s->size = i;
 		return emu_memory_read_block(m, addr, s->data, i);

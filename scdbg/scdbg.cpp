@@ -1972,11 +1972,9 @@ void print_help(void)
 		{"mm", NULL,       "enabled Memory Monitor (logs access to key addresses)"},
 		{"mdll", NULL,     "Monitor Dll - log direct access to dll memory (hook detection/patches)"},
 		{"nc", NULL,       "no color (if using sending output to other apps)"},
-		//{"S", "< file.sc", "read shellcode/buffer from stdin"},
 		{"f", "fpath"    , "load shellcode from file specified."},
 		{"o", "hexnum"   , "base offset to use (default: 0x401000)"},
 		{"redir", "ip:port","redirect connect to ip (port optional)"},
-		//{"G", "fpath"    , "save a dot formatted callgraph in filepath"},
 		{"i",  NULL		 , "enable interactive hooks"},
 		{"v",  NULL		 , "verbosity, can be used up to 4 times, ex. /v /v /vv"},
 		{"e", "int"	     , "verbosity on error (3 = debug shell)"},
@@ -1992,17 +1990,17 @@ void print_help(void)
 		{"s", "int"	     , "max number of steps to run (def=2000000, -1 unlimited)"},
 		{"hex", NULL,      "show hex dumps for hook reads/writes"},
 		{"findsc", NULL ,  "detect possible shellcode buffers (brute force)"},
-		//{"getpc", NULL ,   "detect possible shellcode buffers (libemu getpc mode)"},
 		{"dump", NULL,     "view hexdump of the target file (can be used with /foff)"},
 		{"disasm", "int" , "Disasm int lines (can be used with /foff)"},
 		{"fopen", "file" , "Opens a handle to <file> for use with GetFileSize() scanners"},
 		{"- /+", NULL , "increments or decrements GetFileSize, can use multiple times"},
 		{"hooks", NULL , "dumps a list all implemented api hooks"},
 		{"r", NULL ,     "show analysis report at end of run"},
-		{"pp", NULL ,     "peb patch - required for some shellcodes (rare)"},
 		{"b0", NULL ,     "break if 00 00 add [eax],al"},
 		{"patch", "fpath","load patch file <fpath> for libemu memory"},
 		{"dir", " folder","process all .sc files in <folder> (can be used with -r)"},
+		{"cfo", NULL ,"CreateFileOverRide - Use /fopen handle as return from CreateFile"},
+		{"u", NULL ,"unlimited steps same as -s -1"},
 	};
 
 	system("cls");
@@ -2080,13 +2078,12 @@ void parse_opts(int argc, char* argv[] ){
 	opts.steps = 2000000;
 	opts.file_mode = false;
 	opts.dump_mode = false;
-	opts.getpc_mode = false;
 	opts.mem_monitor = false;
 	opts.no_color = false;
 	opts.exec_till_ret = false;
 	opts.mem_monitor_dlls = false;
 	opts.report = false;
-	opts.pebPatch =false;
+	opts.CreateFileOverride = false;
 
 	for(i=1; i < argc; i++){
 					
@@ -2104,12 +2101,11 @@ void parse_opts(int argc, char* argv[] ){
 		if(strstr(buf,"/i") > 0 ) opts.interactive_hooks = 1;
 		if(strstr(buf,"/v") > 0 ) opts.verbose++;
 		if(sl==2 && strstr(buf,"/r") > 0 ){ opts.report = true; opts.mem_monitor = true;}
+		if(sl==2 && strstr(buf,"/u") > 0 ) opts.steps = -1;
 		if(sl==3 && strstr(argv[i],"/nc") > 0 )   opts.no_color = true;
 		if(sl==3 && strstr(argv[i],"/b0") > 0 )   opts.break0  = true;
-		if(sl==3 && strstr(argv[i],"/pp") > 0 )   opts.pebPatch =true;
 		if(sl==4 && strstr(argv[i],"/hex") > 0 )  opts.show_hexdumps = true;
 		if(sl==7 && strstr(argv[i],"/findsc") > 0 ) opts.getpc_mode = true;
-		if(sl==6 && strstr(argv[i],"/getpc") > 0 ) opts.org_getpc  = 1;
 		if(sl==5 && strstr(argv[i],"/vvvv") > 0 ) opts.verbose = 4;
 		if(sl==4 && strstr(argv[i],"/vvv") > 0 )  opts.verbose = 3;
 		if(sl==3 && strstr(argv[i],"/vv")  > 0 )  opts.verbose = 2;
@@ -2117,9 +2113,9 @@ void parse_opts(int argc, char* argv[] ){
 		if(sl==5 && strstr(argv[i],"/mdll")  > 0 )  opts.mem_monitor_dlls  = true;
 		if(sl==5 && strstr(argv[i],"/dump")  > 0 )  opts.hexdump_file = 1;
 		if(sl==6 && strstr(argv[i],"/hooks")  > 0 ) show_supported_hooks();
+		if(sl==4 && strstr(argv[i],"/cfo")  > 0 ) opts.CreateFileOverride = true;;
 		if(strstr(buf,"/d") > 0 ) opts.dump_mode = true;
 		if(sl==2 && strstr(buf,"/h") > 0 ) print_help();
-		if(strstr(buf,"/S") > 0 ) opts.from_stdin = true;
 
 		if(sl==2 && strstr(buf,"/f") > 0 ){
 			if(i+1 >= argc){
@@ -2277,15 +2273,6 @@ void parse_opts(int argc, char* argv[] ){
 				exit(0);
 			}
 		    opts.time_delay = atoi(argv[i+1]);			
-		}
-
-		if(strstr(buf,"/G") > 0 ){
-			if(i+1 >= argc){
-				printf("Invalid option /G must specify graph path as next arg\n");
-				exit(0);
-			}
-		    opts.graphfile = strdup(argv[i+1]);
-			printf("graph file %s\n", opts.graphfile);			
 		}
 
 	}
@@ -2453,16 +2440,8 @@ int main(int argc, char *argv[])
 
 	}
 
-	if(opts.file_mode == false && opts.from_stdin == false){
-		print_help();
-	}
-
-	if(opts.dump_mode){
-		if( opts.from_stdin) 
-			printf("Dump mode Disabled when getting file from stdin\n"); //no default path to use to lazy to work around
-		else
-			printf("Dump mode Active...\n");
-	};
+	if(opts.file_mode == false)	print_help();
+	if(opts.dump_mode) printf("Dump mode Active...\n");
 		
 	if(opts.interactive_hooks){
 		start_color(myellow);

@@ -35,6 +35,8 @@
 #include "emu_cpu_stack.h"
 #include "emu_memory.h"
 
+extern int32_t instr_scas_ae(struct emu_cpu *c, struct emu_cpu_instruction *i);
+
 /*Intel Architecture Software Developer's Manual Volume 2: Instruction Set Reference (24319102.PDF) page 645*/
 
 /*
@@ -98,6 +100,19 @@ int32_t instr_repcc_f2ae(struct emu_cpu *c, struct emu_cpu_instruction *i)
 	 * Find AL, starting at ES:[(E)DI]
 	 * REPNE SCAS m8      
 	 */
+
+    /* dzzie 5.16.11 */
+	uint8_t cur_al;
+	uint8_t match = *c->reg8[al];
+	MEM_BYTE_READ(c, c->reg[edi], &cur_al);
+
+	while( cur_al != match ){
+		//printf("repne scasb match=%x al=%x\n", match, cur_al);
+		instr_scas_ae(c, i);
+		MEM_BYTE_READ(c, c->reg[edi], &cur_al);
+	}
+
+    c->reg[edi]++;
 	return 0;
 }
 

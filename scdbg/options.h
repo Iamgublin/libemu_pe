@@ -5,12 +5,11 @@ struct run_time_options
 	int cur_step;
 	int verbose;
 	uint32_t steps;
-	char *graphfile;
-	bool from_stdin;
 	unsigned char *scode;
 	uint32_t size;
 	uint32_t offset;
 	bool file_mode;
+	bool getpc_mode;
 	char sc_file[500];
 	bool dump_mode;
 	int interactive_hooks;
@@ -23,25 +22,22 @@ struct run_time_options
 	int  time_delay;
 	bool show_hexdumps;
 	char* break_at_instr;
-	bool  getpc_mode;
-	int   org_getpc;
 	bool  mem_monitor;
 	bool  mem_monitor_dlls;
 	bool  no_color;
 	int   hexdump_file;
 	int   disasm_mode;
 	uint32_t step_over_bp;
-	//FILE *fopen;
 	char* fopen_fpath;
 	uint32_t fopen_fsize;
 	HANDLE h_fopen;
 	int	  adjust_getfsize;
 	bool  report;
-	bool  pebPatch;
 	bool  break0;
 	uint32_t break_above;
 	char* patch_file;
 	char* scan_dir;
+	bool  CreateFileOverride;
 
 	struct 
 	{

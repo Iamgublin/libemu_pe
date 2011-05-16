@@ -484,8 +484,10 @@ int32_t	__stdcall new_user_hook_GenericStub(struct emu_env *env, struct emu_env_
 
 	if(strcmp(func, "GetFileSize") == 0){
 		log_val = get_ret(env,0); //handle
-		//ret_val = -1;
-		ret_val = GetFileSize( (HANDLE)log_val, 0)+opts.adjust_getfsize;
+		if( log_val < 5 && opts.h_fopen > 0 )
+			ret_val = opts.fopen_fsize + opts.adjust_getfsize;
+		else
+			ret_val = GetFileSize( (HANDLE)log_val, 0)+opts.adjust_getfsize;
 		arg_count = 2;
 	}
 
@@ -653,8 +655,6 @@ int32_t	__stdcall new_user_hook_GlobalAlloc(struct emu_env *env, struct emu_env_
 
 int32_t	__stdcall new_user_hook_MapViewOfFile(struct emu_env *env, struct emu_env_w32_dll_export *ex)
 {
-	uint32_t a[10] = {0,0,0,0,0,0,0,0,0,0};
-	loadargs(5, a);
 /*
 	LPVOID WINAPI MapViewOfFile(  //todo: the return value is the starting address of the mapped view.
 	  __in  HANDLE hFileMappingObject,
@@ -664,10 +664,14 @@ int32_t	__stdcall new_user_hook_MapViewOfFile(struct emu_env *env, struct emu_en
 	  __in  SIZE_T dwNumberOfBytesToMap
 	);
 */
-	uint32_t h		= a[1];
-	uint32_t offset = a[4];
-	uint32_t size   = a[5];
+	uint32_t eip_save = popd();
+	uint32_t h		= popd();
+	uint32_t access = popd();
+	uint32_t offsetHigh = popd();
+	uint32_t offset = popd();
+	uint32_t size   = popd();
 	uint32_t baseMemAddress = next_alloc;
+	void* view = 0;
 
 	//if size=0 then it could be set in CreateFIleMapping. 
 	//If was set in CreateFileMapping call and its > opts.fopen_fsize then opts.fopen_fsize is reset
@@ -678,25 +682,32 @@ int32_t	__stdcall new_user_hook_MapViewOfFile(struct emu_env *env, struct emu_en
 		set_next_alloc(size);
 		void *buf = malloc(size);
 		
-		if(opts.interactive_hooks==1){
-			void* view = MapViewOfFile((HANDLE)a[1],a[2],a[3],a[4],a[5]);
-			printf("\tInteractive mode view=%x\n",(int)view);
-			if((int)view != 0) memcpy(buf,view,size);
+		if(opts.interactive_hooks==1) 
+			view = MapViewOfFile((HANDLE)h,access,offsetHigh,offset,size);
+
+		if((int)view != 0){
+			memcpy(buf,view,size);
 		}else{
-			memset(buf,0,size); 
+			if(opts.h_fopen > 0){
+				uint32_t bytesRead;
+				SetFilePointer(opts.h_fopen, offset, (PLONG)&offsetHigh, FILE_BEGIN);
+				uint32_t r = ReadFile(opts.h_fopen, buf, size, &bytesRead, NULL);
+			}else{
+				memset(buf,0,size); 
+			}
 		}
 
 		emu_memory_write_block(mem,baseMemAddress,buf, size);
 
-		printf("%x\tMapViewOfFile(h=%x, offset=%x, sz=%x) = %x\n", a[0], h, offset, size, baseMemAddress);
+		printf("%x\tMapViewOfFile(h=%x, offset=%x, sz=%x) = %x\n", eip_save, h, offset, size, baseMemAddress);
 		free(buf);
 		set_ret(baseMemAddress);
 	}else{
-		printf("%x\tMapViewOfFile(h=%x, offset=%x, sz=%x)\n", a[0], h, offset, size);
+		printf("%x\tMapViewOfFile(h=%x, offset=%x, sz=%x)\n", eip_save, h, offset, size);
 		set_ret(0);
 	}
 
-	emu_cpu_eip_set(cpu, a[0]);
+	emu_cpu_eip_set(cpu, eip_save);
 	return 0;
 }
 
@@ -2327,9 +2338,8 @@ int32_t	__stdcall new_user_hook_CloseHandle(struct emu_env *env, struct emu_env_
 
 int32_t	__stdcall new_user_hook_CreateFileA(struct emu_env *env, struct emu_env_w32_dll_export *ex)
 {
-	struct emu_cpu *c = emu_cpu_get(env->emu);
-	uint32_t eip_save;
-	POP_DWORD(c, &eip_save);
+	uint32_t eip_save = popd();
+	
 	/*
 		HANDLE CreateFile(
 		  LPCTSTR lpFileName,
@@ -2341,46 +2351,35 @@ int32_t	__stdcall new_user_hook_CreateFileA(struct emu_env *env, struct emu_env_
 		  HANDLE hTemplateFile
 		);
 	*/
-	uint32_t p_filename;
-	POP_DWORD(c, &p_filename);
-    struct emu_string *filename = emu_string_new();
-	emu_memory_read_string(emu_memory_get(env->emu), p_filename, filename, 256);
-
-	uint32_t desiredaccess;
-	POP_DWORD(c, &desiredaccess);
-
-	uint32_t sharemode;
-	POP_DWORD(c, &sharemode);
-
-	uint32_t securityattr;
-	POP_DWORD(c, &securityattr);
-
-    uint32_t createdisp;
-	POP_DWORD(c, &createdisp);
-
-	uint32_t flagsandattr;
-	POP_DWORD(c, &flagsandattr);
-
-	uint32_t templatefile;
-	POP_DWORD(c, &templatefile);
+    struct emu_string *filename = popstring();
+	uint32_t desiredaccess = popd();
+	uint32_t sharemode = popd();
+	uint32_t securityattr = popd();
+    uint32_t createdisp = popd();
+	uint32_t flagsandattr = popd();
+	uint32_t templatefile = popd();
 
 	char *localfile = 0;
 
-	if(opts.interactive_hooks == 1 ){
-		localfile = SafeTempFile();
-		//FILE *f = fopen(localfile,"w");
-		HANDLE f = CreateFile(localfile,GENERIC_READ | GENERIC_WRITE,0,0,CREATE_ALWAYS,FILE_ATTRIBUTE_NORMAL,0); 
-	    set_ret((int)f);
+	if( opts.CreateFileOverride ){ 
+		set_ret((int)opts.h_fopen);
 	}else{
-		set_ret( get_fhandle() );
+		if(opts.interactive_hooks == 1 ){
+			localfile = SafeTempFile();
+			//FILE *f = fopen(localfile,"w");
+			HANDLE f = CreateFile(localfile,GENERIC_READ | GENERIC_WRITE,0,0,CREATE_ALWAYS,FILE_ATTRIBUTE_NORMAL,0); 
+			set_ret((int)f);
+		}else{
+			set_ret( get_fhandle() );
+		}
 	}
 	
 	printf("%x\t%s(%s) = %x\n", eip_save, ex->fnname, emu_string_char(filename), cpu->reg[eax]  );
 
-	if(opts.interactive_hooks) printf("\tInteractive mode local file %s\n", localfile);
+	if(!opts.CreateFileOverride && opts.interactive_hooks) printf("\tInteractive mode local file %s\n", localfile);
 
 	emu_string_free(filename);
-	emu_cpu_eip_set(c, eip_save);
+	emu_cpu_eip_set(cpu, eip_save);
 	return 0;
 }
 
@@ -3156,8 +3155,6 @@ int32_t	__stdcall new_user_hook_WSAStartup(struct emu_env *env, struct emu_env_w
 
 int32_t	__stdcall new_user_hook_CreateFileMappingA(struct emu_env *env, struct emu_env_w32_dll_export *ex)
 {
-	uint32_t a[10] = {0,0,0,0,0,0,0,0,0,0};
-	loadargs(6, a);
 	/*
 	HANDLE WINAPI CreateFileMapping(
 		  __in      HANDLE hFile,
@@ -3168,27 +3165,35 @@ int32_t	__stdcall new_user_hook_CreateFileMappingA(struct emu_env *env, struct e
 		  __in_opt  LPCTSTR lpName
 		);
 	*/
-
+	uint32_t eip_save = popd();
+	uint32_t hFile = popd();
+	uint32_t lpAttrib = popd();
+	uint32_t flProtect = popd();
+	uint32_t maxHigh = popd();
+	uint32_t maxLow = popd();
+	struct emu_string* lpName = popstring();
 	uint32_t rv = 0;
-	uint32_t h = a[1];
+	uint32_t org_hFile = hFile;
 
-	if(opts.interactive_hooks == 1){
-		if(a[5] > opts.fopen_fsize) opts.fopen_fsize = a[5]; //reset if max size of file map > file size
-		if(h < 10){ 
+	//if(opts.interactive_hooks == 1){
+		if(maxLow > opts.fopen_fsize) opts.fopen_fsize = maxLow; //reset if max size of file map > file size
+		if(hFile < 10){ 
 			if(opts.fopen_fpath == NULL){
 				printf("\tUse /fopen <file> to do interactive mode for CreateFileMapping\n");
 			}else{
 				//handle from GetFileSizeScanner...We need a specific type of handle for this though
-				h = (uint32_t)CreateFile(opts.fopen_fpath, GENERIC_READ,FILE_SHARE_READ,NULL,OPEN_EXISTING,FILE_ATTRIBUTE_NORMAL,NULL); 
+				hFile = (uint32_t)CreateFile(opts.fopen_fpath, GENERIC_READ,FILE_SHARE_READ,NULL,OPEN_EXISTING,FILE_ATTRIBUTE_NORMAL,NULL); 
+				if( hFile == -1 ) hFile = (uint32_t)opts.h_fopen; 
 			}
 		}
-		rv = (uint32_t)CreateFileMapping((HANDLE)h, 0,2,0,0,0);
-	}
+		rv = (uint32_t)CreateFileMapping((HANDLE)hFile, 0,2,0,0,0);
+	//}
 	
-	printf("%x\tCreateFileMappingA(h=%x,%x,%x,%x,%x,lpName=%x) = %x\n", a[0], a[1] ,a[2],a[3],a[4],a[5],a[6],rv);
+	printf("%x\tCreateFileMappingA(h=%x,%x,%x,%x,%x,lpName=%s) = %x\n", eip_save, org_hFile ,lpAttrib,flProtect,maxHigh,maxLow,emu_string_char(lpName),rv);
 
+	emu_string_free(lpName);
 	set_ret(rv);
-	emu_cpu_eip_set(cpu, a[0]);
+	emu_cpu_eip_set(cpu, eip_save);
 	return 0;
 }
 
