@@ -84,9 +84,6 @@ int32_t instr_scas_ae(struct emu_cpu *c, struct emu_cpu_instruction *i)
 	
 	/*
 		repxx support added 5.17.11 dz - each iter, edi++, ecx-- and the rep ends if ecx == 0
-		REPxx 
-		operates on: MOVS/STOS/CMPS/LODS/SCAS 
-		variations:  REP, REPE, REPNE, REPNZ, REPZ 
 	*/
 	if ( i->prefixes & PREFIX_F2 || i->prefixes & PREFIX_F3){			
 		c->repeat_current_instr = true;
