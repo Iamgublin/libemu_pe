@@ -1057,7 +1057,7 @@ int32_t	__stdcall new_user_hook_ReadFile(struct emu_env *env, struct emu_env_w32
 	//numBytes++;
 	uint32_t m_hfile = hfile;
 	uint32_t bytesRead=0;
-	BOOL rv;
+	BOOL rv = FALSE;
 
 	if( opts.interactive_hooks == 1){
 		if( (int)opts.h_fopen != 0 && hfile  < 10 ) m_hfile = (uint32_t)opts.h_fopen; //scanners start at 1 or 4 we let them go with it..

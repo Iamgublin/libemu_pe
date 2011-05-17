@@ -101,7 +101,7 @@ int32_t instr_repcc_f2ae(struct emu_cpu *c, struct emu_cpu_instruction *i)
 	 * REPNE SCAS m8      
 	 */
 
-    /* dzzie 5.16.11 */
+    /* dzzie 5.16.11 
 	uint8_t cur_al;
 	uint8_t match = *c->reg8[al];
 	MEM_BYTE_READ(c, c->reg[edi], &cur_al);
@@ -112,7 +112,7 @@ int32_t instr_repcc_f2ae(struct emu_cpu *c, struct emu_cpu_instruction *i)
 		MEM_BYTE_READ(c, c->reg[edi], &cur_al);
 	}
 
-    c->reg[edi]++;
+    c->reg[edi]++;*/
 	return 0;
 }
 

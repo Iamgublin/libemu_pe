@@ -82,19 +82,57 @@ int32_t instr_scas_ae(struct emu_cpu *c, struct emu_cpu_instruction *i)
 		 * Compare AL with byte at ES:EDI and set status flags
 		 * SCASB    
 		 */
-		enum emu_segment oldseg = emu_memory_segment_get(c->mem);
-		emu_memory_segment_select(c->mem,s_es);
+		if ( i->prefixes & PREFIX_F2 ) 
+		{	
+			//dzzie 5.17.11
+			/* F2 AE 
+			 * Find AL, starting at ES:[(E)DI]
+			 * REPNE SCAS m8
+			*/
+			
+			c->repeat_current_instr = true;
 
-		uint8_t m8;
-		MEM_BYTE_READ(c, c->reg[edi], &m8);
+			enum emu_segment oldseg = emu_memory_segment_get(c->mem);
+			emu_memory_segment_select(c->mem,s_es);
 
-		emu_memory_segment_select(c->mem,oldseg);
+			uint8_t m8;
+			MEM_BYTE_READ(c, c->reg[edi], &m8);
 
-		INSTR_CALC_AND_SET_FLAGS(8,
-								 c,
-								 *c->reg8[al],
-								 m8)
-		INSTR_CALC_EDI(c, 8)
+			emu_memory_segment_select(c->mem,oldseg);
+
+			INSTR_CALC_AND_SET_FLAGS(8,
+									 c,
+									 *c->reg8[al],
+									 m8)
+			INSTR_CALC_EDI(c, 8)
+
+			//no flags were set in olly when repne terminated...
+			uint8_t cur_al;
+			uint8_t match = *c->reg8[al];
+			MEM_BYTE_READ(c, c->reg[edi], &cur_al);
+
+			if( cur_al == match ){
+				c->repeat_current_instr = false;
+				c->reg[edi]++; 
+			}
+
+		}
+		else
+		{
+			enum emu_segment oldseg = emu_memory_segment_get(c->mem);
+			emu_memory_segment_select(c->mem,s_es);
+
+			uint8_t m8;
+			MEM_BYTE_READ(c, c->reg[edi], &m8);
+
+			emu_memory_segment_select(c->mem,oldseg);
+
+			INSTR_CALC_AND_SET_FLAGS(8,
+									 c,
+									 *c->reg8[al],
+									 m8)
+			INSTR_CALC_EDI(c, 8)
+		}
 		
 	}
 	return 0;

@@ -40,6 +40,7 @@
 #include "emu_log.h"
 
 extern void* bcopy (void* src, void* dest, unsigned int len);
+extern int32_t implemented_prefix_check(struct emu_cpu *c, struct emu_cpu_instruction *i);
 
 static const char *regm[] = {
 	"eax", "ecx", "edx", "ebx", "esp", "ebp", "esi", "edi"
@@ -843,6 +844,7 @@ int32_t emu_cpu_step(struct emu_cpu *c)
 			emu_memory_segment_select(c->mem, s_fs);
 		}
 
+		if(implemented_prefix_check(c, &c->instr.cpu) == -1) return -1; //dz 5.17.11
 		ret = c->cpu_instr_info->function(c, &c->instr.cpu);
 
 		if( c->instr.cpu.prefixes & PREFIX_FS_OVR )

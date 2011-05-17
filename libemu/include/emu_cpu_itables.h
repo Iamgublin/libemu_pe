@@ -61,7 +61,6 @@
 #define II_FPU_INSTR 1
 
 extern int32_t instr_salc_d6(struct emu_cpu *c, struct emu_cpu_instruction *i);
-extern int32_t prefix_repne_handler(struct emu_cpu *c, struct emu_cpu_instruction *i);
 
 struct emu_cpu_instruction_info ii_onebyte[0x100] = {
 	/* 00 */ {instr_add_00, "add", {0, 0, II_MOD_REG_RM, 0, 0, 0, 0, 0}},
@@ -312,8 +311,8 @@ struct emu_cpu_instruction_info ii_onebyte[0x100] = {
 	/* ef */ {0, 0, {0, 0, 0, 0, 0, 0, 0, 0}},
 	/* f0 */ {prefix_fn, "LOCK:", {0, 0, 0, 0, 0, 0, 0, 0}},
 	/* f1 */ {0, 0, {0, 0, 0, 0, 0, 0, 0, 0}},
-	/* f2 */ {prefix_repne_handler, 0, {0, 0, 0, 0, 0, 0, 0, 0}}, /* repne not really implemented - caused known bug warning on to monitor - dz 5.16.11 */
-	/* f3 */ {prefix_fn, 0, {0, 0, 0, 0, 0, 0, 0, 0}}, /* repe not really implemented but no errors detected in shellcodes that use it? no warning..- dz 5.16.11 */
+	/* f2 */ {prefix_fn, 0, {0, 0, 0, 0, 0, 0, 0, 0}}, /* prefixes must use prefix_fn - repne implemented per opcode check - dz 5.16.11 */
+	/* f3 */ {prefix_fn, 0, {0, 0, 0, 0, 0, 0, 0, 0}}, /* prefixes must use prefix_fn - repe implemented per opcode check  - dz 5.16.11 */
 	/* f4 */ {0, 0, {0, 0, 0, 0, 0, 0, 0, 0}},
 	/* f5 */ {instr_cmc_f5, "cmc", {0, 0, 0, 0, 0, 0, 0, 0}},
 	/* f6 */ {instr_group_3_f6, "group3", {0, 0, II_MOD_REG_RM, 0, 0, 0, 1, 0}},
