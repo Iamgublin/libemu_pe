@@ -1396,6 +1396,8 @@ void set_hooks(struct emu_env *env){
 	ADDHOOK(GetUrlCacheEntryInfoA);
 	ADDHOOK(CopyFileA);
 	ADDHOOK(GetFileSize);
+	ADDHOOK(EnumWindows);
+	ADDHOOK(GetClassNameA);
 
 
 }

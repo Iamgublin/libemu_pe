@@ -2252,10 +2252,8 @@ int32_t	__stdcall new_user_hook_WinExec(struct emu_env *env, struct emu_env_w32_
 int32_t	__stdcall new_user_hook_Sleep(struct emu_env *env, struct emu_env_w32_dll_export *ex)
 {
 	struct emu_cpu *c = emu_cpu_get(env->emu);
-	uint32_t eip_save;
-	POP_DWORD(c, &eip_save);
-	uint32_t dwMilliseconds;
-	POP_DWORD(c, &dwMilliseconds);
+	uint32_t eip_save = popd();
+	uint32_t dwMilliseconds = popd();
 	set_ret(0);
 	printf("%x\tSleep(0x%x)\n", eip_save, dwMilliseconds);
 	emu_cpu_eip_set(c, eip_save);
@@ -3465,6 +3463,71 @@ int32_t	__stdcall new_user_hook_GetFileSize(struct emu_env *env, struct emu_env_
 	return 0;
 }
 
+int32_t	__stdcall new_user_hook_EnumWindows(struct emu_env *env, struct emu_env_w32_dll_export *ex)
+{   
+	/*
+		BOOL WINAPI EnumWindows(
+		  __in  WNDENUMPROC lpEnumFunc,
+		  __in  LPARAM lParam
+		);
+	*/
+
+	uint32_t eip_save = popd();
+	uint32_t lpfnEnum = popd();
+	uint32_t lParam = popd();
+
+	 
+	printf("%x\tEnumWindows(lpfn=%x, param=%x)\n", eip_save, lpfnEnum, lParam );
+
+	if( lpfnEnum != 0 ){ 
+		//BOOL CALLBACK EnumWindowsProc(HWND hwnd,LPARAM lParam);
+		uint32_t hwnd = 0xDEADBEEF;
+		PUSH_DWORD(cpu, lParam);
+		PUSH_DWORD(cpu, hwnd);   //error in my sample?
+		PUSH_DWORD(cpu, eip_save);
+		emu_cpu_eip_set(cpu, lpfnEnum);
+		printf("\tTransferring execution to EnumWindowsProc...\n");
+	}else{
+		cpu->reg[eax] = 0;
+		emu_cpu_eip_set(cpu, eip_save);
+	}
+
+	return 0;
+}
+
+int32_t	__stdcall new_user_hook_GetClassNameA(struct emu_env *env, struct emu_env_w32_dll_export *ex)
+{   
+	/*
+		int WINAPI GetClassName(
+		  __in   HWND hWnd,
+		  __out  LPTSTR lpClassName,
+		  __in   int nMaxCount
+		);
+	*/
+
+	uint32_t eip_save = popd();
+	uint32_t hwnd = popd();
+	uint32_t lpBuf = popd();
+    uint32_t size = popd();
+	 
+	printf("%x\tGetClassName(hwnd=%x, lpBuf=%x, size=%x)\n", eip_save, hwnd, lpBuf, size );
+
+	char* className = "NoSoupForYou!";
+	//char* className = "OLLYDBG";
+	int slen = strlen(className);
+
+	if(slen >= size){
+		emu_memory_write_block(mem, lpBuf, (void*)className, slen);
+		cpu->reg[eax] = slen-1;
+	}else{
+		slen=0;
+	}
+	emu_cpu_eip_set(cpu, eip_save);
+	return 0;
+}
+
+
+	
 
 
 	
