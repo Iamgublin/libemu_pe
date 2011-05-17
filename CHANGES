@@ -4,6 +4,8 @@
 	    - new options -cfo (CreateFileOverride) , -u (unlimited steps)
 	    - emu_string->data from void* to char* (avoid need for emu_string_char)
 	    - repne scasb implemented
+	    - new hooks: GetUrlCacheEntryInfoA,CopyFileA mods to GetFileSize
+
 5.14.11
 	dll - updated ws2_32, urlmon, and msvcrt dlls (and peb) all have saved binaries now
 	    - added ordials for all dlls exports, added hook by ordial function

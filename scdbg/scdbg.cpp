@@ -1320,8 +1320,6 @@ void set_hooks(struct emu_env *env){
 	
 
 	//-----handled by the generic stub
-	emu_env_w32_export_new_hook(env, "GetFileSize", new_user_hook_GenericStub, NULL);
-	//emu_env_w32_export_new_hook(env, "CreateFileMappingA", new_user_hook_GenericStub, NULL);
 	emu_env_w32_export_new_hook(env, "InternetReadFile", new_user_hook_GenericStub, NULL);
 	emu_env_w32_export_new_hook(env, "ZwTerminateProcess", new_user_hook_GenericStub, NULL);
 	emu_env_w32_export_new_hook(env, "ZwTerminateThread", new_user_hook_GenericStub, NULL);
@@ -1395,6 +1393,9 @@ void set_hooks(struct emu_env *env){
 	ADDHOOK(FindWindowA);
 	ADDHOOK(DeleteUrlCacheEntryA);
 	ADDHOOK(FindFirstFileA);
+	ADDHOOK(GetUrlCacheEntryInfoA);
+	ADDHOOK(CopyFileA);
+	ADDHOOK(GetFileSize);
 
 
 }

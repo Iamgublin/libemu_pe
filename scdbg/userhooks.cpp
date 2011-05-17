@@ -56,6 +56,8 @@ extern "C"{
 #include <ctype.h>
 #include <winsock.h>
 #include <windows.h>
+#include <wininet.h>
+#include <Shlobj.h>
 
 extern int CODE_OFFSET;
 extern uint32_t FS_SEGMENT_DEFAULT_OFFSET;
@@ -204,6 +206,7 @@ void GetSHFolderName(int id, char* buf255){
 		case 0x0019: strcpy(buf255, "./COMMON_DESKTOPDIRECTORY");break;
 		case 0x001a: strcpy(buf255, "./APPDATA");break;
 		case 0x001b: strcpy(buf255, "./PRINTHOOD");break;
+		case 0x001c: strcpy(buf255, "./LOCAL_APPDATA");break;
 		case 0x001d: strcpy(buf255, "./ALTSTARTUP");break;
 		case 0x001e: strcpy(buf255, "./COMMON_ALTSTARTUP");break;
 		case 0x001f: strcpy(buf255, "./COMMON_FAVORITES");break;
@@ -482,15 +485,6 @@ int32_t	__stdcall new_user_hook_GenericStub(struct emu_env *env, struct emu_env_
 		arg_count = 0;
 	}
 
-	if(strcmp(func, "GetFileSize") == 0){
-		log_val = get_ret(env,0); //handle
-		if( log_val < 5 && opts.h_fopen > 0 )
-			ret_val = opts.fopen_fsize + opts.adjust_getfsize;
-		else
-			ret_val = GetFileSize( (HANDLE)log_val, 0)+opts.adjust_getfsize;
-		arg_count = 2;
-	}
-
 	if(strcmp(func, "RtlExitUserThread") ==0 ){
 		arg_count = 1;
 		log_val = get_ret(env,0); //handle
@@ -524,20 +518,6 @@ int32_t	__stdcall new_user_hook_GenericStub(struct emu_env *env, struct emu_env_
 	cpu->reg[esp] = r_esp;
 
 	bool nolog = false;
-
-	//i hate spam...
-	if(strcmp(func, "GetFileSize") == 0){
-		if( (last_GetSizeFHand+1) == log_val || (last_GetSizeFHand+4) == log_val){ 
-			if(!gfs_scan_warn){
-				printf("%x\tGetFileSize(%x) - open file handle scanning occuring - hiding output...\n",eip_save, log_val);
-				gfs_scan_warn = true;
-			}
-			nolog = true;
-		}else{
-			gfs_scan_warn = false;
-		}
-		last_GetSizeFHand = log_val;
-	}
 
 	if(!nolog){
 		if(log_val == -1){
@@ -2362,12 +2342,17 @@ int32_t	__stdcall new_user_hook_CreateFileA(struct emu_env *env, struct emu_env_
 	char *localfile = 0;
 
 	if( opts.CreateFileOverride ){ 
-		set_ret((int)opts.h_fopen);
+		if( (int)opts.h_fopen == 0){
+			printf("\tOpening a valid handle to %s\n", filename->data);
+			HANDLE f = CreateFile(filename->data, GENERIC_READ|GENERIC_WRITE ,0,0,OPEN_ALWAYS,FILE_ATTRIBUTE_NORMAL,0); 
+			set_ret((int)f);
+		}else{
+			set_ret((int)opts.h_fopen);
+		}
 	}else{
 		if(opts.interactive_hooks == 1 ){
 			localfile = SafeTempFile();
-			//FILE *f = fopen(localfile,"w");
-			HANDLE f = CreateFile(localfile,GENERIC_READ | GENERIC_WRITE,0,0,CREATE_ALWAYS,FILE_ATTRIBUTE_NORMAL,0); 
+			HANDLE f = CreateFile(localfile, GENERIC_READ|GENERIC_WRITE ,0,0,CREATE_ALWAYS,FILE_ATTRIBUTE_NORMAL,0); 
 			set_ret((int)f);
 		}else{
 			set_ret( get_fhandle() );
@@ -2377,6 +2362,7 @@ int32_t	__stdcall new_user_hook_CreateFileA(struct emu_env *env, struct emu_env_
 	printf("%x\t%s(%s) = %x\n", eip_save, ex->fnname, emu_string_char(filename), cpu->reg[eax]  );
 
 	if(!opts.CreateFileOverride && opts.interactive_hooks) printf("\tInteractive mode local file %s\n", localfile);
+	opts.CreateFileOverride = false;
 
 	emu_string_free(filename);
 	emu_cpu_eip_set(cpu, eip_save);
@@ -3368,3 +3354,117 @@ int32_t	__stdcall new_user_hook_shdocvw65(struct emu_env *env, struct emu_env_w3
 	
 	return 0;
 }
+
+int32_t	__stdcall new_user_hook_GetUrlCacheEntryInfoA(struct emu_env *env, struct emu_env_w32_dll_export *ex)
+{   
+	/*
+	BOOL GetUrlCacheEntryInfo(
+		  __in     LPCTSTR lpszUrlName,
+		  __out    LPINTERNET_CACHE_ENTRY_INFO lpCacheEntryInfo,
+		  __inout  LPDWORD lpcbCacheEntryInfo
+	);
+	*/
+
+	uint32_t eip_save = popd();
+	struct emu_string* sUrl = popstring();
+	uint32_t entry_info = popd();
+	uint32_t lpSize = popd();
+
+	uint32_t size = 0;
+	emu_memory_read_dword(mem, lpSize, &size);
+
+	INTERNET_CACHE_ENTRY_INFO entry;
+	uint32_t safe_stringbuf = 0x2531D0; //after the peb just empty space
+	char* filePath = "c:\\cache_local_file.swf";
+
+	printf("%x\tGetUrlCacheEntryInfoA(%s, buf=%x, sz=%x)\n", eip_save, sUrl->data, entry_info, size );
+	
+	emu_memory_write_block(mem, safe_stringbuf, (void*)filePath, strlen(filePath));
+	memset(&entry, 1, sizeof(entry));
+	entry.dwStructSize = sizeof(entry);
+	entry.lpszLocalFileName = (char*)safe_stringbuf;
+	entry.dwSizeHigh = 0;
+	entry.dwSizeLow = 86,784;
+	entry.dwHitRate = 2;
+	entry.dwUseCount = 2;
+	entry.CacheEntryType = NORMAL_CACHE_ENTRY;
+	emu_memory_write_block(mem, entry_info,(void*)&entry,sizeof(entry));
+
+	//dont ask me why it just is what they wanted...
+	uint32_t rv = emu_memory_write_block(mem, entry_info+0x74 ,(void*)filePath,strlen(filePath) );
+	
+	set_ret(1);
+	emu_cpu_eip_set(cpu, eip_save);
+	return 0;
+}
+
+int32_t	__stdcall new_user_hook_CopyFileA(struct emu_env *env, struct emu_env_w32_dll_export *ex)
+{   
+	/*
+	BOOL WINAPI CopyFile(
+	  __in  LPCTSTR lpExistingFileName,
+	  __in  LPCTSTR lpNewFileName,
+	  __in  BOOL bFailIfExists
+	);
+	*/
+
+	uint32_t eip_save = popd();
+	struct emu_string* sFrom = popstring();
+	struct emu_string* sTo = popstring();
+	uint32_t failExists = popd();
+
+	printf("%x\tCopyFileA(%s, %s)\n", eip_save, sFrom->data, sTo->data );
+	
+	set_ret(1);
+	emu_cpu_eip_set(cpu, eip_save);
+	return 0;
+}
+
+int32_t	__stdcall new_user_hook_GetFileSize(struct emu_env *env, struct emu_env_w32_dll_export *ex)
+{   
+	/*
+	BOOL WINAPI CopyFile(
+	  __in  LPCTSTR lpExistingFileName,
+	  __in  LPCTSTR lpNewFileName,
+	  __in  BOOL bFailIfExists
+	);
+	*/
+
+	uint32_t eip_save = popd();
+	uint32_t hFile = popd();
+	uint32_t lpSizeHigh = popd();
+
+	uint32_t ret_val = -1;
+	uint32_t sizeHigh = 0;
+    bool nolog = false;
+
+	if( hFile < 5 && opts.h_fopen > 0 )
+		ret_val = opts.fopen_fsize + opts.adjust_getfsize;
+	else
+		ret_val = GetFileSize( (HANDLE)hFile, &sizeHigh) + opts.adjust_getfsize;
+		
+	//i hate spam...
+	 
+	if( (last_GetSizeFHand+1) == hFile || (last_GetSizeFHand+4) == hFile){ 
+		if(!gfs_scan_warn){
+			printf("%x\tGetFileSize(%x) - open file handle scanning occuring - hiding output...\n",eip_save, hFile);
+			gfs_scan_warn = true;
+		}
+		nolog = true;
+	}else{
+		gfs_scan_warn = false;
+	}
+	last_GetSizeFHand = hFile;
+	 
+	if(!nolog) printf("%x\tGetFileSize(%x, %x) = %x\n", eip_save, hFile, lpSizeHigh, ret_val );
+
+	if(lpSizeHigh!=0) emu_memory_write_dword(mem, lpSizeHigh, sizeHigh);
+	
+	set_ret(ret_val);
+	emu_cpu_eip_set(cpu, eip_save);
+	return 0;
+}
+
+
+
+	
