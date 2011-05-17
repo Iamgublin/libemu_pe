@@ -39,11 +39,11 @@ int32_t prefix_repef3_alerter(struct emu_cpu *c, struct emu_cpu_instruction *i){
 	//uint8_t repInstruction;                     //eip has already been incremented by this point, 
 	//MEM_BYTE_READ(c, c->eip , &repInstruction); //so repInst is the actaual instruction to be repne'd
 
-	//repe has only been implemented for: 	instr_cmps_a6, instr_movsb, instr_stos_aa
+	//repe has only been implemented for: 	instr_cmps_a6, instr_movsb (a4) , instr_stos_aa
 
 	switch(i->opc){
 		case 0xa6:
-		case 0xB:
+		case 0xA4:
 		case 0xAA: break;
 		default:
 			emu_strerror_set(c->emu,"support for repe not implemented for opcode %X\n", i->opc);
