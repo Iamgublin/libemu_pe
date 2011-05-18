@@ -331,6 +331,8 @@ struct emu_env_w32 *emu_env_w32_new(struct emu *e)
 	struct emu_env_w32 *env = (struct emu_env_w32 *)malloc(sizeof(struct emu_env_w32));
 	memset(env,0,sizeof(struct emu_env_w32));
 	env->emu = e;
+	env->lastApiCalled = strdup("");
+
 	// write TEB and linklist
 
 	struct emu_memory *mem = emu_memory_get(e);
@@ -494,6 +496,15 @@ struct emu_env_w32_dll_export *emu_env_w32_eip_check(struct emu_env *env)
 			if (ex->fnhook != NULL )
 			{
 				ex->fnhook(env, ex);
+
+				if(strcmp(env->env.win->lastApiCalled, ex->fnname) == 0){
+					env->env.win->lastApiHitCount++;
+				}else{
+					free( env->env.win->lastApiCalled );
+					env->env.win->lastApiCalled = strdup(ex->fnname);
+					env->env.win->lastApiHitCount = 0;
+				}
+				 
 				return ex;
 			}
 			else

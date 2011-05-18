@@ -40,7 +40,9 @@ int32_t prefix_repef3_alerter(struct emu_cpu *c, struct emu_cpu_instruction *i){
 		case 0xAE: //scasb (ae)
 		case 0xa6: //instr_cmps_a6
 		case 0xA4: //instr_movsb (a4)
+		case 0xab: //instr_stos_ab
 		case 0xAA: break; //instr_stos_aa
+		
 		default:
 			emu_strerror_set(c->emu,"support for repe not implemented for opcode %X\n", i->opc);
 			emu_errno_set(c->emu, EOPNOTSUPP);
@@ -69,6 +71,7 @@ int32_t implemented_prefix_check(struct emu_cpu *c, struct emu_cpu_instruction *
 {
 	/* dz 5.17.11 - only checks repxx for implementation so far */
     /*  REPxx operates on: MOVS/STOS/CMPS/LODS/SCAS */
+    //http://pdos.csail.mit.edu/6.828/2006/readings/i386/REP.htm
 
 	if( i->prefixes & PREFIX_F3) return prefix_repef3_alerter(c,i);
 	if( i->prefixes & PREFIX_F2) return prefix_repnef2_alerter(c,i);

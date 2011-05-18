@@ -56,6 +56,8 @@ struct emu_env_w32
 	 * the baseaddress for the env
 	 */
 	uint32_t	baseaddr;
+	char*		lastApiCalled;   //used for filtering spammy calls dzzie 5.18.11
+	uint32_t    lastApiHitCount;
 };
 
 /**

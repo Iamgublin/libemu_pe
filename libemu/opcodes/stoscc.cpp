@@ -33,7 +33,7 @@
 #include "emu_cpu_stack.h"
 #include "emu_memory.h"
 
-
+//http://pdos.csail.mit.edu/6.828/2006/readings/i386/STOS.htm
 
 int32_t instr_stos_aa(struct emu_cpu *c, struct emu_cpu_instruction *i)
 {
@@ -127,6 +127,14 @@ int32_t instr_stos_ab(struct emu_cpu *c, struct emu_cpu_instruction *i)
 			{ /* decrement */
 				c->reg[edi] -= 2;
 			}
+
+			if ( i->prefixes & PREFIX_F3 ){ //dzzie 5.18.11 (repne seems to have exact same behavior)
+				uint8_t rcx = *c->reg16[cx];
+				rcx--;
+				c->repeat_current_instr = rcx == 0 ? false : true ;
+				*c->reg16[cx] = rcx;
+			}
+
 		}
 	}
 	else
@@ -146,7 +154,7 @@ int32_t instr_stos_ab(struct emu_cpu *c, struct emu_cpu_instruction *i)
 			UNIMPLEMENTED(c, SST);
 		}
 		else
-		{
+		{   //32bit
 			MEM_DWORD_WRITE(c,c->reg[edi],c->reg[eax]);
 
 			if ( !CPU_FLAG_ISSET(c,f_df) )
@@ -156,6 +164,11 @@ int32_t instr_stos_ab(struct emu_cpu *c, struct emu_cpu_instruction *i)
 			else
 			{ /* decrement */
 				c->reg[edi] -= 4;
+			}
+
+			if ( i->prefixes & PREFIX_F3 ){ //dzzie 5.18.11 (repne seems to have exact same behavior)
+				c->reg[ecx]--;
+				c->repeat_current_instr = c->reg[ecx] == 0 ? false : true ;
 			}
 
 		}

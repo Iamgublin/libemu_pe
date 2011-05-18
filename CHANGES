@@ -1,5 +1,9 @@
 		Changelog for libemu
 		
+5.18.11
+		- implemented rep for stosw/stosd
+		- implemented Antispam system using win.env->lastApiCalled/lastApiHitCount
+		- new hook fread (w/antispam & interactive mode support)
 5.17.11
         - reimplemented repe/repne for scasb (thanks to markus for pointing out error)
         - new hooks: EnumWindows, GetClassNameA

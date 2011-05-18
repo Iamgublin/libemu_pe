@@ -941,18 +941,16 @@ uint32_t emu_disasm_addr(struct emu_cpu *c, uint32_t eip, char *str)
 	uint8_t data[32];
 
 	if(emu_memory_read_block(c->mem,eip,data,32)==-1){
-		snprintf(str, 5, "????");			
+		snprintf(str, 80, "???? No memory At Address");			
 		return 0;
 	}
     //uint32_t expected_instr_size = dasm_print_instruction(c->eip,dis,0,c->instr_string);
-
 
 	// step 2: fetch instruction-
 	uint32_t instrsize = get_instruction(&inst, data, MODE_32);
 	if( instrsize == 0 )
 	{
-//		printf("invalid instruction\n");
-		str = 0;
+		snprintf(str, 80, "???? Can Not Disassemble %x %x %x %x %x", data[0], data[1],data[2],data[3],data[4]);	
 		return 0;
 	}
 

@@ -2705,7 +2705,9 @@ BOOL WriteFile(
 		if( p_byteswritten != 0) emu_memory_write_dword(mem, p_byteswritten, written);
 	}
 
-	printf("%x\tWriteFile(h=%x, buf=%x, len=%x, lpw=%x, lap=%x) = %x\n",eip_save, (int)file, p_buffer, bytestowrite, p_byteswritten,p_overlapped, returnvalue );
+	//if( strcmp( env->env.win->lastApiCalled, "WriteFileA") != 0 ){  
+		printf("%x\tWriteFile(h=%x, buf=%x, len=%x, lpw=%x, lap=%x) = %x\n",eip_save, (int)file, p_buffer, bytestowrite, p_byteswritten,p_overlapped, returnvalue );
+	//}
 
 	set_ret(returnvalue);
 	free(buffer);
@@ -3522,6 +3524,40 @@ int32_t	__stdcall new_user_hook_GetClassNameA(struct emu_env *env, struct emu_en
 	}else{
 		slen=0;
 	}
+	emu_cpu_eip_set(cpu, eip_save);
+	return 0;
+}
+
+int32_t	__stdcall new_user_hook_fread(struct emu_env *env, struct emu_env_w32_dll_export *ex)
+{   
+	/*
+		size_t fread ( void * ptr, size_t size, size_t count, FILE * stream );. 
+	*/
+
+	uint32_t eip_save = popd();
+	uint32_t lpData = popd();
+	uint32_t size = popd();
+    uint32_t count = popd();
+	uint32_t hFile = popd();
+
+	uint32_t rv = count;
+	uint32_t realSize = (size * count);
+
+	if(opts.interactive_hooks == 1 && realSize > 0){
+		if(realSize > MAX_ALLOC) realSize = MAX_ALLOC;
+		void* realBuf = malloc(realSize+1);
+		rv = fread(realBuf, size, count, (FILE*)hFile);
+		if(rv > 0) emu_memory_write_block(mem, lpData, realBuf, realSize);
+	}
+	
+	bool isSpam = strcmp(env->env.win->lastApiCalled, "fread") == 0 ? true : false;
+
+	if(!isSpam)
+		printf("%x\tfread(buf=%x, size=%x, cnt=%x, h=%x) = %x\n", eip_save, lpData, size, count, hFile, rv );
+	
+	if(isSpam && env->env.win->lastApiHitCount == 1) printf("\tHiding repetitive fread calls\n");
+	
+	set_ret(rv);
 	emu_cpu_eip_set(cpu, eip_save);
 	return 0;
 }
