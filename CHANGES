@@ -1,4 +1,8 @@
 		Changelog for libemu
+		
+5.17.11
+        - reimplemented repe/repne for scasb (thanks to markus for pointing out error)
+        - new hooks: EnumWindows, GetClassNameA
 5.16.11
 	exe - experimental changes to CreateFileMapping, MapViewOfFile
 	    - new options -cfo (CreateFileOverride) , -u (unlimited steps)

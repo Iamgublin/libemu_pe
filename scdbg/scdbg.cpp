@@ -2048,7 +2048,10 @@ void show_supported_hooks(void){
 		while( e.fnname != 0 ){
 			if( e.fnhook != 0 ){
 				if( IsBadReadPtr(e.fnname ,4) ) break;//for some reason the last null element is optimized out or something?
-				printf("\t%s\r\n", e.fnname);
+				if( strlen(e.fnname) == 0)
+					printf("\t@%x\r\n", e.ordial);
+				else
+					printf("\t%s\r\n", e.fnname);
 				tot++;
 			}
 			j++;
@@ -2089,7 +2092,8 @@ void parse_opts(int argc, char* argv[] ){
 	opts.CreateFileOverride = false;
 
 	for(i=1; i < argc; i++){
-					
+
+		bool handled = false;			
 		sl = strlen(argv[i]);
 
 		if( argv[i][0] == '-') argv[i][0] = '/'; //standardize
@@ -2098,27 +2102,27 @@ void parse_opts(int argc, char* argv[] ){
 		buf[1] = argv[i][1];
 		buf[2] = '0';
 		 		
-		if(strstr(buf,"/-") > 0 ) opts.adjust_getfsize-- ;
-		if(strstr(buf,"/+") > 0 ) opts.adjust_getfsize++ ;
-		if(strstr(buf,"/a") > 0 ) opts.adjust_offsets = true ;
-		if(strstr(buf,"/i") > 0 ) opts.interactive_hooks = 1;
-		if(strstr(buf,"/v") > 0 ) opts.verbose++;
-		if(sl==2 && strstr(buf,"/r") > 0 ){ opts.report = true; opts.mem_monitor = true;}
-		if(sl==2 && strstr(buf,"/u") > 0 ) opts.steps = -1;
-		if(sl==3 && strstr(argv[i],"/nc") > 0 )   opts.no_color = true;
-		if(sl==3 && strstr(argv[i],"/b0") > 0 )   opts.break0  = true;
-		if(sl==4 && strstr(argv[i],"/hex") > 0 )  opts.show_hexdumps = true;
-		if(sl==7 && strstr(argv[i],"/findsc") > 0 ) opts.getpc_mode = true;
-		if(sl==5 && strstr(argv[i],"/vvvv") > 0 ) opts.verbose = 4;
-		if(sl==4 && strstr(argv[i],"/vvv") > 0 )  opts.verbose = 3;
-		if(sl==3 && strstr(argv[i],"/vv")  > 0 )  opts.verbose = 2;
-		if(sl==3 && strstr(argv[i],"/mm")  > 0 )  opts.mem_monitor = true;
-		if(sl==5 && strstr(argv[i],"/mdll")  > 0 )  opts.mem_monitor_dlls  = true;
-		if(sl==5 && strstr(argv[i],"/dump")  > 0 )  opts.hexdump_file = 1;
-		if(sl==6 && strstr(argv[i],"/hooks")  > 0 ) show_supported_hooks();
-		if(sl==4 && strstr(argv[i],"/cfo")  > 0 ) opts.CreateFileOverride = true;;
-		if(strstr(buf,"/d") > 0 ) opts.dump_mode = true;
-		if(sl==2 && strstr(buf,"/h") > 0 ) print_help();
+		if(strstr(buf,"/-") > 0 ){ opts.adjust_getfsize-- ;handled=true;}
+		if(strstr(buf,"/+") > 0 ){ opts.adjust_getfsize++ ;handled=true;}
+		if(strstr(buf,"/a") > 0 ){ opts.adjust_offsets = true ;handled=true;}
+		if(strstr(buf,"/i") > 0 ){opts.interactive_hooks = 1;handled=true;}
+		if(strstr(buf,"/v") > 0 ){opts.verbose++; handled=true;}
+		if(sl==2 && strstr(buf,"/r") > 0 ){ opts.report = true; opts.mem_monitor = true;handled=true;}
+		if(sl==2 && strstr(buf,"/u") > 0 ){opts.steps = -1;handled=true;}
+		if(sl==3 && strstr(argv[i],"/nc") > 0 ){   opts.no_color = true; handled=true;}
+		if(sl==3 && strstr(argv[i],"/b0") > 0 ){   opts.break0  = true;handled=true;}
+		if(sl==4 && strstr(argv[i],"/hex") > 0 ) { opts.show_hexdumps = true;handled=true;}
+		if(sl==7 && strstr(argv[i],"/findsc") > 0 ){ opts.getpc_mode = true;handled=true;}
+		if(sl==5 && strstr(argv[i],"/vvvv") > 0 ){handled=true; opts.verbose = 4;}
+		if(sl==4 && strstr(argv[i],"/vvv") > 0 ) { opts.verbose = 3;handled=true;}
+		if(sl==3 && strstr(argv[i],"/vv")  > 0 ) { opts.verbose = 2;handled=true;}
+		if(sl==3 && strstr(argv[i],"/mm")  > 0 )  {opts.mem_monitor = true;handled=true;}
+		if(sl==5 && strstr(argv[i],"/mdll")  > 0 ){  opts.mem_monitor_dlls  = true;handled=true;}
+		if(sl==5 && strstr(argv[i],"/dump")  > 0 ){  opts.hexdump_file = 1;handled=true;}
+		if(sl==6 && strstr(argv[i],"/hooks")  > 0 ){ show_supported_hooks();handled=true;}
+		if(sl==4 && strstr(argv[i],"/cfo")  > 0 ){ opts.CreateFileOverride = true;handled=true;}
+		if(strstr(buf,"/d") > 0 ){ opts.dump_mode = true;handled=true;}
+		if(sl==2 && strstr(buf,"/h") > 0 ){ print_help();handled=true;}
 
 		if(sl==2 && strstr(buf,"/f") > 0 ){
 			if(i+1 >= argc){
@@ -2127,6 +2131,7 @@ void parse_opts(int argc, char* argv[] ){
 			}
 			strncpy(opts.sc_file, argv[i+1],499);
 			opts.file_mode = true;
+			i++;handled=true;
 		}
 		
 		if(sl==6 && strstr(argv[i],"/patch") > 0 ){
@@ -2135,6 +2140,7 @@ void parse_opts(int argc, char* argv[] ){
 				exit(0);
 			}
 			opts.patch_file = strdup(argv[i+1]);
+			i++;handled=true;
 		}
 
 		if(sl==4 && strstr(argv[i],"/dir") > 0 ){
@@ -2143,6 +2149,7 @@ void parse_opts(int argc, char* argv[] ){
 				exit(0);
 			}
 			opts.scan_dir = strdup(argv[i+1]);
+			i++;handled=true;
 		}
 
 		if(strstr(buf,"/o") > 0 ){
@@ -2151,6 +2158,7 @@ void parse_opts(int argc, char* argv[] ){
 				exit(0);
 			}
 		    CODE_OFFSET = strtol(argv[i+1], NULL, 16);			
+			i++;handled=true;
 		}
 
 		if(sl==6 && strstr(argv[i],"/fopen") > 0 ){
@@ -2170,6 +2178,7 @@ void parse_opts(int argc, char* argv[] ){
 				exit(0);
 			}
 			printf("fopen(%s) = %x\n", argv[i+1], (int)opts.h_fopen);
+			i++;handled=true;
 		}
 
 		if(sl==5 && strstr(argv[i],"/foff") > 0 ){
@@ -2178,6 +2187,7 @@ void parse_opts(int argc, char* argv[] ){
 				exit(0);
 			}
 			opts.offset = strtol(argv[i+1], NULL, 16);
+			i++;handled=true;
 		}
 
 		if(sl==3 && strstr(argv[i],"/bp") > 0 ){
@@ -2188,6 +2198,7 @@ void parse_opts(int argc, char* argv[] ){
 			opts.log_after_va = symbol2addr(argv[i+1]);
 			if(opts.log_after_va == 0) opts.log_after_va = strtol(argv[i+1], NULL, 16);
 			opts.verbosity_after = 3;
+			i++;handled=true;
 		}
 
 		if(sl==3 && strstr(argv[i],"/ba") > 0 ){
@@ -2196,6 +2207,7 @@ void parse_opts(int argc, char* argv[] ){
 				exit(0);
 			}
 			opts.break_above = strtol(argv[i+1], NULL, 16);
+			i++;handled=true;
 		}
 
 		if(sl==3 && strstr(argv[i],"/bs") > 0 ){
@@ -2205,6 +2217,7 @@ void parse_opts(int argc, char* argv[] ){
 			}
 		    opts.log_after_step = atoi(argv[i+1]);
 			opts.verbosity_after = 3;
+			i++;handled=true;
 		}
 
 		if(sl==4 && strstr(argv[i],"/laa") > 0 ){
@@ -2213,7 +2226,8 @@ void parse_opts(int argc, char* argv[] ){
 				exit(0);
 			}
 			opts.log_after_va = symbol2addr(argv[i+1]);
-			if(opts.log_after_va == 0) opts.log_after_va = strtol(argv[i+1], NULL, 16);			
+			if(opts.log_after_va == 0) opts.log_after_va = strtol(argv[i+1], NULL, 16);	
+			i++;handled=true;
 		}
 
 		if(sl==6 && strstr(argv[i],"/redir") > 0 ){
@@ -2235,7 +2249,8 @@ void parse_opts(int argc, char* argv[] ){
 					opts.override.connect.host = NULL;
 				}
 
-			}			
+			}	
+			i++;handled=true;
 		}
 
 		if(sl==4 && strstr(argv[i],"/las") > 0 ){
@@ -2243,7 +2258,8 @@ void parse_opts(int argc, char* argv[] ){
 				printf("Invalid option /las must specify a integer as next arg\n");
 				exit(0);
 			}
-		    opts.log_after_step  = atoi(argv[i+1]);			
+		    opts.log_after_step  = atoi(argv[i+1]);		
+			i++;handled=true;
 		}
 
 		if(strstr(buf,"/e") > 0 ){
@@ -2252,6 +2268,7 @@ void parse_opts(int argc, char* argv[] ){
 				exit(0);
 			}
 		    opts.verbosity_onerr = atoi(argv[i+1]);			
+			i++;handled=true;
 		}
 
 		if(sl==7 && strstr(argv[i],"/disasm") > 0 ){
@@ -2260,6 +2277,7 @@ void parse_opts(int argc, char* argv[] ){
 				exit(0);
 			}
 		    opts.disasm_mode = atoi(argv[i+1]);			
+			i++;handled=true;
 		}
 
 		if(strstr(buf,"/s") > 0 ){
@@ -2267,7 +2285,8 @@ void parse_opts(int argc, char* argv[] ){
 				printf("Invalid option /s must specify num of steps as next arg\n");
 				exit(0);
 			}
-		    opts.steps = atoi(argv[i+1]);			
+		    opts.steps = atoi(argv[i+1]);	
+			i++;handled=true;
 		}
 
 		if(strstr(buf,"/t") > 0 ){
@@ -2275,7 +2294,15 @@ void parse_opts(int argc, char* argv[] ){
 				printf("Invalid option /t must specify delay in millisecs as next arg\n");
 				exit(0);
 			}
-		    opts.time_delay = atoi(argv[i+1]);			
+		    opts.time_delay = atoi(argv[i+1]);		
+			i++;handled=true;
+		}
+
+		if( !handled ){
+			start_color(myellow);
+			printf("Unknown Option %s\n\n", argv[i]);
+			end_color();
+			exit(0);
 		}
 
 	}

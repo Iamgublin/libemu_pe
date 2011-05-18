@@ -3483,7 +3483,7 @@ int32_t	__stdcall new_user_hook_EnumWindows(struct emu_env *env, struct emu_env_
 		//BOOL CALLBACK EnumWindowsProc(HWND hwnd,LPARAM lParam);
 		uint32_t hwnd = 0xDEADBEEF;
 		PUSH_DWORD(cpu, lParam);
-		PUSH_DWORD(cpu, hwnd);   //error in my sample?
+		PUSH_DWORD(cpu, hwnd);      //possible error in my sample..
 		PUSH_DWORD(cpu, eip_save);
 		emu_cpu_eip_set(cpu, lpfnEnum);
 		printf("\tTransferring execution to EnumWindowsProc...\n");
