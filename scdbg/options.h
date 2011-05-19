@@ -13,7 +13,6 @@ struct run_time_options
 	char sc_file[500];
 	bool dump_mode;
 	int interactive_hooks;
-	bool adjust_offsets;
 	int  log_after_va;
 	int  log_after_step;
 	int  verbosity_after;

@@ -442,7 +442,7 @@ int32_t instr_movs_a5(struct emu_cpu *c, struct emu_cpu_instruction *i)
 		}else{
 			return 0; //rep operation complete..do not adjust registers any more
 		}
-	}
+	} 
 
 	if ( !CPU_FLAG_ISSET(c,f_df) ){ /* increment */
 		c->reg[edi] += incSize;

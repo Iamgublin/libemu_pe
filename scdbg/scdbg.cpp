@@ -1969,7 +1969,7 @@ int getpctest(void)
 }
 */
 
-void print_help(void)
+void show_help(void)
 {
 	struct help_info 
 	{
@@ -1980,39 +1980,38 @@ void print_help(void)
 
 	struct help_info help_infos[] =
 	{
-		{"foff", "hexnum" ,"starts execution at file offset"},
-		{"mm", NULL,       "enabled Memory Monitor (logs access to key addresses)"},
-		{"mdll", NULL,     "Monitor Dll - log direct access to dll memory (hook detection/patches)"},
-		{"nc", NULL,       "no color (if using sending output to other apps)"},
-		{"f", "fpath"    , "load shellcode from file specified."},
-		{"o", "hexnum"   , "base offset to use (default: 0x401000)"},
-		{"redir", "ip:port","redirect connect to ip (port optional)"},
-		{"i",  NULL		 , "enable interactive hooks"},
-		{"v",  NULL		 , "verbosity, can be used up to 4 times, ex. /v /v /vv"},
-		{"e", "int"	     , "verbosity on error (3 = debug shell)"},
-		{"t", "int"	     , "time to delay (ms) between steps when v=1 or 2"},
-		{"h",  NULL		 , "show this help"},
-		{"ba", "hexnum"  , "break above - breaks if eip > hexnum"},
-		{"bp", "hexnum"  , "set breakpoint on addr or api name (same as -laa <hexaddr> -vvv)"},
-		{"bs", "int"     , "break on step (shortcut for -las <int> -vvv)"},
-		{"a",  NULL		 , "adjust offsets to file offsets not virtual"},
-		{"d",  NULL	     , "dump unpacked shellcode (requires /f)"},
-		{"las", "int"	 , "log at step ex. -las 100"},
-		{"laa", "hexnum" , "log at address or api ex. -laa 0x401020 or -laa ReadFile"},
-		{"s", "int"	     , "max number of steps to run (def=2000000, -1 unlimited)"},
-		{"hex", NULL,      "show hex dumps for hook reads/writes"},
-		{"findsc", NULL ,  "detect possible shellcode buffers (brute force)"},
-		{"dump", NULL,     "view hexdump of the target file (can be used with /foff)"},
-		{"disasm", "int" , "Disasm int lines (can be used with /foff)"},
-		{"fopen", "file" , "Opens a handle to <file> for use with GetFileSize() scanners"},
-		{"- /+", NULL , "increments or decrements GetFileSize, can use multiple times"},
-		{"hooks", NULL , "dumps a list all implemented api hooks"},
-		{"r", NULL ,     "show analysis report at end of run"},
-		{"b0", NULL ,     "break if 00 00 add [eax],al"},
-		{"patch", "fpath","load patch file <fpath> for libemu memory"},
-		{"dir", " folder","process all .sc files in <folder> (can be used with -r)"},
-		{"cfo", NULL ,"CreateFileOverRide - Use /fopen handle as return from CreateFile"},
-		{"u", NULL ,"unlimited steps same as -s -1"},
+		{"f", "fpath"    ,   "load shellcode from file specified."},
+		{"ba", "hexnum"  ,   "break above - breaks if eip > hexnum"},
+		{"bp", "hexnum"  ,   "set breakpoint on addr or api name (same as -laa <hexaddr> -vvv)"},
+		{"bs", "int"     ,   "break on step (shortcut for -las <int> -vvv)"},
+		{"b0", NULL ,        "break if 00 00 add [eax],al"},
+		{"cfo", NULL ,       "CreateFileOverRide - if /fopen use handle else open real arg"},
+		{"d",  NULL	     ,   "dump unpacked shellcode"},
+		{"dir", " folder",   "process all .sc files in <folder> (can be used with -r)"},
+		{"disasm", "int" ,   "Disasm int lines (can be used with /foff)"},
+		{"dump", NULL,       "view hexdump (can be used with /foff)"},
+		{"e", "int"	     ,   "verbosity on error (3 = debug shell)"},
+		{"findsc", NULL ,    "detect possible shellcode buffers (brute force)"},
+		{"fopen", "file" ,   "Opens a handle to <file> for use with GetFileSize() scanners"},		
+		{"foff", "hexnum" ,  "starts execution at file offset"},
+		{"h",  NULL		 ,   "show this help"},
+		{"hex", NULL,        "show hex dumps for hook reads/writes (paged)"},
+		{"hooks", NULL ,     "dumps a list all implemented api hooks"},
+		{"i",  NULL		 ,   "enable interactive hooks (file and network)"},
+		{"las", "int"	 ,   "log at step ex. -las 100"},
+		{"laa", "hexnum" ,   "log at address or api ex. -laa 0x401020 or -laa ReadFile"},
+		{"mm", NULL,         "enabled Memory Monitor (logs access to key addresses)"},
+		{"mdll", NULL,       "Monitor Dll - log direct access to dll memory (hook detection/patches)"},
+		{"nc", NULL,         "no color (if using sending output to other apps)"},
+		{"o", "hexnum"   ,   "base offset to use (default: 0x401000)"},
+		{"patch", "fpath",   "load patch file <fpath> into libemu memory"},
+		{"r", NULL ,         "show analysis report at end of run (includes -mm)"},
+		{"redir", "ip:port", "redirect connect to ip (port optional)"},
+		{"s", "int"	     ,   "max number of steps to run (def=2000000, -1 unlimited)"},	
+		{"t", "int"	     ,   "time to delay (ms) between steps when v=1 or 2"},
+		{"u", NULL ,         "unlimited steps (same as -s -1)"},
+		{"v",  NULL		 ,   "verbosity, can be used up to 4 times, ex. /v /v /vv"},
+		{"- /+", NULL ,      "increments or decrements GetFileSize, can be used multiple times"},
 	};
 
 	system("cls");
@@ -2113,7 +2112,6 @@ void parse_opts(int argc, char* argv[] ){
 		 		
 		if(strstr(buf,"/-") > 0 ){ opts.adjust_getfsize-- ;handled=true;}
 		if(strstr(buf,"/+") > 0 ){ opts.adjust_getfsize++ ;handled=true;}
-		if(strstr(buf,"/a") > 0 ){ opts.adjust_offsets = true ;handled=true;}
 		if(strstr(buf,"/i") > 0 ){opts.interactive_hooks = 1;handled=true;}
 		if(strstr(buf,"/v") > 0 ){opts.verbose++; handled=true;}
 		if(sl==2 && strstr(buf,"/r") > 0 ){ opts.report = true; opts.mem_monitor = true;handled=true;}
@@ -2131,7 +2129,9 @@ void parse_opts(int argc, char* argv[] ){
 		if(sl==6 && strstr(argv[i],"/hooks")  > 0 ){ show_supported_hooks();handled=true;}
 		if(sl==4 && strstr(argv[i],"/cfo")  > 0 ){ opts.CreateFileOverride = true;handled=true;}
 		if(strstr(buf,"/d") > 0 ){ opts.dump_mode = true;handled=true;}
-		if(sl==2 && strstr(buf,"/h") > 0 ){ print_help();handled=true;}
+		if(sl==2 && strstr(buf,"/h") > 0 ){ show_help();handled=true;}
+		if(sl==2 && strstr(buf,"/?") > 0 ){ show_help();handled=true;}
+		if(sl==5 && strstr(argv[i],"/help") > 0 ){ show_help();handled=true;}
 
 		if(sl==2 && strstr(buf,"/f") > 0 ){
 			if(i+1 >= argc){
@@ -2341,7 +2341,7 @@ void loadsc(void){
 	
 	if(opts.size==0){
 		printf("No shellcode loaded must use either /f or /S options\n");
-		print_help();
+		show_help();
 		return;
 	}
 
@@ -2487,7 +2487,7 @@ reinit:
 
 	}
 
-	if(opts.file_mode == false)	print_help();
+	if(opts.file_mode == false)	show_help();
 	if(opts.dump_mode) printf("Dump mode Active...\n");
 		
 	if(opts.interactive_hooks){

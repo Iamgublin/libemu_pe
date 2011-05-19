@@ -68,14 +68,9 @@ extern char* dllFromAddress(uint32_t addr);
 extern bool FolderExists(char* folder);
 extern struct emu_memory *mem;
 extern struct emu_cpu *cpu;    //these two are global in main code
-//extern struct nanny* na;       //this was passed around as user data in case of multithreading..but were not.
 extern bool disable_mm_logging;
-int last_GetSizeFHand = -44;
-int rep_count=0;
-bool gfs_scan_warn = false;
 
 int nextFhandle = 0;
-
 uint32_t MAX_ALLOC  = 0x1000000;
 uint32_t next_alloc = 0x60000; //these increment so we dont walk on old allocs
 
@@ -135,17 +130,7 @@ uint32_t get_ret(struct emu_env *env, int arg_adjust){
 	uint32_t ret_val = 0;
 	
 	emu_memory_read_dword( m, reg_esp+arg_adjust, &ret_val);
-	
-	if(opts.adjust_offsets){
-		if( (ret_val > CODE_OFFSET) &&  (ret_val <= (CODE_OFFSET + opts.size)) ){
-			return ret_val - CODE_OFFSET; //adjusted to file offset of input file
-		}else{
-			return ret_val; //return the raw value from stack
-		}
-	}else{
-		return ret_val; //return the raw value from stack
-	}
-
+	return ret_val; //return the raw value from stack
 }
 
 char* get_client_ip(struct sockaddr *clientInformation)
@@ -2705,9 +2690,12 @@ BOOL WriteFile(
 		if( p_byteswritten != 0) emu_memory_write_dword(mem, p_byteswritten, written);
 	}
 
-	//if( strcmp( env->env.win->lastApiCalled, "WriteFileA") != 0 ){  
+	bool isSpam = strcmp(env->env.win->lastApiCalled, "WriteFile") == 0 ? true : false;
+
+	if(!isSpam)
 		printf("%x\tWriteFile(h=%x, buf=%x, len=%x, lpw=%x, lap=%x) = %x\n",eip_save, (int)file, p_buffer, bytestowrite, p_byteswritten,p_overlapped, returnvalue );
-	//}
+	
+	if(isSpam && env->env.win->lastApiHitCount == 2) printf("\tHiding repetitive WriteFile calls\n");
 
 	set_ret(returnvalue);
 	free(buffer);
@@ -3340,6 +3328,7 @@ int32_t	__stdcall new_user_hook_shdocvw65(struct emu_env *env, struct emu_env_w3
 		printf("%x\tIEWinMain(%s, %x)\n", eip_save, emu_string_char(sCmdLine), nShowWindow );
 
 	set_ret(0);
+	emu_string_free(sCmdLine);
 
 	uint32_t MsgBeepOpcodes;
 	emu_memory_read_dword(mem, 0x7e431f7b, &MsgBeepOpcodes);
@@ -3394,6 +3383,7 @@ int32_t	__stdcall new_user_hook_GetUrlCacheEntryInfoA(struct emu_env *env, struc
 	uint32_t rv = emu_memory_write_block(mem, entry_info+0x74 ,(void*)filePath,strlen(filePath) );
 	
 	set_ret(1);
+	emu_string_free(sUrl);
 	emu_cpu_eip_set(cpu, eip_save);
 	return 0;
 }
@@ -3416,6 +3406,8 @@ int32_t	__stdcall new_user_hook_CopyFileA(struct emu_env *env, struct emu_env_w3
 	printf("%x\tCopyFileA(%s, %s)\n", eip_save, sFrom->data, sTo->data );
 	
 	set_ret(1);
+	emu_string_free(sFrom);
+	emu_string_free(sTo);
 	emu_cpu_eip_set(cpu, eip_save);
 	return 0;
 }
