@@ -1,0 +1,20 @@
+[BITS 32]
+[ORG 0]
+
+   cld
+   call over
+db "urlmon.dll", 0xFF, " user32.dll", 0
+over:
+   pop edi
+   mov eax, 0xAABBCCDD
+   mov ecx, 3
+   rep stosd
+   push edi
+   push 0x7c801d77    ;sctest LoadLibrary
+   pop edx
+   call edx
+
+
+;push 0x7c801d7b  ;new scdbg k32 LoadLibrary
+
+

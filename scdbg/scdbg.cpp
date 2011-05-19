@@ -793,12 +793,20 @@ void hexdump(unsigned char* str, int len){ //why doesnt gcc support optional arg
 
 void disasm_block(int offset, int size){
 	int i, bytes_read, base;
+	uint8_t b;
 	char disasm[200];
 	base = offset;
 	for(i=0;i<size;i++){
 		bytes_read = emu_disasm_addr(cpu, base, disasm); 
-		if(bytes_read < 1) break;
-		printf("%x\t%s\n", base, disasm);
+		if(bytes_read < 1){
+			if(emu_memory_read_byte(mem,base,&b) == -1) break;
+			start_color(myellow);
+			printf("%x\tdb %X\n", base, b);
+			start_color(mgreen);
+			base++;
+		}else{
+			printf("%x\t%s\n", base, disasm);
+		}
 		base += bytes_read;
 	}
 }
@@ -2364,6 +2372,9 @@ int main(int argc, char *argv[])
     signal(SIGTERM,restore_terminal);
 	atexit(atexit_restore_terminal);
 
+	parse_opts(argc, argv);
+
+reinit:
 	e = emu_new();
 	cpu = emu_cpu_get(e);
 	mem = emu_memory_get(e);
@@ -2372,8 +2383,6 @@ int main(int argc, char *argv[])
 	//emu_log_level_set( emu_logging_get(e),  EMU_LOG_DEBUG);
 
 	if ( env == 0 ){ printf("%s\n%s\n", emu_strerror(e), strerror(emu_errno(e))); exit(-1);}
-
-	parse_opts(argc, argv);
 
 	if(opts.scan_dir != NULL){
 		HandleDirMode(opts.scan_dir);
@@ -2384,6 +2393,13 @@ int main(int argc, char *argv[])
 	init_emu();	
 	
 	if(opts.patch_file != NULL) LoadPatch(opts.patch_file);
+
+	if(opts.getpc_mode){
+		opts.offset = find_sc();
+		if( opts.offset == -1) return -1;
+		opts.getpc_mode = false;
+		goto reinit; //this gives us a full reinitilization of the whole envirnoment for the run..had a weird bug otherwise..
+	}
 
 	if(opts.interactive_hooks==1){
 		WORD wVersionRequested;
@@ -2483,24 +2499,6 @@ int main(int argc, char *argv[])
 	printf("Max Steps: %d\n", opts.steps);
 	printf("Using base offset: 0x%x\n", CODE_OFFSET);
 	if(opts.verbose>0) printf("Verbosity: %i\n", opts.verbose);
-
-	/*if(opts.org_getpc == 1){
-		opts.offset = getpctest();
-		if(opts.offset == -2) return 0;
-		if(opts.offset == -1) {
-			start_color(myellow);
-			printf("Going into brute force mode...\n");
-			end_color();
-			opts.offset =0;
-			opts.getpc_mode = true;
-		}
-	}*/
-
-	if(opts.getpc_mode){
-		opts.offset = find_sc();
-		if( opts.offset == -1) return -1;
-		init_emu();
-	}
 
 	nl();
 	run_sc();

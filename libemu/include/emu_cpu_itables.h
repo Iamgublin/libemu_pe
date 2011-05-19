@@ -61,6 +61,7 @@
 #define II_FPU_INSTR 1
 
 extern int32_t instr_salc_d6(struct emu_cpu *c, struct emu_cpu_instruction *i);
+extern int32_t instr_movs_a5(struct emu_cpu *c, struct emu_cpu_instruction *i);
 
 struct emu_cpu_instruction_info ii_onebyte[0x100] = {
 	/* 00 */ {instr_add_00, "add", {0, 0, II_MOD_REG_RM, 0, 0, 0, 0, 0}},
@@ -228,7 +229,7 @@ struct emu_cpu_instruction_info ii_onebyte[0x100] = {
 	/* a2 */ {instr_mov_a2, "mov", {0, 0, 0, 0, II_DISPF, 0, 0, 0}},
 	/* a3 */ {instr_mov_a3, "mov", {0, 0, 0, 0, II_DISPF, 0, 0, 0}},
 	/* a4 */ {instr_movsb, "movsb", {0, 0, 0, 0, 0, 0, 0, 0}},
-	/* a5 */ {0, 0, {0, 0, 0, 0, 0, 0, 0, 0}},
+	/* a5 */ {instr_movs_a5, "movs", {0, 0, 0, 0, 0, 0, 0, 0}},  //dzzie 5.19.11
 	/* a6 */ {instr_cmps_a6, "cmps", {0, 0, 0, 0, 0, 0, 0, 0}},
 	/* a7 */ {instr_cmps_a7, "cmps", {0, 0, 0, 0, 0, 0, 0, 0}},
 	/* a8 */ //{0, 0, {0, 0, 0, 0, 0, 0, 0, 0}},	

@@ -40,6 +40,7 @@ int32_t prefix_repef3_alerter(struct emu_cpu *c, struct emu_cpu_instruction *i){
 		case 0xAE: //scasb (ae)
 		case 0xa6: //instr_cmps_a6
 		case 0xA4: //instr_movsb (a4)
+		case 0xA5: //instr_movs_a5 (a5 movsd/movsw)
 		case 0xab: //instr_stos_ab
 		case 0xAA: break; //instr_stos_aa
 		

@@ -1,5 +1,7 @@
 		Changelog for libemu
-		
+	
+5.19.11
+		- imlemented movsw/movsb with rep support	
 5.18.11
 		- implemented rep for stosw/stosd
 		- implemented Antispam system using win.env->lastApiCalled/lastApiHitCount

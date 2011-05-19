@@ -1,0 +1,22 @@
+[BITS 32]
+[ORG 0]
+
+   cld
+   call over
+db "urlmon.dll", 0xFF, "user32.dll", 0
+over:
+   pop esi
+   mov edi, esi
+   mov ax, 0xFF
+   mov ecx, 20
+   repne scasb        ;scan urlmon string until 0xFF byte, 
+   inc byte [edi-1]   ;[edi-1] = 0xFF offset, inc it so 0x00 to null terminate urlmon.dll
+
+   push edi           ;should be offset of user32.dll
+  
+   push 0x7c801d77    ;sctest LoadLibrary
+   pop edx
+   call edx
+
+
+;push 0x7c801d7b  ;new scdbg k32 LoadLibrary

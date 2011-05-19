@@ -409,5 +409,51 @@ int32_t instr_mov_c7(struct emu_cpu *c, struct emu_cpu_instruction *i)
 }
 
 
+//dzzie 5.19.11 - http://pdos.csail.mit.edu/6.828/2004/readings/i386/MOVS.htm
+int32_t instr_movs_a5(struct emu_cpu *c, struct emu_cpu_instruction *i)
+{
+	if (i->prefixes & PREFIX_ADSIZE ) {
+		UNIMPLEMENTED(c, SST);
+		return 0;
+    }
+
+	uint8_t incSize = 0;
+
+	if ( i->prefixes & PREFIX_OPSIZE ) //16bit
+	{ 
+		uint16_t tmp;
+		MEM_WORD_READ(c, c->reg[esi], &tmp);
+		MEM_WORD_WRITE(c, c->reg[edi], tmp);
+		incSize = 2;
+	}
+	else{ //32bit
+		uint32_t tmp2;
+		MEM_DWORD_READ(c, c->reg[esi], &tmp2);
+		MEM_DWORD_WRITE(c, c->reg[edi], tmp2);
+		incSize = 4;
+	}
+	
+	if (i->prefixes & PREFIX_F3)    /* rep prefix - Copy ECX bytes from DS:[ESI] to ES:[EDI] */
+	{
+		c->repeat_current_instr = false;
+		if (c->reg[ecx] > 0 ){
+			c->reg[ecx]--;
+			c->repeat_current_instr = true;
+		}else{
+			return 0; //rep operation complete..do not adjust registers any more
+		}
+	}
+
+	if ( !CPU_FLAG_ISSET(c,f_df) ){ /* increment */
+		c->reg[edi] += incSize;
+		c->reg[esi] += incSize;
+	} 
+	else{							/* decrement */
+		c->reg[edi] -= incSize;
+		c->reg[esi] -= incSize;
+	}
+
+    return 0;
+}
 
 

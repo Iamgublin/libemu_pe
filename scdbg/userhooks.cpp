@@ -3444,7 +3444,7 @@ int32_t	__stdcall new_user_hook_GetFileSize(struct emu_env *env, struct emu_env_
 		ret_val = GetFileSize( (HANDLE)hFile, &sizeHigh) + opts.adjust_getfsize;
 		
 	//i hate spam...
-	 
+	/* 
 	if( (last_GetSizeFHand+1) == hFile || (last_GetSizeFHand+4) == hFile){ 
 		if(!gfs_scan_warn){
 			printf("%x\tGetFileSize(%x) - open file handle scanning occuring - hiding output...\n",eip_save, hFile);
@@ -3457,6 +3457,15 @@ int32_t	__stdcall new_user_hook_GetFileSize(struct emu_env *env, struct emu_env_
 	last_GetSizeFHand = hFile;
 	 
 	if(!nolog) printf("%x\tGetFileSize(%x, %x) = %x\n", eip_save, hFile, lpSizeHigh, ret_val );
+	*/
+
+	bool isSpam = strcmp(env->env.win->lastApiCalled, "GetFileSize") == 0 ? true : false;
+
+	if(!isSpam || (isSpam && env->env.win->lastApiHitCount == 2) )
+		printf("%x\tGetFileSize(%x, %x) = %x\n", eip_save, hFile, lpSizeHigh, ret_val );
+	
+	if(isSpam && env->env.win->lastApiHitCount == 2) printf("\topen file handle scanning occuring - hiding output\n");
+
 
 	if(lpSizeHigh!=0) emu_memory_write_dword(mem, lpSizeHigh, sizeHigh);
 	
@@ -3555,7 +3564,7 @@ int32_t	__stdcall new_user_hook_fread(struct emu_env *env, struct emu_env_w32_dl
 	if(!isSpam)
 		printf("%x\tfread(buf=%x, size=%x, cnt=%x, h=%x) = %x\n", eip_save, lpData, size, count, hFile, rv );
 	
-	if(isSpam && env->env.win->lastApiHitCount == 1) printf("\tHiding repetitive fread calls\n");
+	if(isSpam && env->env.win->lastApiHitCount == 2) printf("\tHiding repetitive fread calls\n");
 	
 	set_ret(rv);
 	emu_cpu_eip_set(cpu, eip_save);

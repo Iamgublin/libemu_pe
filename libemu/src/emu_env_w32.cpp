@@ -332,6 +332,7 @@ struct emu_env_w32 *emu_env_w32_new(struct emu *e)
 	memset(env,0,sizeof(struct emu_env_w32));
 	env->emu = e;
 	env->lastApiCalled = strdup("");
+	env->lastApiHitCount = -1;
 
 	// write TEB and linklist
 
@@ -495,14 +496,15 @@ struct emu_env_w32_dll_export *emu_env_w32_eip_check(struct emu_env *env)
 
 			if (ex->fnhook != NULL )
 			{
+				bool isSpam = strcmp(env->env.win->lastApiCalled, ex->fnname) == 0 ? true : false ;
+				if(isSpam) env->env.win->lastApiHitCount++;
+				
 				ex->fnhook(env, ex);
 
-				if(strcmp(env->env.win->lastApiCalled, ex->fnname) == 0){
-					env->env.win->lastApiHitCount++;
-				}else{
+				if(!isSpam){
 					free( env->env.win->lastApiCalled );
 					env->env.win->lastApiCalled = strdup(ex->fnname);
-					env->env.win->lastApiHitCount = 0;
+					env->env.win->lastApiHitCount = 1;
 				}
 				 
 				return ex;

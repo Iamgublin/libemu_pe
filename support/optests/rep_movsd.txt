@@ -1,0 +1,29 @@
+[BITS 32]
+[ORG 0]
+
+   cld
+   call getSrc
+
+db "this is my source string", 0 ;24 bytes
+
+getSrc:
+   pop esi      ;srcbuffer
+   
+   call getDst
+
+db "                        ",0
+
+getDst:
+   pop edi
+   mov edx, edi     ;copy of dst address
+
+   mov ecx, 12
+   rep movsw      
+ 
+   push edx           
+  
+   push 0x7c801d7b    ;scdbg LoadLibrary
+   pop edx
+   call edx
+
+
