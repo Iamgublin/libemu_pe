@@ -118,8 +118,8 @@ int32_t	__stdcall new_user_hook_GetFileSize(struct emu_env *env, struct emu_env_
 int32_t	__stdcall new_user_hook_EnumWindows(struct emu_env *env, struct emu_env_w32_dll_export *ex);
 int32_t	__stdcall new_user_hook_GetClassNameA(struct emu_env *env, struct emu_env_w32_dll_export *ex);
 int32_t	__stdcall new_user_hook_fread(struct emu_env *env, struct emu_env_w32_dll_export *ex);
-
-
+int32_t	__stdcall new_user_hook_IsBadReadPtr(struct emu_env *env, struct emu_env_w32_dll_export *ex);
+int32_t	__stdcall new_user_hook_GetCommandLineA(struct emu_env *env, struct emu_env_w32_dll_export *ex);
 
 
 

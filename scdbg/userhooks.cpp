@@ -73,7 +73,7 @@ extern bool disable_mm_logging;
 int nextFhandle = 0;
 uint32_t MAX_ALLOC  = 0x1000000;
 uint32_t next_alloc = 0x60000; //these increment so we dont walk on old allocs
-
+uint32_t safe_stringbuf = 0x2531D0; //after the peb just empty space
 
 int get_fhandle(void){
 	nextFhandle+=4;
@@ -1165,13 +1165,6 @@ int32_t	__stdcall new_user_hook_strtoul(struct emu_env *env, struct emu_env_w32_
 
 int32_t	__stdcall new_user_hook_GetTempFileNameA(struct emu_env *env, struct emu_env_w32_dll_export *ex)
 {
-
-	struct emu_cpu *c = emu_cpu_get(env->emu);
-
-	uint32_t eip_save;
-
-	POP_DWORD(c, &eip_save);
-
 /*	
 	UINT WINAPI GetTempFileName(
 	  __in   LPCTSTR lpPathName,
@@ -1180,85 +1173,29 @@ int32_t	__stdcall new_user_hook_GetTempFileNameA(struct emu_env *env, struct emu
 	  __out  LPTSTR lpTempFileName
 	);
 */
-	uint32_t s1;
-	uint32_t s2;
-	uint32_t unique;
-	uint32_t out_buf;
-	uint32_t ret=0;
-	uint32_t org_unique;
+	uint32_t eip_save = popd();
+	struct emu_string* lpPathName = popstring();
+	struct emu_string* lpPrefixString = popstring();
+	uint32_t unique = popd();
+	uint32_t out_buf = popd();
 
-	int prefix_len=0;
-	int path_len=0;
-	char* s_unique = 0;
-	char* s_out=0;
+	char* realBuf = (char*)malloc(256);
+	uint32_t ret = GetTempFileName(lpPathName->data, lpPrefixString->data, unique, realBuf); 
+	
+	printf("%x\tGetTempFileName(path=%s, prefix=%x, unique=%x, buf=%x) = %X\n", eip_save, 
+			 lpPathName->data, lpPrefixString->emu_offset, unique, out_buf, ret);
 
-	POP_DWORD(c, &s1);
-	POP_DWORD(c, &s2);
-	POP_DWORD(c, &unique);
-	POP_DWORD(c, &out_buf);
-
-	org_unique = unique;
-
-	if(s1==0){
-		ret = 0;
-		cpu->reg[eax] = 0;
-		emu_cpu_eip_set(c, eip_save);
-		return 0;
-	}
-
-	struct emu_string *path = emu_string_new();
-	struct emu_string *prefix = emu_string_new();
-
-	//printf("s1=%x, s2=%x , unique=%x, out_buf=%x\n", s1,s2, unique, out_buf);
-
-	emu_memory_read_string(mem, s1, path, 255);
-	emu_memory_read_string(mem, s2, prefix, 3);
-
-	char* s_path = emu_string_char(path);
-	char* s_prefix = emu_string_char(prefix);
-
-	if(s_path == 0){
-		s_path = (char*)malloc(10); //memleak
-		strcpy(s_path,"");
-	}else{
-		path_len = strlen(s_path);
-	}
-
-	if(s_prefix == 0){
-		s_prefix = (char*)malloc(10); //memleak
-		strcpy(s_prefix,"");
-	}else{
-		prefix_len = strlen(s_prefix);
-	}
-
-    if(unique==0) unique = 0xBAAD;
-	printf("GetTempFileNameA broken fix me\n");
-	return 0;
-//	if(asprintf(&s_unique, "%X", unique) == -1) return -1;
-
-	uint32_t slen = path_len + prefix_len + strlen(s_unique) + 15;
-
-	if(slen > 255){
-		ret = 0;
-	}else{
-		ret = unique;
-		s_out = (char*)malloc(300);
-		sprintf(s_out, "%s\\%s%s.TMP", s_path, s_prefix, s_unique);
-		emu_memory_write_block(mem, out_buf, s_out, strlen(s_out));
+	if(ret!=0){
+		printf("\t Path = %s\n", realBuf);
+		emu_memory_write_block(mem, out_buf, realBuf, strlen(realBuf));
 	}
 	
-	printf("%x\tGetTempFileNameA(path=%s, prefix=%x (%s), unique=%x, buf=%x) = %X\n", eip_save, 
-			 s_path, s2, s_prefix, org_unique, out_buf, ret);
-
-	if(ret!=0) printf("\t Path = %s\n", s_out);
-
-	if(s_out != 0) free(s_out);
-	free(s_unique);
-	emu_string_free(path);
-	emu_string_free(prefix);
+	free(realBuf);
+	emu_string_free(lpPathName);
+	emu_string_free(lpPrefixString);
 
 	cpu->reg[eax] = ret;
-	emu_cpu_eip_set(c, eip_save);
+	emu_cpu_eip_set(cpu, eip_save);
 	return 0;
 }
 
@@ -2168,28 +2105,27 @@ int32_t	__stdcall new_user_hook__lwrite(struct emu_env *env, struct emu_env_w32_
 
 int32_t	__stdcall new_user_hook_GetTempPathA(struct emu_env *env, struct emu_env_w32_dll_export *ex)
 {
-	struct emu_cpu *c = emu_cpu_get(env->emu);
-	uint32_t eip_save;
-	POP_DWORD(c, &eip_save);
 	/*
 	DWORD WINAPI GetTempPath(
 	  __in   DWORD nBufferLength,
 	  __out  LPTSTR lpBuffer
 	);
 	*/
-	uint32_t bufferlength;
-	POP_DWORD(c, &bufferlength);
+	uint32_t eip_save = popd();
+	uint32_t bufferlength = popd();
+	uint32_t p_buffer = popd();
 
-	uint32_t p_buffer;
-	POP_DWORD(c, &p_buffer);
+	char* realBuf = (char*)malloc(256);
+	uint32_t ret = GetTempPath(256,realBuf);
+	
+	if( (ret+1) > bufferlength) ret = 0;
+	if(ret!=0) emu_memory_write_block(mem, p_buffer, realBuf, ret+1);
 
-	static char *path = "c:\\%TEMP%\\";
-	emu_memory_write_block(emu_memory_get(env->emu), p_buffer, path, strlen(path));
-	set_ret(strlen(path));
-
-	printf("%x\tGetTempPath(len=%x, buf=%x)\n",eip_save, bufferlength, p_buffer);
-
-	emu_cpu_eip_set(c, eip_save);
+	printf("%x\tGetTempPath(len=%x, buf=%x) = %x\n",eip_save, bufferlength, p_buffer, ret);
+	
+	free(realBuf);
+	set_ret(ret);
+	emu_cpu_eip_set(cpu, eip_save);
 	return 0;
 }
 
@@ -3363,7 +3299,6 @@ int32_t	__stdcall new_user_hook_GetUrlCacheEntryInfoA(struct emu_env *env, struc
 	emu_memory_read_dword(mem, lpSize, &size);
 
 	INTERNET_CACHE_ENTRY_INFO entry;
-	uint32_t safe_stringbuf = 0x2531D0; //after the peb just empty space
 	char* filePath = "c:\\cache_local_file.swf";
 
 	printf("%x\tGetUrlCacheEntryInfoA(%s, buf=%x, sz=%x)\n", eip_save, sUrl->data, entry_info, size );
@@ -3563,7 +3498,59 @@ int32_t	__stdcall new_user_hook_fread(struct emu_env *env, struct emu_env_w32_dl
 	return 0;
 }
 
+int32_t	__stdcall new_user_hook_IsBadReadPtr(struct emu_env *env, struct emu_env_w32_dll_export *ex)
+{   
+	/*
+		BOOL WINAPI IsBadReadPtr(
+		  __in  const VOID *lp,
+		  __in  UINT_PTR ucb
+		);
+	*/
 
+	uint32_t eip_save = popd();
+	uint32_t lpData = popd();
+	uint32_t size = popd();
+	uint32_t ret = 0; //success
+
+	if(lpData <= 0x1000) ret--; //only time we will fail
+
+	bool isSpam = strcmp(env->env.win->lastApiCalled, "IsBadReadPtr") == 0 ? true : false;
+
+	if(!isSpam)
+		printf("%x\tIsBadReadPtr(adr=%x, sz=%x)\n", eip_save, lpData, size );
+	
+	if(isSpam && env->env.win->lastApiHitCount == 2) printf("\tHiding repetitive IsBadReadPtr calls\n");
+	
+	set_ret(ret);
+	emu_cpu_eip_set(cpu, eip_save);
+	return 0;
+}
+
+
+int32_t	__stdcall new_user_hook_GetCommandLineA(struct emu_env *env, struct emu_env_w32_dll_export *ex)
+{   
+	/*	LPTSTR WINAPI GetCommandLine(void);	*/
+
+	uint32_t eip_save = popd();
+	
+	char* buf = opts.cmdline;
+	if(buf == 0) buf = GetCommandLineA();
+	uint32_t size = strlen(buf);
+	emu_memory_write_block(mem, safe_stringbuf, (void*)buf, size);
+
+	printf("%x\tGetCommandLineA() = %x\n", eip_save, safe_stringbuf );
+	
+	set_ret(safe_stringbuf);
+	emu_cpu_eip_set(cpu, eip_save);
+	return 0;
+}
+
+
+
+	
+
+
+	
 	
 
 

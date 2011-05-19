@@ -1407,6 +1407,8 @@ void set_hooks(struct emu_env *env){
 	ADDHOOK(EnumWindows);
 	ADDHOOK(GetClassNameA);
 	ADDHOOK(fread);
+	ADDHOOK(IsBadReadPtr);
+	ADDHOOK(GetCommandLineA);
 
 
 }
@@ -1985,6 +1987,7 @@ void show_help(void)
 		{"bp", "hexnum"  ,   "set breakpoint on addr or api name (same as -laa <hexaddr> -vvv)"},
 		{"bs", "int"     ,   "break on step (shortcut for -las <int> -vvv)"},
 		{"b0", NULL ,        "break if 00 00 add [eax],al"},
+		{"cmd", "\"string data\"","data to use for GetCommandLineA (use \\\" to embed quotes)"},
 		{"cfo", NULL ,       "CreateFileOverRide - if /fopen use handle else open real arg"},
 		{"d",  NULL	     ,   "dump unpacked shellcode"},
 		{"dir", " folder",   "process all .sc files in <folder> (can be used with -r)"},
@@ -2084,8 +2087,7 @@ void parse_opts(int argc, char* argv[] ){
 	int sl=0;
 	char buf[5];
 
-	memset(&opts,0,sizeof(struct run_time_options));
-
+	opts.opts_parsed = 1;
 	opts.verbosity_onerr = 0;
 	opts.verbosity_after =0;
 	opts.offset = 0;
@@ -2149,6 +2151,15 @@ void parse_opts(int argc, char* argv[] ){
 				exit(0);
 			}
 			opts.patch_file = strdup(argv[i+1]);
+			i++;handled=true;
+		}
+		
+		if(sl==4 && strstr(argv[i],"/cmd") > 0 ){
+			if(i+1 >= argc){
+				printf("Invalid option /cmd command line for GetCommandLineA as next arg\n");
+				exit(0);
+			}
+			opts.cmdline = strdup(argv[i+1]);
 			i++;handled=true;
 		}
 
@@ -2356,7 +2367,8 @@ int main(int argc, char *argv[])
 	disable_mm_logging = true;
 	memset(&emm, 0, sizeof(emm));
 	memset(&mallocs, 0 , sizeof(mallocs));
-	
+	memset(&opts,0,sizeof(struct run_time_options));
+
 	SetConsoleCtrlHandler(ctrl_c_handler, TRUE); //http://msdn.microsoft.com/en-us/library/ms686016
 
 	hCon = GetStdHandle( STD_INPUT_HANDLE );
@@ -2372,14 +2384,14 @@ int main(int argc, char *argv[])
     signal(SIGTERM,restore_terminal);
 	atexit(atexit_restore_terminal);
 
-	parse_opts(argc, argv);
-
 reinit:
 	e = emu_new();
 	cpu = emu_cpu_get(e);
 	mem = emu_memory_get(e);
 	env = emu_env_new(e);
 	
+	if(opts.opts_parsed == 0) parse_opts(argc, argv); //this must happen AFTER emu_env_new for -bp apiname lookup
+
 	//emu_log_level_set( emu_logging_get(e),  EMU_LOG_DEBUG);
 
 	if ( env == 0 ){ printf("%s\n%s\n", emu_strerror(e), strerror(emu_errno(e))); exit(-1);}

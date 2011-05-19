@@ -2,6 +2,7 @@
 
 struct run_time_options
 {
+	int opts_parsed;
 	int cur_step;
 	int verbose;
 	uint32_t steps;
@@ -37,6 +38,7 @@ struct run_time_options
 	char* patch_file;
 	char* scan_dir;
 	bool  CreateFileOverride;
+	char* cmdline;
 
 	struct 
 	{

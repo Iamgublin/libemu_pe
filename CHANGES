@@ -1,7 +1,10 @@
 		Changelog for libemu
 	
 5.19.11
-		- imlemented movsw/movsb with rep support	
+		- imlemented movsw/movsb with rep support
+		- new hooks: IsBadReadPtr, GetCommandLineA	
+		- updated: GetTempFileNameA, GetTempPathA
+		- new option: /cmd for use with GetCommandLineA
 5.18.11
 		- implemented rep for stosw/stosd
 		- implemented Antispam system using win.env->lastApiCalled/lastApiHitCount
