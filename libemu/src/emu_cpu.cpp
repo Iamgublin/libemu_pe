@@ -51,9 +51,9 @@ static uint8_t scalem[] = {
 };
 
 	                      /* 0     1     2     3      4       5       6     7 */
-   const char *eflagm[] = { "CF", "  ", "PF", "  " , "AF"  , "    ", "ZF", "SF", 
-	                        "TF", "IF", "DF", "OF" , "IOPL", "IOPL", "NT", "  ",
-	                        "RF", "VM", "AC", "VIF", "RIP" , "ID"  , "  ", "  ",
+   const char *eflagm[] = { "C", "  ", "P", "  " , "A"  , "    ", "Z", "S", 
+	                        "T", "I", "D", "O" , "IOPL", "IOPL", "NT", "  ",
+	                        "R", "VM", "AC", "VI", "RIP" , "ID"  , "  ", "  ",
 	                        "  ", "  ", "  ", "   ", "    ", "    ", "  ", "  "};
 
 

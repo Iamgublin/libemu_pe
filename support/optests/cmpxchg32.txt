@@ -1,0 +1,30 @@
+[BITS 32]
+[ORG 0]
+
+   push 0
+   popf
+
+   call buf1
+   dd 0x61616161
+buf1
+   pop edx
+   mov ecx ,0x41414141
+   mov eax, 0x61616161
+   cmpxchg [edx],ecx    ;cmp should be successful [edx] <- ecx, PZ flags set
+
+   cmpxchg [edx],ecx    ;cmp should be fail [edx] -> eax, PZ flags cleared
+
+   ;eax should now be 0x41414141, ecx 0x41414141
+   mov edx, 0x62626262
+   cmpxchg edx,ecx      ;cmp fails edx -> eax (eax now 62626262)
+
+   mov ebx, 0x62626262 
+   cmpxchg ebx,ecx      ;cmp successful, ebx <- ecx (ebx now 41414141)
+
+   cmpxchg bx,cx   ;scdbg should barf here 16bit not implemented
+   
+   
+
+
+  
+

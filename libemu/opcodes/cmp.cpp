@@ -61,7 +61,6 @@ INSTR_SET_FLAG_SF(cpu)											\
 INSTR_SET_FLAG_CF(cpu, operation)								\
 INSTR_SET_FLAG_OF(cpu, operation, bits)								
 
-
 int32_t instr_cmp_38(struct emu_cpu *c, struct emu_cpu_instruction *i)
 {
 	/* 38 /r
@@ -508,5 +507,99 @@ int32_t instr_group_1_83_cmp(struct emu_cpu *c, struct emu_cpu_instruction *i)
 									 -)
 		}
 	}
+	return 0;
+}
+
+//dzzie 5.19.11 - http://siyobik.info/main/reference/instruction/CMPXCHG
+/*
+CMPXCHG dest, src 
+Description: Compares the accumulator with dest. If equal the "dest" 
+is loaded with "src", otherwise the accumulator is loaded 
+with "dest".  
+
+cmpxchg affects: ZF, CF, PF, AF, SF, and OF 
+
+INSTR_CALC_AND_SET_FLAGS does not affect the Adjust Flag (and no macro for it?)
+Adjust Flag is bit 4, It is used to indicate when an arithmetic carry or borrow has been generated out of the 4 least significant bits. It is primarily used in BCD arithmetics
+have to do it manually i guess with CPU_FLAG_SET(c,f_af);
+*/
+int32_t instr_cmpxchg_0fb1(struct emu_cpu *c, struct emu_cpu_instruction *i)
+{
+	
+	bool arg1_is_memory = i->modrm.mod != 3 ? true : false;
+	bool sixteenBit     = i->prefixes & PREFIX_OPSIZE ? true : false;
+
+	if ( arg1_is_memory ) 
+	{									
+		if ( sixteenBit )
+		{
+			UNIMPLEMENTED(c, SST);
+			/*uint16_t dst;
+			MEM_WORD_READ(c, i->modrm.ea, &dst);
+			INSTR_CALC_AND_SET_FLAGS(16, 
+									 c, 
+									 dst, 
+									 *c->reg16[ax], 
+									 -)
+
+		    uint16_t rax = *c->reg16[ax];
+			if(rax == dst){
+				MEM_WORD_WRITE(c, i->modrm.ea, *c->reg16[i->modrm.opc]);
+			}else{
+				*c->reg16[ax] = dst;
+			}*/
+
+		}
+		else 
+		{     //32bit memory address for dst
+			uint32_t dst;
+			MEM_DWORD_READ(c, i->modrm.ea, &dst);
+			INSTR_CALC_AND_SET_FLAGS(32, 
+									 c, 
+									 c->reg[eax], 
+									 dst, 
+									 -)
+
+			if(c->reg[eax] == dst){
+				MEM_DWORD_WRITE(c, i->modrm.ea, c->reg[i->modrm.opc]);
+			}else{
+				c->reg[eax] = dst;
+			}
+
+		}
+	}
+	else
+	{
+		if ( sixteenBit ) //CMPXCHG r16/r16
+		{
+			UNIMPLEMENTED(c, SST);
+			/*INSTR_CALC_AND_SET_FLAGS(16, 
+									 c, 
+									 *c->reg16[i->modrm.rm], 
+									 *c->reg16[ax], 
+									 -)
+
+			if(*c->reg16[ax] == *c->reg16[i->modrm.rm]){
+				*c->reg16[i->modrm.rm] = *c->reg16[i->modrm.opc];
+			}else{
+				*c->reg16[ax] = *c->reg16[i->modrm.rm];
+			}*/
+		}
+		else //CMPXCHG r32/r32
+		{
+			INSTR_CALC_AND_SET_FLAGS(32, 
+									 c, 
+									 c->reg[eax], 
+									 c->reg[i->modrm.rm],  
+									 -)
+
+			if(c->reg[eax] == c->reg[i->modrm.rm]){
+				c->reg[i->modrm.rm] = c->reg[i->modrm.opc];
+			}else{
+				c->reg[eax] = c->reg[i->modrm.rm];
+			}
+		}
+	}
+
 	return 0;
 }

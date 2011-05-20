@@ -62,6 +62,7 @@
 
 extern int32_t instr_salc_d6(struct emu_cpu *c, struct emu_cpu_instruction *i);
 extern int32_t instr_movs_a5(struct emu_cpu *c, struct emu_cpu_instruction *i);
+extern int32_t instr_cmpxchg_0fb1(struct emu_cpu *c, struct emu_cpu_instruction *i);
 
 struct emu_cpu_instruction_info ii_onebyte[0x100] = {
 	/* 00 */ {instr_add_00, "add", {0, 0, II_MOD_REG_RM, 0, 0, 0, 0, 0}},
@@ -505,8 +506,8 @@ struct emu_cpu_instruction_info ii_twobyte[0x100] = {
 	/* ad */ {0, 0, {0, 0, 0, 0, 0, 0, 0, 0}},
 	/* ae */ {0, 0, {0, 0, 0, 0, 0, 0, 0, 0}},
 	/* af */ {0, 0, {0, 0, 0, 0, 0, 0, 0, 0}},
-	/* b0 */ {0, 0, {0, 0, 0, 0, 0, 0, 0, 0}},
-	/* b1 */ {0, 0, {0, 0, 0, 0, 0, 0, 0, 0}},
+	/* b0 */ {0, 0, {0, 0, 0, 0, 0, 0, 0, 0}}, //CMPXCHG r/m8, r8  
+	/* b1 */ {instr_cmpxchg_0fb1, "cmpxchg", {0, 0, II_MOD_REG_RM, 0, 0, 0, 0, 0}}, //CMPXCHG r/m16 r/32
 	/* b2 */ {0, 0, {0, 0, 0, 0, 0, 0, 0, 0}},
 	/* b3 */ {0, 0, {0, 0, 0, 0, 0, 0, 0, 0}},
 	/* b4 */ {0, 0, {0, 0, 0, 0, 0, 0, 0, 0}},
