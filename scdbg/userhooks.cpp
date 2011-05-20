@@ -2410,7 +2410,7 @@ int32_t	__stdcall new_user_hook_GetProcAddress(struct emu_env_w32 *win, struct e
 	uint32_t module = popd();
 	struct emu_string *procname = popstring();
 
-	uint32_t ordial = 0;
+	uint32_t ordinal = 0;
 	uint32_t index  = 0;
 	int i;
 	bool invalid = false;
@@ -2422,9 +2422,9 @@ int32_t	__stdcall new_user_hook_GetProcAddress(struct emu_env_w32 *win, struct e
 
 		if ( dll->baseaddr == module )
 		{
-			if( procname->size == 0 ){ //either an error or an ordial
-				ordial = procname->emu_offset;
-				struct emu_hashtable_item *ehi = emu_hashtable_search(dll->exports_by_ordial, (void *)ordial);
+			if( procname->size == 0 ){ //either an error or an ordinal
+				ordinal = procname->emu_offset;
+				struct emu_hashtable_item *ehi = emu_hashtable_search(dll->exports_by_ordinal, (void *)ordinal);
 				if ( ehi == NULL ) break;
 				struct emu_env_w32_dll_export *ex = (struct emu_env_w32_dll_export *)ehi->value;
 				set_ret(dll->baseaddr + ex->virtualaddr);
@@ -2440,10 +2440,10 @@ int32_t	__stdcall new_user_hook_GetProcAddress(struct emu_env_w32 *win, struct e
 		}	
 	}
 
-	if(ordial==0){
+	if(ordinal==0){
 		printf("%x\tGetProcAddress(%s)\n",eip_save, emu_string_char(procname));
 	}else{
-		printf("%x\tGetProcAddress(%s.0x%x) - ordial\n",eip_save, dllFromAddress(module), ordial);
+		printf("%x\tGetProcAddress(%s.0x%x) - ordinal\n",eip_save, dllFromAddress(module), ordinal);
 	}
 
 	if(module == 0 || cpu->reg[eax] == 0 ) printf("\tLookup not found: module base=%x dllName=%s\n", module, dllFromAddress(module) );  
@@ -2689,27 +2689,18 @@ int32_t	__stdcall new_user_hook_VirtualProtect(struct emu_env_w32 *win, struct e
 
 int32_t	__stdcall new_user_hook_accept(struct emu_env_w32 *win, struct emu_env_w32_dll_export *ex)
 {
-	struct emu_cpu *c = emu_cpu_get(win->emu);
-
-	uint32_t eip_save;
-
-	POP_DWORD(c, &eip_save);
-
 /*SOCKET accept(
   SOCKET s,
   struct sockaddr* addr,
   int* addrlen
 );*/
-	uint32_t s;
-	POP_DWORD(c, &s);
-
-	uint32_t addr;
-	POP_DWORD(c, &addr);
+	uint32_t eip_save = popd();
+	uint32_t s  = popd();
+	uint32_t addr = popd();
+	uint32_t addrlen = popd();
+	
 	struct sockaddr sa;
 	emu_memory_read_block(mem, addr, &sa, sizeof(struct sockaddr));
-
-	uint32_t addrlen;
-	POP_DWORD(c, &addrlen);
 
 	uint32_t returnvalue = 0x68;
 	
@@ -2728,27 +2719,20 @@ int32_t	__stdcall new_user_hook_accept(struct emu_env_w32 *win, struct emu_env_w
 	if(returnvalue == SOCKET_ERROR) printf("\tlisten failed with error: %ld\n", WSAGetLastError());
 
 	set_ret(returnvalue);
-	emu_cpu_eip_set(c, eip_save);
+	emu_cpu_eip_set(cpu, eip_save);
 	return 0;
 }
 
 int32_t	__stdcall new_user_hook_bind(struct emu_env_w32 *win, struct emu_env_w32_dll_export *ex)
-{
-	struct emu_cpu *c = emu_cpu_get(win->emu);
-	uint32_t eip_save;
-	POP_DWORD(c, &eip_save);
-	/*int bind(   SOCKET s,  const struct sockaddr* name,  int namelen); */
-	uint32_t s;
-	POP_DWORD(c, &s);
-
-	uint32_t p_name;
-	POP_DWORD(c, &p_name);
+{/*int bind(   SOCKET s,  const struct sockaddr* name,  int namelen); */
+	uint32_t eip_save = popd();
+	uint32_t s = popd();
+	uint32_t p_name = popd();
+	uint32_t namelen = popd();
 	
 	struct sockaddr sa;
 	emu_memory_read_block(mem, p_name, &sa, sizeof(struct sockaddr));
 
-	uint32_t namelen;
-	POP_DWORD(c, &namelen);
 	if (namelen != sizeof(struct sockaddr)) namelen = sizeof(struct sockaddr);
 
 	uint32_t returnvalue = 21 ;
@@ -2757,17 +2741,15 @@ int32_t	__stdcall new_user_hook_bind(struct emu_env_w32 *win, struct emu_env_w32
 	printf("%x\tbind(h=%x, port:%d, sz=%x) = %x\n",eip_save, s, get_client_port(&sa),namelen, returnvalue );
 
 	set_ret(returnvalue);
-	emu_cpu_eip_set(c, eip_save);
+	emu_cpu_eip_set(cpu, eip_save);
 	return 0;
 }
 
 int32_t	__stdcall new_user_hook_closesocket(struct emu_env_w32 *win, struct emu_env_w32_dll_export *ex)
 {   /*int closesocket(SOCKET s);*/
-	uint32_t eip_save;
-	uint32_t s;
+	uint32_t eip_save = popd();
+	uint32_t s = popd();
 	uint32_t returnvalue = 0;
-	POP_DWORD(cpu, &eip_save);
-	POP_DWORD(cpu, &s);
 	printf("%x\tclosesocket(h=%x)\n",eip_save, s );
 	if(opts.interactive_hooks == 1 ) returnvalue = closesocket((SOCKET)s);
 	set_ret(returnvalue);
@@ -2777,17 +2759,13 @@ int32_t	__stdcall new_user_hook_closesocket(struct emu_env_w32 *win, struct emu_
 
 int32_t	__stdcall new_user_hook_connect(struct emu_env_w32 *win, struct emu_env_w32_dll_export *ex)
 {	/* int connect(  SOCKET s,  const struct sockaddr* name,  int namelen)*/
-	struct emu_cpu *c = emu_cpu_get(win->emu);
-	uint32_t eip_save;
-	POP_DWORD(c, &eip_save);
-	uint32_t s;
-	POP_DWORD(c, &s);
-	uint32_t p_name;
-	POP_DWORD(c, &p_name);
+	uint32_t eip_save = popd();
+	uint32_t s = popd();
+	uint32_t p_name = popd();
+	uint32_t namelen = popd();
+
 	struct sockaddr sa;
 	emu_memory_read_block(emu_memory_get(win->emu), p_name, &sa, sizeof(struct sockaddr));
-	uint32_t namelen;
-	POP_DWORD(c, &namelen);
 	
 	if (opts.override.connect.host != NULL ){
 		struct sockaddr_in *si = (struct sockaddr_in *)&sa;
@@ -2809,21 +2787,15 @@ int32_t	__stdcall new_user_hook_connect(struct emu_env_w32 *win, struct emu_env_
 
 	printf("%x\tconnect(h=%x, host: %s , port: %d ) = %x\n",eip_save, s, get_client_ip(&sa), get_client_port(&sa), cpu->reg[eax]  );
 
-	emu_cpu_eip_set(c, eip_save);
+	emu_cpu_eip_set(cpu, eip_save);
 	return 0;
 }
 
 int32_t	__stdcall new_user_hook_listen(struct emu_env_w32 *win, struct emu_env_w32_dll_export *ex)
-{
-	struct emu_cpu *c = emu_cpu_get(win->emu);
-	uint32_t eip_save;
-	POP_DWORD(c, &eip_save);
-	/*int listen(   SOCKET s,  int backlog);*/
-	uint32_t s;
-	POP_DWORD(c, &s);
-
-	uint32_t backlog;
-	POP_DWORD(c, &backlog);
+{/*int listen(   SOCKET s,  int backlog);*/
+	uint32_t eip_save = popd();
+	uint32_t s = popd();
+	uint32_t backlog = popd();
 
 	uint32_t returnvalue = 0x21;	
 	if(opts.interactive_hooks == 1 ) returnvalue = listen((SOCKET)s, backlog);
@@ -2831,28 +2803,17 @@ int32_t	__stdcall new_user_hook_listen(struct emu_env_w32 *win, struct emu_env_w
 	printf("%x\tlisten(h=%x) = %x\n",eip_save,s,returnvalue);
 
 	set_ret(returnvalue);
-	emu_cpu_eip_set(c, eip_save);
+	emu_cpu_eip_set(cpu, eip_save);
 	return 0;
 }
 
 int32_t	__stdcall new_user_hook_recv(struct emu_env_w32 *win, struct emu_env_w32_dll_export *ex)
-{
-	struct emu_cpu *c = emu_cpu_get(win->emu);
-	uint32_t eip_save;
-	POP_DWORD(c, &eip_save);
-	/*int recv(  SOCKET s,  char* buf,  int len,  int flags);*/
-
-	uint32_t s;
-	POP_DWORD(c, &s);
-
-	uint32_t buf;
-	POP_DWORD(c, &buf);
-
-	uint32_t len;
-	POP_DWORD(c, &len);
-
-	uint32_t flags;
-	POP_DWORD(c, &flags);
+{/*int recv(  SOCKET s,  char* buf,  int len,  int flags);*/
+	uint32_t eip_save = popd();
+	uint32_t s = popd();
+	uint32_t buf = popd();
+	uint32_t len = popd();
+	uint32_t flags = popd();
 
 	if (len > 4096){
 		printf("\tlen being reset to 4096 from %x\n", len);
@@ -2879,27 +2840,17 @@ int32_t	__stdcall new_user_hook_recv(struct emu_env_w32 *win, struct emu_env_w32
 	
 	set_ret(returnvalue);
 	free(buffer);
-	emu_cpu_eip_set(c, eip_save);
+	emu_cpu_eip_set(cpu, eip_save);
 	return 0;
 }
 
 int32_t	__stdcall new_user_hook_send(struct emu_env_w32 *win, struct emu_env_w32_dll_export *ex)
-{
-	struct emu_cpu *c = emu_cpu_get(win->emu);
-	uint32_t eip_save;
-	POP_DWORD(c, &eip_save);
-	/*int send(  SOCKET s,  const char* buf,  int len,  int flags);*/
-	uint32_t s;
-	POP_DWORD(c, &s);
-
-	uint32_t p_buf;
-	POP_DWORD(c, &p_buf);
-
-	uint32_t len;
-	POP_DWORD(c, &len);
-
-	uint32_t flags;
-	POP_DWORD(c, &flags);
+{/*int send(  SOCKET s,  const char* buf,  int len,  int flags);*/
+	uint32_t eip_save = popd();
+	uint32_t s = popd();
+	uint32_t p_buf = popd();
+	uint32_t len = popd();
+	uint32_t flags = popd();
 
 	if(len > MAX_ALLOC){
 		printf("\tAllocation > MAX_ALLOC adjusting...\n");
@@ -2920,26 +2871,22 @@ int32_t	__stdcall new_user_hook_send(struct emu_env_w32 *win, struct emu_env_w32
 
 	set_ret(returnvalue);
 	free(buffer);
-	emu_cpu_eip_set(c, eip_save);
+	emu_cpu_eip_set(cpu, eip_save);
 	return 0;
 }
 
 
 
 int32_t	__stdcall new_user_hook_sendto(struct emu_env_w32 *win, struct emu_env_w32_dll_export *ex)
-{
-	struct emu_cpu *c = emu_cpu_get(win->emu);
-	uint32_t eip_save;
-	POP_DWORD(c, &eip_save);
-	/*int sendto(  SOCKET s,  const char* buf,  int len,  int flags,  const struct sockaddr* to,  int tolen);*/
-	uint32_t s;
-	POP_DWORD(c, &s);
+{/*int sendto(  SOCKET s,  const char* buf,  int len,  int flags,  const struct sockaddr* to,  int tolen);*/
 
-	uint32_t p_buf;
-	POP_DWORD(c, &p_buf);
-
-	uint32_t len;
-	POP_DWORD(c, &len);
+	uint32_t eip_save = popd();
+	uint32_t s = popd();
+	uint32_t p_buf = popd();
+	uint32_t len = popd();
+	uint32_t flags = popd();
+	uint32_t p_to = popd();
+	uint32_t tolen = popd();
 
 	if(len > MAX_ALLOC){
 		printf("\tAllocation > MAX_ALLOC adjusting...\n");
@@ -2949,17 +2896,8 @@ int32_t	__stdcall new_user_hook_sendto(struct emu_env_w32 *win, struct emu_env_w
 	char *buffer = (char *)malloc(len);
 	emu_memory_read_block(emu_memory_get(win->emu), p_buf, buffer, len);
 
-	uint32_t flags;
-	POP_DWORD(c, &flags);
-
-	uint32_t p_to;
-	POP_DWORD(c, &p_to);
-
 	struct sockaddr sa;
 	emu_memory_read_block(emu_memory_get(win->emu), p_to, &sa, sizeof(struct sockaddr));
-
-	uint32_t tolen;
-	POP_DWORD(c, &tolen);
 
 	uint32_t returnvalue = len;	
 	printf("%x\tsendto(h=%x, buf=%x, host: %s, port: %x)\n",eip_save, s, p_buf, get_client_ip(&sa), get_client_port(&sa) );
@@ -2968,25 +2906,17 @@ int32_t	__stdcall new_user_hook_sendto(struct emu_env_w32 *win, struct emu_env_w
 
 	set_ret(returnvalue);
 	free(buffer);
-	emu_cpu_eip_set(c, eip_save);
+	emu_cpu_eip_set(cpu, eip_save);
 	return 0;
 }
 
 
 int32_t	__stdcall new_user_hook_socket(struct emu_env_w32 *win, struct emu_env_w32_dll_export *ex)
-{
-	struct emu_cpu *c = emu_cpu_get(win->emu);
-	uint32_t eip_save;
-	POP_DWORD(c, &eip_save);
-	/*SOCKET WSAAPI socket(  int af,  int type,  int protocol);*/
-	uint32_t af;
-	POP_DWORD(c, &af);
-
-	uint32_t type;
-	POP_DWORD(c, &type);
-
-	uint32_t protocol;
-	POP_DWORD(c, &protocol);
+{/*SOCKET WSAAPI socket(  int af,  int type,  int protocol);*/
+	uint32_t eip_save = popd();
+	uint32_t af = popd();
+	uint32_t type = popd();
+	uint32_t protocol = popd();
 
 	uint32_t returnvalue = 65;
 	if(opts.interactive_hooks == 1 ){
@@ -2996,7 +2926,7 @@ int32_t	__stdcall new_user_hook_socket(struct emu_env_w32 *win, struct emu_env_w
 	printf("%x\tsocket(%i, %i, %i) = %x\n",eip_save, af, type, protocol, returnvalue);
 
 	set_ret(returnvalue);
-	emu_cpu_eip_set(c, eip_save);
+	emu_cpu_eip_set(cpu, eip_save);
 	return 0;
 }
 
@@ -3004,62 +2934,42 @@ int32_t	__stdcall new_user_hook_socket(struct emu_env_w32 *win, struct emu_env_w
 
 int32_t	__stdcall new_user_hook_WSASocketA(struct emu_env_w32 *win, struct emu_env_w32_dll_export *ex)
 {
-	struct emu_cpu *c = emu_cpu_get(win->emu);
-	uint32_t eip_save;
-	POP_DWORD(c, &eip_save);
 /* SOCKET WSASocket(
-  int af,
-  int type,
-  int protocol,
-  LPWSAPROTOCOL_INFO lpProtocolInfo,
-  GROUP g,
-  DWORD dwFlags
+	  int af,
+	  int type,
+	  int protocol,
+	  LPWSAPROTOCOL_INFO lpProtocolInfo,
+	  GROUP g,
+	  DWORD dwFlags
 ); */
-	uint32_t af;
-	POP_DWORD(c, &af);
-
-	uint32_t type;
-	POP_DWORD(c, &type);
-
-	uint32_t protocol;
-	POP_DWORD(c, &protocol);
-
-	uint32_t protocolinfo;
-	POP_DWORD(c, &protocolinfo);
-
-	uint32_t group;
-	POP_DWORD(c, &group);
-
-	uint32_t flags;
-	POP_DWORD(c, &flags);
-
+	uint32_t eip_save = popd();
+	uint32_t af = popd();
+	uint32_t type = popd();
+	uint32_t protocol = popd();
+	uint32_t protocolinfo = popd();
+	uint32_t group = popd();
+	uint32_t flags  = popd();
+	
 	uint32_t returnvalue = 66;
 	printf("%x\tWSASocket(af=%i, tp=%i, proto=%i, group=%i, flags=%i)\n", eip_save, af, type, protocol,group,flags);
 
 	if(opts.interactive_hooks == 1 ) returnvalue = socket(af, type, protocol);
 
 	set_ret(returnvalue);
-	emu_cpu_eip_set(c, eip_save);
+	emu_cpu_eip_set(cpu, eip_save);
 	return 0;
 }
 
 
 
 int32_t	__stdcall new_user_hook_WSAStartup(struct emu_env_w32 *win, struct emu_env_w32_dll_export *ex)
-{
-	struct emu_cpu *c = emu_cpu_get(win->emu);
-	uint32_t eip_save;
-	POP_DWORD(c, &eip_save);
-	/*int WSAStartup(  WORD wVersionRequested,  LPWSADATA lpWSAData);*/
-	uint32_t wsaversionreq;
-	POP_DWORD(c, &wsaversionreq);
-	uint32_t wsadata;
-	POP_DWORD(c, &wsadata);
-
+{/*int WSAStartup(  WORD wVersionRequested,  LPWSADATA lpWSAData);*/
+	uint32_t eip_save = popd();
+	uint32_t wsaversionreq = popd();
+	uint32_t wsadata = popd();
 	printf("%x\tWSAStartup(%x)\n", eip_save, wsaversionreq);
-
 	set_ret(0);
-	emu_cpu_eip_set(c, eip_save);
+	emu_cpu_eip_set(cpu, eip_save);
 	return 0;
 }
 
@@ -3149,8 +3059,6 @@ int32_t	__stdcall new_user_hook_WideCharToMultiByte(struct emu_env_w32 *win, str
 
 int32_t	__stdcall new_user_hook_GetLogicalDriveStringsA(struct emu_env_w32 *win, struct emu_env_w32_dll_export *ex)
 {
-	uint32_t a[10] = {0,0,0,0,0,0,0,0,0,0};
-	loadargs(2, a);
 	/*
 		DWORD WINAPI GetLogicalDriveStrings(
 		  __in   DWORD nBufferLength,
@@ -3159,8 +3067,9 @@ int32_t	__stdcall new_user_hook_GetLogicalDriveStringsA(struct emu_env_w32 *win,
 	*/
 
 	uint32_t rv = 0;
-	uint32_t bufIn = a[2];
-	uint32_t bufInSz = a[1];
+	uint32_t eip_save = popd();
+	uint32_t bufInSz = popd();
+	uint32_t bufIn = popd();
 	
 	//a: c: 613A0063 3A 00 00 00
 	if( bufInSz >=8){
@@ -3169,10 +3078,10 @@ int32_t	__stdcall new_user_hook_GetLogicalDriveStringsA(struct emu_env_w32 *win,
 		rv = 8;
 	}
 
-	printf("%x\tGetLogicalDriveStringsA(sz=%x, buf=%x) = %x\n", a[0], a[1] ,a[2],rv);
+	printf("%x\tGetLogicalDriveStringsA(sz=%x, buf=%x) = %x\n", eip_save, bufInSz , bufIn ,rv);
 
 	set_ret(rv);
-	emu_cpu_eip_set(cpu, a[0]);
+	emu_cpu_eip_set(cpu, eip_save);
 	return 0;
 }
 
@@ -3251,7 +3160,7 @@ int32_t	__stdcall new_user_hook_FindFirstFileA(struct emu_env_w32 *win, struct e
 }
 
 int32_t	__stdcall new_user_hook_shdocvw65(struct emu_env_w32 *win, struct emu_env_w32_dll_export *ex)
-{   //ordial 101 = IEWinMain http://www.kakeeware.com/i_launchie.php
+{   //ordinal 101 = IEWinMain http://www.kakeeware.com/i_launchie.php
 	//since k32 opcodes are from live mem and not static, we dont control compiled in GetCommandLineW string pointer
 	//unless we patch it in, which might be a good idea if they use it (see link above)
 	uint32_t eip_save = popd();
@@ -3370,29 +3279,12 @@ int32_t	__stdcall new_user_hook_GetFileSize(struct emu_env_w32 *win, struct emu_
 	else
 		ret_val = GetFileSize( (HANDLE)hFile, &sizeHigh) + opts.adjust_getfsize;
 		
-	//i hate spam...
-	/* 
-	if( (last_GetSizeFHand+1) == hFile || (last_GetSizeFHand+4) == hFile){ 
-		if(!gfs_scan_warn){
-			printf("%x\tGetFileSize(%x) - open file handle scanning occuring - hiding output...\n",eip_save, hFile);
-			gfs_scan_warn = true;
-		}
-		nolog = true;
-	}else{
-		gfs_scan_warn = false;
-	}
-	last_GetSizeFHand = hFile;
-	 
-	if(!nolog) printf("%x\tGetFileSize(%x, %x) = %x\n", eip_save, hFile, lpSizeHigh, ret_val );
-	*/
-
 	bool isSpam = strcmp(win->lastApiCalled, "GetFileSize") == 0 ? true : false;
 
 	if(!isSpam || (isSpam && win->lastApiHitCount == 2) )
 		printf("%x\tGetFileSize(%x, %x) = %x\n", eip_save, hFile, lpSizeHigh, ret_val );
 	
 	if(isSpam && win->lastApiHitCount == 2) printf("\topen file handle scanning occuring - hiding output\n");
-
 
 	if(lpSizeHigh!=0) emu_memory_write_dword(mem, lpSizeHigh, sizeHigh);
 	

@@ -71,9 +71,9 @@ void emu_env_w32_free(struct emu_env_w32 *env);
 int32_t emu_env_w32_load_dll(struct emu_env_w32 *env, char *path);
 
 //added dzzie 5.10.11
-int32_t emu_env_w32_export_new_hook_ordial(struct emu_env *env,
+int32_t emu_env_w32_export_new_hook_ordinal(struct emu_env *env,
 								const char *dllname,
-								uint32_t ordial,
+								uint32_t ordinal,
 								int32_t	(__stdcall *fnhook)(struct emu_env_w32 *win, struct emu_env_w32_dll_export *ex)
 								);
 //added dzzie 1-23-11

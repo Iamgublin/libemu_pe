@@ -46,7 +46,7 @@ struct emu_env_w32_dll
 	//struct emu_env_hook *hooks;
 	struct emu_hashtable *exports_by_fnptr;
 	struct emu_hashtable *exports_by_fnname;
-	struct emu_hashtable *exports_by_ordial;
+	struct emu_hashtable *exports_by_ordinal;
 };
 
 struct emu_env_w32_dll *emu_env_w32_dll_new(void);

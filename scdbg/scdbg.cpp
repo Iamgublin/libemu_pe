@@ -1350,7 +1350,7 @@ void set_hooks(struct emu_env *env){
 	emu_env_w32_export_new_hook(env, "InternetOpenUrlA", new_user_hook_GenericStub2String, NULL);
 	emu_env_w32_export_new_hook(env, "SHRegGetBoolUSValueA", new_user_hook_GenericStub2String, NULL);
 
-	emu_env_w32_export_new_hook_ordial(env, "shdocvw", 0x65, new_user_hook_shdocvw65);
+	emu_env_w32_export_new_hook_ordinal(env, "shdocvw", 0x65, new_user_hook_shdocvw65);
 
 	//conversions from dll
     #define ADDHOOK(name) emu_env_w32_export_new_hook(env, #name, new_user_hook_##name, NULL);
@@ -1777,7 +1777,7 @@ int run_sc(void)
 				//insert generic api handler here
 				start_color(myellow);
 				if( strlen(ex->fnname) == 0)
-					printf("%x\tunhooked call to ordial %s.0x%x\tstep=%d\n", previous_eip , dllFromAddress(cpu->eip), ex->ordial, opts.cur_step );
+					printf("%x\tunhooked call to ordinal %s.0x%x\tstep=%d\n", previous_eip , dllFromAddress(cpu->eip), ex->ordinal, opts.cur_step );
 				else
 					printf("%x\tunhooked call to %s.%s\tstep=%d\n", previous_eip, dllFromAddress(cpu->eip), ex->fnname, opts.cur_step );
 				end_color();
@@ -2060,7 +2060,7 @@ void show_supported_hooks(void){
 			if( e.fnhook != 0 ){
 				if( IsBadReadPtr(e.fnname ,4) ) break;//for some reason the last null element is optimized out or something?
 				if( strlen(e.fnname) == 0)
-					printf("\t@%x\r\n", e.ordial);
+					printf("\t@%x\r\n", e.ordinal);
 				else
 					printf("\t%s\r\n", e.fnname);
 				tot++;

@@ -521,9 +521,9 @@ struct emu_env_w32_dll_export *emu_env_w32_eip_check(struct emu_env *env)
 	return NULL;
 }
 
-int32_t emu_env_w32_export_new_hook_ordial(struct emu_env *env,
+int32_t emu_env_w32_export_new_hook_ordinal(struct emu_env *env,
 								const char *dllname,
-								uint32_t ordial,
+								uint32_t ordinal,
 								int32_t	(__stdcall *fnhook)(struct emu_env_w32 *win, struct emu_env_w32_dll_export *ex)
 								)
 {
@@ -534,7 +534,7 @@ int32_t emu_env_w32_export_new_hook_ordial(struct emu_env *env,
 
 		if (strncmp(dll->dllname, dllname, strlen(dll->dllname)) == 0)
 		{
-			struct emu_hashtable_item *ehi = emu_hashtable_search(dll->exports_by_ordial, (void *)ordial);
+			struct emu_hashtable_item *ehi = emu_hashtable_search(dll->exports_by_ordinal, (void *)ordinal);
 			
 			if (ehi != NULL)
 			{
@@ -550,7 +550,7 @@ int32_t emu_env_w32_export_new_hook_ordial(struct emu_env *env,
 		numdlls++;
 	}
  
-	printf("hooking ordial failed for %s.0x%x\n", dllname, ordial);
+	printf("hooking ordinal failed for %s.0x%x\n", dllname, ordinal);
  
 	return -1;
 }

@@ -529,7 +529,7 @@ int32_t instr_cmpxchg_0fb1(struct emu_cpu *c, struct emu_cpu_instruction *i)
 	bool arg1_is_memory = i->modrm.mod != 3 ? true : false;
 	bool sixteenBit     = i->prefixes & PREFIX_OPSIZE ? true : false;
 
-	if ( arg1_is_memory ) 
+	if ( arg1_is_memory )  
 	{									
 		if ( sixteenBit )
 		{
