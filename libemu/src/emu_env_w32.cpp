@@ -466,19 +466,19 @@ struct emu_env_w32_dll_export *emu_env_w32_eip_check(struct emu_env *env)
 	uint32_t eip = emu_cpu_eip_get(emu_cpu_get(env->emu));
 
 	int numdlls=0;
-	while ( env->env.win->loaded_dlls[numdlls] != NULL )
+	while ( env->win->loaded_dlls[numdlls] != NULL )
 	{
 		/*printf("w32eip_check 0x%08x %s 0x%08x - 0x%08x \n",
 			   eip,
-			   env->env.win->loaded_dlls[numdlls]->dllname,
-			   env->env.win->loaded_dlls[numdlls]->baseaddr,
-			   env->env.win->loaded_dlls[numdlls]->baseaddr + env->env.win->loaded_dlls[numdlls]->imagesize);*/
+			   env->win->loaded_dlls[numdlls]->dllname,
+			   env->win->loaded_dlls[numdlls]->baseaddr,
+			   env->win->loaded_dlls[numdlls]->baseaddr + env->win->loaded_dlls[numdlls]->imagesize);*/
 
-		if ( eip > env->env.win->loaded_dlls[numdlls]->baseaddr && 
-			 eip < env->env.win->loaded_dlls[numdlls]->baseaddr + env->env.win->loaded_dlls[numdlls]->imagesize )
+		if ( eip > env->win->loaded_dlls[numdlls]->baseaddr && 
+			 eip < env->win->loaded_dlls[numdlls]->baseaddr + env->win->loaded_dlls[numdlls]->imagesize )
 		{
-			logDebug(env->env.win->emu, "eip %08x is within %s\n",eip, env->env.win->loaded_dlls[numdlls]->dllname);
-			struct emu_env_w32_dll *dll = env->env.win->loaded_dlls[numdlls];
+			logDebug(env->emu, "eip %08x is within %s\n",eip, env->win->loaded_dlls[numdlls]->dllname);
+			struct emu_env_w32_dll *dll = env->win->loaded_dlls[numdlls];
 
 			struct emu_hashtable_item *ehi = emu_hashtable_search(dll->exports_by_fnptr, (void *)(uintptr_t)(eip - dll->baseaddr));
 			//void* ehi= NULL;
@@ -496,15 +496,15 @@ struct emu_env_w32_dll_export *emu_env_w32_eip_check(struct emu_env *env)
 
 			if (ex->fnhook != NULL )
 			{
-				bool isSpam = strcmp(env->env.win->lastApiCalled, ex->fnname) == 0 ? true : false ;
-				if(isSpam) env->env.win->lastApiHitCount++;
+				bool isSpam = strcmp(env->win->lastApiCalled, ex->fnname) == 0 ? true : false ;
+				if(isSpam) env->win->lastApiHitCount++;
 				
-				ex->fnhook(env, ex);
+				ex->fnhook(env->win , ex);
 
 				if(!isSpam){
-					free( env->env.win->lastApiCalled );
-					env->env.win->lastApiCalled = strdup(ex->fnname);
-					env->env.win->lastApiHitCount = 1;
+					free( env->win->lastApiCalled );
+					env->win->lastApiCalled = strdup(ex->fnname);
+					env->win->lastApiHitCount = 1;
 				}
 				 
 				return ex;
@@ -524,13 +524,13 @@ struct emu_env_w32_dll_export *emu_env_w32_eip_check(struct emu_env *env)
 int32_t emu_env_w32_export_new_hook_ordial(struct emu_env *env,
 								const char *dllname,
 								uint32_t ordial,
-								int32_t	(__stdcall *fnhook)(struct emu_env *env, struct emu_env_w32_dll_export *ex)
+								int32_t	(__stdcall *fnhook)(struct emu_env_w32 *win, struct emu_env_w32_dll_export *ex)
 								)
 {
 	int numdlls=0;
-	while ( env->env.win->loaded_dlls[numdlls] != NULL )
+	while ( env->win->loaded_dlls[numdlls] != NULL )
 	{
-		struct emu_env_w32_dll* dll = env->env.win->loaded_dlls[numdlls];
+		struct emu_env_w32_dll* dll = env->win->loaded_dlls[numdlls];
 
 		if (strncmp(dll->dllname, dllname, strlen(dll->dllname)) == 0)
 		{
@@ -561,15 +561,15 @@ int32_t emu_env_w32_export_new_hook_ordial(struct emu_env *env,
 //-----------------------------------------------------------------------
 int32_t emu_env_w32_export_new_hook(struct emu_env *env,
 								const char *exportname, 
-								int32_t	(__stdcall *fnhook)(struct emu_env *env, struct emu_env_w32_dll_export *ex),
+								int32_t	(__stdcall *fnhook)(struct emu_env_w32 *win, struct emu_env_w32_dll_export *ex),
 								void *userdata)
 {
 	int numdlls=0;
-	while ( env->env.win->loaded_dlls[numdlls] != NULL )
+	while ( env->win->loaded_dlls[numdlls] != NULL )
 	{
 		if (1)//dllname == NULL || strncasecmp(env->loaded_dlls[numdlls]->dllname, dllname, strlen(env->loaded_dlls[numdlls]->dllname)) == 0)
 		{
-			struct emu_hashtable_item *ehi = emu_hashtable_search(env->env.win->loaded_dlls[numdlls]->exports_by_fnname, (void *)exportname);
+			struct emu_hashtable_item *ehi = emu_hashtable_search(env->win->loaded_dlls[numdlls]->exports_by_fnname, (void *)exportname);
 			
 			if (ehi != NULL)
 			{

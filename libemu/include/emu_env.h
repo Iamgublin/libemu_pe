@@ -101,16 +101,8 @@ struct emu_env_hook
 
 struct emu_env
 {
-	struct
-	{
-		struct emu_env_w32   *win;
-		//struct emu_env_linux *lin;
-	} env;
-
-
+	struct emu_env_w32 *win;
 	struct emu *emu;
-//	struct env_helper *envs;
-//	struct emu_profile *profile;
 	void *userdata;
 };
 

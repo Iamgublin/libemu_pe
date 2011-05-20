@@ -38,7 +38,7 @@ namespace c_sharp
             public uint userdata;
         }
 
-        public delegate UInt32 ApiHookProc(UInt32 hEnv, UInt32 hHook);
+        public delegate UInt32 ApiHookProc(UInt32 hWin, UInt32 hHook);
 
         public enum emu_reg32{eax = 0,ecx,edx,ebx,esp,ebp,esi,edi}
 
@@ -125,7 +125,7 @@ namespace c_sharp
       private static extern 
       UInt32 emu_env_w32_export_new_hook(UInt32 hEnv, string ExportName, ApiHookProc ah, UInt32 userData);
       
-    private static  UInt32 hook_LoadLibraryA(UInt32 hEnv, UInt32 hExport)
+    private static  UInt32 hook_LoadLibraryA(UInt32 hWin, UInt32 hExport)
     {
         uint eip_save = POP_DWORD();
         uint p_dll = POP_DWORD();

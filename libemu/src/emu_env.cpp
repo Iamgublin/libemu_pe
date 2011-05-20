@@ -38,7 +38,7 @@ struct emu_env *emu_env_new(struct emu *e)
 	struct emu_env *env = (struct emu_env*)malloc(sizeof(struct emu_env));
 	memset(env, 0, sizeof(struct emu_env));
 	//env->env.lin = emu_env_linux_new(e);
-	env->env.win = emu_env_w32_new(e);
+	env->win = emu_env_w32_new(e);
 	env->emu = e;
 //	env->profile = NULL;//emu_profile_new();
 	return env;
@@ -47,7 +47,7 @@ struct emu_env *emu_env_new(struct emu *e)
 
 void emu_env_free(struct emu_env *env)
 {
-	emu_env_w32_free(env->env.win);
+	emu_env_w32_free(env->win);
 	//emu_env_linux_free(env->env.lin);
 //	if (env->profile != NULL)
 //		emu_profile_free(env->profile);

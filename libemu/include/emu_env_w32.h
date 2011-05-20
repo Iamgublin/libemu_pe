@@ -44,17 +44,8 @@ struct emu_env_hook;
  */
 struct emu_env_w32
 {
-	/**
-	 * pointer to the emu
-	 */
 	struct emu *emu;
-	/**
-	 * array of pointers to the dlls loaded to memory
-	 */
 	struct emu_env_w32_dll **loaded_dlls;
-	/**
-	 * the baseaddress for the env
-	 */
 	uint32_t	baseaddr;
 	char*		lastApiCalled;   //used for filtering spammy calls dzzie 5.18.11
 	uint32_t    lastApiHitCount;
@@ -83,15 +74,13 @@ int32_t emu_env_w32_load_dll(struct emu_env_w32 *env, char *path);
 int32_t emu_env_w32_export_new_hook_ordial(struct emu_env *env,
 								const char *dllname,
 								uint32_t ordial,
-								int32_t	(__stdcall *fnhook)(struct emu_env *env, struct emu_env_w32_dll_export *ex)
+								int32_t	(__stdcall *fnhook)(struct emu_env_w32 *win, struct emu_env_w32_dll_export *ex)
 								);
 //added dzzie 1-23-11
 int32_t emu_env_w32_export_new_hook(struct emu_env *env,
 								const char *exportname, 
-								int32_t (__stdcall *fnhook)(struct emu_env *env, struct emu_env_w32_dll_export *ex),
+								int32_t (__stdcall *fnhook)(struct emu_env_w32 *win, struct emu_env_w32_dll_export *ex),
 								void *userdata);
-
-//void emu_env_w32_generic_api_handler(uint32_t lpfnCallback); //dzzie 4.27.11
 
 /**
  * Check if eip is within a loaded dll,

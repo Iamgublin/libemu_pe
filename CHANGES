@@ -5,6 +5,7 @@
 		- new hooks: IsBadReadPtr, GetCommandLineA	
 		- updated: GetTempFileNameA, GetTempPathA
 		- new option: /cmd for use with GetCommandLineA
+		- hooks now receive emu_env_w32 instead of emu_env and emu_env.env removed
 5.18.11
 		- implemented rep for stosw/stosd
 		- implemented Antispam system using win.env->lastApiCalled/lastApiHitCount
@@ -198,7 +199,7 @@
    the cmd prompts stdout and stderr is written to a socketpair, which is read by the spy process, and gets written to the connection
    the process id returned by CreateProcess(cmd) is the spy's process id, so WaitForSingleObject waits for the spy process to exit
    the spy process exists if the cmd prompt ends (the socketpair gets closed), the connection gets closed, or we hit a timeout
- - fix bug introduced by making profiles optional, env->env.win->loaded_dlls[i]->baseaddr is invalid if we found it, as the loop does not stop
+ - fix bug introduced by making profiles optional, env->win->loaded_dlls[i]->baseaddr is invalid if we found it, as the loop does not stop
  - hook URLDownloadToFile in sctest
  - allow hooking URLDwnloadToFile
  - sctest, use the optional profiling

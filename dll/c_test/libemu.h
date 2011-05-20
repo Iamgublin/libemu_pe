@@ -210,17 +210,19 @@ struct emu
 	char 	*errorstr;
 };
 
+
 struct emu_env_w32_dll_export
 {
 	char 		*fnname;
 	uint32_t 	virtualaddr;
-    int32_t		(__stdcall *fnhook)(struct emu_env *env, struct emu_env_w32_dll_export *ex);
+    int32_t		(__stdcall *fnhook)(struct emu_env_w32 *win, struct emu_env_w32_dll_export *ex);
 	void 		*userdata;
+	uint32_t	ordial;
 	//uint32_t	(*userhook)(struct emu_env *env, struct emu_env_hook *hook, ...);
 };
 
 
-/*struct emu_env_w32_dll
+struct emu_env_w32_dll
 {
 	char 		*dllname;
 
@@ -230,23 +232,24 @@ struct emu_env_w32_dll_export
 	uint32_t	baseaddr;
 
 	struct emu_env_w32_dll_export *exportx;
-	//struct emu_env_hook *hooks;
-	struct emu_hashtable *exports_by_fnptr;
-	struct emu_hashtable *exports_by_fnname;
-};*/
+	/*struct emu_hashtable*/ void *exports_by_fnptr;    //havent done the hashtable defs yet in this .h
+	/*struct emu_hashtable*/ void *exports_by_fnname;
+	/*struct emu_hashtable*/ void *exports_by_ordial;
+};
+
+struct emu_env_w32
+{
+	struct emu *emu;
+	struct emu_env_w32_dll **loaded_dlls;
+	uint32_t	baseaddr;
+	char*		lastApiCalled;   //used for filtering spammy calls dzzie 5.18.11
+	uint32_t    lastApiHitCount;
+};
 
 struct emu_env
 {
-	struct
-	{
-		struct emu_env_w32   *win;
-		//struct emu_env_linux *lin;
-	} env;
-
-
+	struct emu_env_w32   *win;
 	struct emu *emu;
-//	struct env_helper *envs;
-//	struct emu_profile *profile;
 	void *userdata;
 };
 
@@ -341,7 +344,7 @@ int32_t emu_env_w32_load_dll(struct emu_env_w32 *env, char *path);
 
 int32_t emu_env_w32_export_new_hook(struct emu_env *env,
 								const char *exportname, 
-								int32_t (__stdcall *fnhook)(struct emu_env *env, struct emu_env_w32_dll_export *ex),
+								int32_t (__stdcall *fnhook)(struct emu_env_w32 *win, struct emu_env_w32_dll_export *ex),
 								void *userdata);
 
 

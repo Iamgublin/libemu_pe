@@ -438,8 +438,8 @@ void mm_range_callback(char id, char mode, uint32_t address){
 
 char* dllFromAddress(uint32_t addr){
 	int numdlls=0;
-	while ( env->env.win->loaded_dlls[numdlls] != 0 ){
-		struct emu_env_w32_dll *dll = env->env.win->loaded_dlls[numdlls]; 
+	while ( env->win->loaded_dlls[numdlls] != 0 ){
+		struct emu_env_w32_dll *dll = env->win->loaded_dlls[numdlls]; 
 		if( addr >= dll->baseaddr && addr <= (dll->baseaddr + dll->imagesize) ){
 			return dll->dllname;
 		}
@@ -453,8 +453,8 @@ uint32_t symbol2addr(char* symbol){
 	if(strcmp(symbol,"peb") == 0) return 0x00251ea0;
 	if(strcmp(symbol,"fs0") == 0) return FS_SEGMENT_DEFAULT_OFFSET;
 	int numdlls=0;
-	while ( env->env.win->loaded_dlls[numdlls] != 0 ){
-		struct emu_env_w32_dll *dll = env->env.win->loaded_dlls[numdlls]; 
+	while ( env->win->loaded_dlls[numdlls] != 0 ){
+		struct emu_env_w32_dll *dll = env->win->loaded_dlls[numdlls]; 
 		struct emu_hashtable_item *ehi = emu_hashtable_search(dll->exports_by_fnname, (void *)symbol);	
 		if ( ehi != 0 ){ 
 			struct emu_env_w32_dll_export *ex = (struct emu_env_w32_dll_export *)ehi->value;
@@ -482,9 +482,9 @@ void symbol_lookup(char* symbol){
 	if(strcmp(symbol,"dllmap") == 0) dllmap_mode = true;
 
 	int numdlls=0;
-	while ( env->env.win->loaded_dlls[numdlls] != 0 ){
+	while ( env->win->loaded_dlls[numdlls] != 0 ){
 		 
-		struct emu_env_w32_dll *dll = env->env.win->loaded_dlls[numdlls];
+		struct emu_env_w32_dll *dll = env->win->loaded_dlls[numdlls];
 		
 		if(dllmap_mode){
 			printf("\t%-8s Dll mapped at %x - %x\n", dll->dllname, dll->baseaddr , dll->baseaddr+dll->imagesize);
@@ -527,22 +527,22 @@ int fulllookupAddress(int eip, char* buf255){
 		i++;
 	}
 
-	while ( env->env.win->loaded_dlls[numdlls] != 0 )
+	while ( env->win->loaded_dlls[numdlls] != 0 )
 	{
-		if ( eip == env->env.win->loaded_dlls[numdlls]->baseaddr ){
+		if ( eip == env->win->loaded_dlls[numdlls]->baseaddr ){
 			
 			if(eip == 0x7C800000)
 				strcpy(buf255, "Kernel32 Base Address");
 			else
-				sprintf(buf255, "%s Base Address", env->env.win->loaded_dlls[numdlls]->dllname );
+				sprintf(buf255, "%s Base Address", env->win->loaded_dlls[numdlls]->dllname );
 			
 			return 1;
 		}
-		else if ( eip > env->env.win->loaded_dlls[numdlls]->baseaddr && 
-			      eip < env->env.win->loaded_dlls[numdlls]->baseaddr + 
-				            env->env.win->loaded_dlls[numdlls]->imagesize )
+		else if ( eip > env->win->loaded_dlls[numdlls]->baseaddr && 
+			      eip < env->win->loaded_dlls[numdlls]->baseaddr + 
+				            env->win->loaded_dlls[numdlls]->imagesize )
 		{
-			struct emu_env_w32_dll *dll = env->env.win->loaded_dlls[numdlls];
+			struct emu_env_w32_dll *dll = env->win->loaded_dlls[numdlls];
 			struct emu_hashtable_item *ehi = emu_hashtable_search(dll->exports_by_fnptr, (void *)(uintptr_t)(eip - dll->baseaddr));
 
 			if ( ehi == 0 )	return 0;
@@ -2052,8 +2052,8 @@ void show_supported_hooks(void){
 
 	set_hooks(env);
 
-	while ( env->env.win->loaded_dlls[i] != 0 ){
-		struct emu_env_w32_dll *dll = env->env.win->loaded_dlls[i]; 
+	while ( env->win->loaded_dlls[i] != 0 ){
+		struct emu_env_w32_dll *dll = env->win->loaded_dlls[i]; 
 		printf("\r\n%s\r\n", dll->dllname );
 		emu_env_w32_dll_export e = dll->exportx[0];
 		while( e.fnname != 0 ){

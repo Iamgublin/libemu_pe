@@ -20,7 +20,7 @@ struct emu_memory *mem = 0;
 struct emu_env *env = 0;
 
 
-int32_t	__stdcall new_user_hook_LoadLibraryA(struct emu_env *env, struct emu_env_w32_dll_export *ex)
+int32_t	__stdcall new_user_hook_LoadLibraryA(struct emu_env_w32 *win, struct emu_env_w32_dll_export *ex)
 {
 /* LoadLibraryA(LPCTSTR lpFileName); */
    struct emu_string *dllstr = emu_string_new();
