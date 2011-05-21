@@ -6638,6 +6638,6 @@ struct emu_env_w32_dll_export shdocvw_exports[] =
 {"", 0x00067F1B, NULL, NULL, 0x00E8 },
 {"", 0x00067F48, NULL, NULL, 0x00E9 },
 {"", 0x000251E3, NULL, NULL, 0x00EA },
-{0,0,NULL,NULL},
+{0,0,NULL,NULL,0},
 };
 

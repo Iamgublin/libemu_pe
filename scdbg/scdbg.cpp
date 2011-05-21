@@ -2047,9 +2047,9 @@ void show_help(void)
 
 void show_supported_hooks(void){
 	
-	int i=0;
-	int j=0;
-	int tot=0;
+	uint32_t i=0;
+	uint32_t j=0;
+	uint32_t tot=0;
 
 	set_hooks(env);
 
@@ -2057,9 +2057,8 @@ void show_supported_hooks(void){
 		struct emu_env_w32_dll *dll = env->win->loaded_dlls[i]; 
 		printf("\r\n%s\r\n", dll->dllname );
 		emu_env_w32_dll_export e = dll->exportx[0];
-		while( e.fnname != 0 ){
+		while( e.fnname != NULL ){
 			if( e.fnhook != 0 ){
-				if( IsBadReadPtr(e.fnname ,4) ) break;//for some reason the last null element is optimized out or something?
 				if( strlen(e.fnname) == 0)
 					printf("\t@%x\r\n", e.ordinal);
 				else
@@ -2068,6 +2067,7 @@ void show_supported_hooks(void){
 			}
 			j++;
 			e = dll->exportx[j];
+			//if( IsBadReadPtr(e.fnname ,4) ) break; //emu_env_w32_dll_exports_copy was not copying last null element fixed
 		}
 		i++;
 		j=0;
@@ -2270,18 +2270,18 @@ void parse_opts(int argc, char* argv[] ){
 				printf("Invalid option /redir must specify IP:PORT as next arg\n");
 				exit(0);
 			}
-		    opts.override.connect.host = strdup(argv[i+1]);
+		    opts.override.host = strdup(argv[i+1]);
 			char *port;
-			if (( port = strstr(opts.override.connect.host, ":")) != NULL)
+			if (( port = strstr(opts.override.host, ":")) != NULL)
 			{
 				*port = '\0';
 				port++;
-				opts.override.connect.port = atoi(port);
+				opts.override.port = atoi(port);
 
-				if (*opts.override.connect.host == '\0')
+				if (*opts.override.host == '\0')
 				{
-					free(opts.override.connect.host);
-					opts.override.connect.host = NULL;
+					free(opts.override.host);
+					opts.override.host = NULL;
 				}
 
 			}	
@@ -2492,12 +2492,12 @@ reinit:
 		nl();
 	}
 
-	if( opts.override.connect.host != NULL){
-		printf("Override connect host active %s\n", opts.override.connect.host);
+	if( opts.override.host != NULL){
+		printf("Override connect host active %s\n", opts.override.host);
 	}
 
-	if( opts.override.connect.port != 0){
-		printf("Override connect port active %d\n", opts.override.connect.port);
+	if( opts.override.port != 0){
+		printf("Override connect port active %d\n", opts.override.port);
 	}
 
 	if(opts.log_after_va  > 0 || opts.log_after_step > 0){

@@ -60,7 +60,7 @@ void emu_env_w32_dll_exports_copy(struct emu_env_w32_dll *to,struct emu_env_w32_
 	uint32_t i;
 	for (i=0;from[i].fnname != 0; i++);
 
-	size = i;
+	size = i+1; //we want the last null element too dz 5.21.11
 
 	to->exportx = (struct emu_env_w32_dll_export*)malloc(sizeof(struct emu_env_w32_dll_export) * size);
 //	to->hooks = (struct emu_env_hook*)malloc(sizeof(struct emu_env_hook) * size);

@@ -337,10 +337,6 @@
 					>
 				</File>
 				<File
-					RelativePath=".\libemu\opcodes\repcc.cpp"
-					>
-				</File>
-				<File
 					RelativePath=".\libemu\opcodes\ret.cpp"
 					>
 				</File>
@@ -430,10 +426,6 @@
 				</File>
 				<File
 					RelativePath=".\libemu\include\emu_env.h"
-					>
-				</File>
-				<File
-					RelativePath=".\libemu\include\emu_env_linux.h"
 					>
 				</File>
 				<File

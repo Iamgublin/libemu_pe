@@ -259,68 +259,36 @@ int32_t	__stdcall new_user_hook_MessageBoxA(struct emu_env_w32 *win, struct emu_
 
 int32_t	__stdcall new_user_hook_ShellExecuteA(struct emu_env_w32 *win, struct emu_env_w32_dll_export *ex)
 {
-
-	struct emu_cpu *c = emu_cpu_get(win->emu);
-
-	uint32_t eip_save;
-
-	POP_DWORD(c, &eip_save);
-
 /*
-HINSTANCE ShellExecute(
-  __in_opt  HWND hwnd,
-  __in_opt  LPCTSTR lpOperation,
-  __in      LPCTSTR lpFile,
-  __in_opt  LPCTSTR lpParameters,
-  __in_opt  LPCTSTR lpDirectory,
-  __in      INT   nShowCmd
-);
-
+	HINSTANCE ShellExecute(
+	  __in_opt  HWND hwnd,
+	  __in_opt  LPCTSTR lpOperation,
+	  __in      LPCTSTR lpFile,
+	  __in_opt  LPCTSTR lpParameters,
+	  __in_opt  LPCTSTR lpDirectory,
+	  __in      INT   nShowCmd
+	);
 */
-	uint32_t hwnd;
-	POP_DWORD(c, &hwnd);
+	uint32_t eip_save = popd();
+	uint32_t hwnd = popd();
+	uint32_t lpOperation = popd();
+	struct emu_string  *sFile = popstring();
+	struct emu_string  *sParam = popstring();
+	uint32_t lpDirectory = popd();
+	uint32_t nShowCmd = popd();
 
-	uint32_t lpOperation;
-	POP_DWORD(c, &lpOperation);
-
-	uint32_t p_file;
-	POP_DWORD(c, &p_file);
-
-	uint32_t lpParameters;
-	POP_DWORD(c, &lpParameters);
-
-	uint32_t lpDirectory;
-	POP_DWORD(c, &lpDirectory);
-
-	uint32_t nShowCmd;
-	POP_DWORD(c, &nShowCmd);
-
-	struct emu_string *s_text = emu_string_new();
-	emu_memory_read_string(mem, p_file, s_text, 254);
-
-	struct emu_string *s_param = emu_string_new();
-	emu_memory_read_string(mem, lpParameters, s_param, 254);
-
-	char *stext = emu_string_char(s_text);
-	printf("%x\tShellExecuteA(%s, %s)\n",eip_save,  stext, emu_string_char(s_param) );
+	printf("%x\tShellExecuteA(%s, %s)\n",eip_save,  sFile->data, sParam->data);
 	
-	emu_string_free(s_text);
-	emu_string_free(s_param);
+	emu_string_free(sFile);
+	emu_string_free(sParam);
 
 	cpu->reg[eax] = 33;
-	emu_cpu_eip_set(c, eip_save);
+	emu_cpu_eip_set(cpu, eip_save);
 	return 0;
 }
 
 int32_t	__stdcall new_user_hook_SHGetSpecialFolderPathA(struct emu_env_w32 *win, struct emu_env_w32_dll_export *ex)
 {
-
-	struct emu_cpu *c = emu_cpu_get(win->emu);
-
-	uint32_t eip_save;
-
-	POP_DWORD(c, &eip_save);
-
 /*
 CopyBOOL SHGetSpecialFolderPath(
          HWND hwndOwner,
@@ -330,17 +298,11 @@ CopyBOOL SHGetSpecialFolderPath(
 );
 
 */
-	uint32_t hwnd;
-	POP_DWORD(c, &hwnd);
-
-	uint32_t buf;
-	POP_DWORD(c, &buf);
-
-	uint32_t csidl;
-	POP_DWORD(c, &csidl);
-
-	uint32_t fCreate;
-	POP_DWORD(c, &fCreate);
+	uint32_t eip_save = popd();
+	uint32_t hwnd = popd();
+	uint32_t buf = popd();
+	uint32_t csidl = popd();
+	uint32_t fCreate = popd();
 
 	char buf255[255];
 	memset(buf255,0,254);
@@ -351,7 +313,7 @@ CopyBOOL SHGetSpecialFolderPath(
 	emu_memory_write_block(mem,buf,buf255,strlen(buf255));
 
 	cpu->reg[eax] = 0;
-	emu_cpu_eip_set(c, eip_save);
+	emu_cpu_eip_set(cpu, eip_save);
 	return 0;
 }
 
@@ -812,13 +774,6 @@ int32_t	__stdcall new_user_hook_VirtualAlloc(struct emu_env_w32 *win, struct emu
 
 int32_t	__stdcall new_user_hook_VirtualProtectEx(struct emu_env_w32 *win, struct emu_env_w32_dll_export *ex)
 {
-
-	struct emu_cpu *c = emu_cpu_get(win->emu);
-
-	uint32_t eip_save;
-
-	POP_DWORD(c, &eip_save);
-
 /*
 	BOOL WINAPI VirtualProtectEx(
 	  __in   HANDLE hProcess,
@@ -828,25 +783,17 @@ int32_t	__stdcall new_user_hook_VirtualProtectEx(struct emu_env_w32 *win, struct
 	  __out  PDWORD lpflOldProtect
 	);
 */
-	uint32_t hProcess;
-	POP_DWORD(c, &hProcess);
-
-	uint32_t address;
-	POP_DWORD(c, &address);
-
-	uint32_t size;
-	POP_DWORD(c, &size);
-
-	uint32_t flNewProtect;
-	POP_DWORD(c, &flNewProtect);
-
-	uint32_t lpflOldProtect;
-	POP_DWORD(c, &lpflOldProtect);
+	uint32_t eip_save = popd();
+	uint32_t hProcess = popd();
+	uint32_t address = popd();
+	uint32_t size = popd();
+	uint32_t flNewProtect = popd();
+	uint32_t lpflOldProtect = popd();
 
 	printf("%x\tVirtualProtectEx(hProc=%x , addr=%x , sz=%x, prot=%x)\n", eip_save, hProcess, address, size, flNewProtect);
 		
 	cpu->reg[eax] = 1;
-	emu_cpu_eip_set(c, eip_save);
+	emu_cpu_eip_set(cpu, eip_save);
 	return 0;
 }
 
@@ -856,13 +803,7 @@ int32_t	__stdcall new_user_hook_VirtualProtectEx(struct emu_env_w32 *win, struct
 //this one can handle logging of 1 or 2 string args..
 int32_t	__stdcall new_user_hook_GenericStub2String(struct emu_env_w32 *win, struct emu_env_w32_dll_export *ex)
 {
-
-	struct emu_cpu *c = emu_cpu_get(win->emu);
-
-	uint32_t eip_save;
-
-	POP_DWORD(c, &eip_save);
-
+	uint32_t eip_save  = popd();
 /*
 	HINTERNET InternetOpenA(
 	  __in  LPCTSTR lpszAgent,
@@ -923,7 +864,7 @@ int32_t	__stdcall new_user_hook_GenericStub2String(struct emu_env_w32 *win, stru
 		exit(0);
 	}
 
-	int r_esp = c->reg[esp];
+	int r_esp = cpu->reg[esp];
 	r_esp += arg_count*4;
 	
 	//printf("adjusting stack by %d prev=%x new=%x\n", arg_count*4, c->reg[esp], r_esp  );
@@ -950,20 +891,14 @@ int32_t	__stdcall new_user_hook_GenericStub2String(struct emu_env_w32 *win, stru
 
 
 	cpu->reg[eax] = ret_val;
-	emu_cpu_eip_set(c, eip_save);
+	emu_cpu_eip_set(cpu, eip_save);
 	return 0;
 }
 
 
 int32_t	__stdcall new_user_hook_SetFilePointer(struct emu_env_w32 *win, struct emu_env_w32_dll_export *ex)
 {
-
-	struct emu_cpu *c = emu_cpu_get(win->emu);
-
-	uint32_t eip_save;
-
-	POP_DWORD(c, &eip_save);
-
+	
 /*
 	
 	DWORD WINAPI SetFilePointer(
@@ -975,15 +910,11 @@ int32_t	__stdcall new_user_hook_SetFilePointer(struct emu_env_w32 *win, struct e
 
 
 */
-	uint32_t hfile;
-	uint32_t lDistanceToMove;
-	uint32_t lDistanceToMoveHigh;
-	uint32_t dwMoveMethod;
-
-	POP_DWORD(c, &hfile);
-	POP_DWORD(c, &lDistanceToMove);
-	POP_DWORD(c, &lDistanceToMoveHigh);
-	POP_DWORD(c, &dwMoveMethod);
+	uint32_t eip_save = popd();
+	uint32_t hfile = popd();
+	uint32_t lDistanceToMove = popd();
+	uint32_t lDistanceToMoveHigh = popd();
+	uint32_t dwMoveMethod = popd();
 
 	if(dwMoveMethod > 2 || dwMoveMethod < 0) dwMoveMethod = 3; //this shouldnt happen..
 	char* method[4] = {"FILE_BEGIN", "FILE_CURRENT", "FILE_END","UNKNOWN"};
@@ -1004,19 +935,12 @@ int32_t	__stdcall new_user_hook_SetFilePointer(struct emu_env_w32 *win, struct e
 	printf("%x\tSetFilePointer(hFile=%x, dist=%x, %x, %s) = %x\n", eip_save, hfile, lDistanceToMove, lDistanceToMoveHigh, method[dwMoveMethod], rv);
 
 	cpu->reg[eax] = rv;
-	emu_cpu_eip_set(c, eip_save);
+	emu_cpu_eip_set(cpu, eip_save);
 	return 0;
 }
 
 int32_t	__stdcall new_user_hook_ReadFile(struct emu_env_w32 *win, struct emu_env_w32_dll_export *ex)
 {
-
-	struct emu_cpu *c = emu_cpu_get(win->emu);
-
-	uint32_t eip_save;
-
-	POP_DWORD(c, &eip_save);
-
 /*	
 	BOOL WINAPI ReadFile(
 	  __in         HANDLE hFile,
@@ -1026,18 +950,12 @@ int32_t	__stdcall new_user_hook_ReadFile(struct emu_env_w32 *win, struct emu_env
 	  __inout_opt  LPOVERLAPPED lpOverlapped
 	);
 */
-	uint32_t hfile;
-	uint32_t lpBuffer;
-	uint32_t numBytes;
-	uint32_t lpNumBytes;
-	uint32_t lpOverlap;
-
-	POP_DWORD(c, &hfile);
-	POP_DWORD(c, &lpBuffer);
-	POP_DWORD(c, &numBytes);
-	POP_DWORD(c, &lpNumBytes);
-	POP_DWORD(c, &lpOverlap);
-
+	uint32_t eip_save = popd();
+	uint32_t hfile = popd();
+	uint32_t lpBuffer = popd();
+	uint32_t numBytes = popd();
+	uint32_t lpNumBytes = popd();
+	uint32_t lpOverlap = popd();
 	
 	//numBytes++;
 	uint32_t m_hfile = hfile;
@@ -1062,7 +980,7 @@ int32_t	__stdcall new_user_hook_ReadFile(struct emu_env_w32 *win, struct emu_env
 	if(lpNumBytes != 0) emu_memory_write_dword(mem, lpNumBytes, numBytes);
 
 	cpu->reg[eax] = 1;
-	emu_cpu_eip_set(c, eip_save);
+	emu_cpu_eip_set(cpu, eip_save);
 	return 0;
 }
 
@@ -1084,21 +1002,11 @@ uint32_t emu_string_length(uint32_t addr, int scan_limit){
 
 int32_t	__stdcall new_user_hook_strstr(struct emu_env_w32 *win, struct emu_env_w32_dll_export *ex)
 {
-
-	struct emu_cpu *c = emu_cpu_get(win->emu);
-
-	uint32_t eip_save;
-
-	POP_DWORD(c, &eip_save);
-
-/*	
-	char *strstr(const char *s1, const char *s2);
-*/
-	uint32_t s1;
-	uint32_t s2;
+/* char *strstr(const char *s1, const char *s2); */
+	uint32_t eip_save  = popd();
+	uint32_t s1 = popd();
+	uint32_t s2 = popd();
 	uint32_t ret=0;
-	POP_DWORD(c, &s1);
-	POP_DWORD(c, &s2);
 	
 	struct emu_string *find = emu_string_new();
 
@@ -1125,7 +1033,7 @@ int32_t	__stdcall new_user_hook_strstr(struct emu_env_w32 *win, struct emu_env_w
 	
 	emu_string_free(find);
 	cpu->reg[eax] = ret;
-	emu_cpu_eip_set(c, eip_save);
+	emu_cpu_eip_set(cpu, eip_save);
 	return 0;
 }
 
@@ -1201,33 +1109,25 @@ int32_t	__stdcall new_user_hook_GetTempFileNameA(struct emu_env_w32 *win, struct
 
 int32_t	__stdcall new_user_hook_LoadLibrary(struct emu_env_w32 *win, struct emu_env_w32_dll_export *ex)
 {
-
-	struct emu_cpu *c = emu_cpu_get(win->emu);
-    struct emu_string *dllstr = emu_string_new();
-
-	char* func = ex->fnname;
-
-	int i=0;
-	int found_dll = 0;
-	uint32_t eip_save;
-	uint32_t dllname_ptr;
-	uint32_t dummy;
-
 /* 
    LoadLibraryA(LPCTSTR lpFileName); 
    LoadLibraryExA(LPCTSTR lpFileName, hFile, flags)
 */
+	uint32_t eip_save = popd();
+	struct emu_string *dllstr = popstring();
 
-	POP_DWORD(c, &eip_save);
-    POP_DWORD(c, &dllname_ptr);
+	int i=0;
+	int found_dll = 0;
+	uint32_t dummy;
+
+	char* func = ex->fnname;
     	
 	if(strcmp(func, "LoadLibraryExA") ==0 ){
-		POP_DWORD(c, &dummy);
-		POP_DWORD(c, &dummy);
+		dummy = popd();
+		dummy = popd();
 	}
 
-    emu_memory_read_string(mem, dllname_ptr, dllstr, 256);
-	char *dllname = emu_string_char(dllstr);
+	char *dllname = dllstr->data;
 
 	for (i=0; win->loaded_dlls[i] != NULL; i++)
 	{
@@ -1256,7 +1156,7 @@ int32_t	__stdcall new_user_hook_LoadLibrary(struct emu_env_w32 *win, struct emu_
 	if(found_dll == 0) printf("\tNot found\n");
 
 	emu_string_free(dllstr);
-	emu_cpu_eip_set(c, eip_save);
+	emu_cpu_eip_set(cpu, eip_save);
 	return 0;
 }
 
@@ -2767,14 +2667,14 @@ int32_t	__stdcall new_user_hook_connect(struct emu_env_w32 *win, struct emu_env_
 	struct sockaddr sa;
 	emu_memory_read_block(emu_memory_get(win->emu), p_name, &sa, sizeof(struct sockaddr));
 	
-	if (opts.override.connect.host != NULL ){
+	if (opts.override.host != NULL ){
 		struct sockaddr_in *si = (struct sockaddr_in *)&sa;
-		si->sin_addr.s_addr = inet_addr(opts.override.connect.host);
+		si->sin_addr.s_addr = inet_addr(opts.override.host);
 	}
 
-	if (opts.override.connect.port > 0){
+	if (opts.override.port > 0){
 		struct sockaddr_in *si = (struct sockaddr_in *)&sa;;
-		si->sin_port = htons(opts.override.connect.port);
+		si->sin_port = htons(opts.override.port);
 	}
 
 	if (namelen != sizeof(struct sockaddr)) namelen = sizeof(struct sockaddr);

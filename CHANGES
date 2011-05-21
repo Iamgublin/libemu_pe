@@ -1,5 +1,7 @@
 		Changelog for libemu
 	
+5.21.11
+		- export_copy fix * 2, more hook conversions to popd(), /lookup mode
 5.19.11
 		- imlemented movsw/movsb with rep support
 		- new hooks: IsBadReadPtr, GetCommandLineA	
