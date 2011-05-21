@@ -68,6 +68,7 @@ void emu_env_w32_dll_export_copy(struct emu_env_w32_dll_export *to, struct emu_e
 	to->fnhook = from->fnhook;
 	to->fnname = from->fnname;
 	to->virtualaddr = from->virtualaddr;
+	to->ordinal = from ->ordinal; 
 }
 
 

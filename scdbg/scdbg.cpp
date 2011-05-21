@@ -2003,6 +2003,7 @@ void show_help(void)
 		{"i",  NULL		 ,   "enable interactive hooks (file and network)"},
 		{"las", "int"	 ,   "log at step ex. -las 100"},
 		{"laa", "hexnum" ,   "log at address or api ex. -laa 0x401020 or -laa ReadFile"},
+		{"lookup", "api" ,   "shows the address of WinAPi function ex. -lookup GetProcAddress"},
 		{"mm", NULL,         "enabled Memory Monitor (logs access to key addresses)"},
 		{"mdll", NULL,       "Monitor Dll - log direct access to dll memory (hook detection/patches)"},
 		{"nc", NULL,         "no color (if using sending output to other apps)"},
@@ -2152,6 +2153,20 @@ void parse_opts(int argc, char* argv[] ){
 			}
 			opts.patch_file = strdup(argv[i+1]);
 			i++;handled=true;
+		}
+
+		if(sl==7 && strstr(argv[i],"/lookup") > 0 ){
+			if(i+1 >= argc){
+				printf("Invalid option /lookup must specify an API name as next arg\n");
+				exit(0);
+			}
+			uint32_t addr = symbol2addr(argv[i+1]);
+			if( addr == 0)
+				printf("\nNo results found for: %s\n\n",argv[i+1]);
+			else
+				printf("\n%s = 0x%x\n\n",argv[i+1],addr);
+			exit(0);
+			
 		}
 		
 		if(sl==4 && strstr(argv[i],"/cmd") > 0 ){

@@ -39,6 +39,7 @@ struct run_time_options
 	char* scan_dir;
 	bool  CreateFileOverride;
 	char* cmdline;
+	char* apiLookUpMode;
 
 	struct 
 	{
