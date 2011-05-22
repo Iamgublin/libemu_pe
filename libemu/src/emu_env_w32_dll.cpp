@@ -54,6 +54,18 @@ void emu_env_w32_dll_free(struct emu_env_w32_dll *dll)
 	free(dll);
 }
 
+struct emu_env_w32_dll_export *emu_env_w32_dll_export_new(void)
+{
+	struct emu_env_w32_dll_export *exp = (struct emu_env_w32_dll_export *)malloc(sizeof(struct emu_env_w32_dll_export));
+	memset(exp,0,sizeof(struct emu_env_w32_dll_export));
+	return exp;
+}
+
+void emu_env_w32_dll_export_free(struct emu_env_w32_dll_export *exp)
+{
+	free(exp);
+}
+
 void emu_env_w32_dll_exports_copy(struct emu_env_w32_dll *to,struct emu_env_w32_dll_export *from)
 {
 	uint32_t size;

@@ -1296,65 +1296,68 @@ void debugCPU(struct emu *e, bool showdisasm){
 
 void set_hooks(struct emu_env *env){
 
-	emu_env_w32_export_new_hook(env, "GetModuleHandleA", new_user_hook_GetModuleHandleA, NULL);
-	emu_env_w32_export_new_hook(env, "GlobalAlloc", new_user_hook_GlobalAlloc, NULL);
-	emu_env_w32_export_new_hook(env, "CreateProcessInternalA", new_user_hook_CreateProcessInternalA, NULL);
-	emu_env_w32_export_new_hook(env, "MessageBoxA", new_user_hook_MessageBoxA, NULL);
-	emu_env_w32_export_new_hook(env, "ShellExecuteA", new_user_hook_ShellExecuteA, NULL);
-	emu_env_w32_export_new_hook(env, "SHGetSpecialFolderPathA", new_user_hook_SHGetSpecialFolderPathA, NULL);
-	emu_env_w32_export_new_hook(env, "MapViewOfFile", new_user_hook_MapViewOfFile, NULL);
-	emu_env_w32_export_new_hook(env, "URLDownloadToCacheFileA", new_user_hook_URLDownloadToCacheFileA, NULL);
-	emu_env_w32_export_new_hook(env, "system", new_user_hook_system, NULL);
-	emu_env_w32_export_new_hook(env, "VirtualAlloc", new_user_hook_VirtualAlloc, NULL);
-	emu_env_w32_export_new_hook(env, "VirtualProtectEx", new_user_hook_VirtualProtectEx, NULL);
-	emu_env_w32_export_new_hook(env, "SetFilePointer", new_user_hook_SetFilePointer, NULL);
-	emu_env_w32_export_new_hook(env, "ReadFile", new_user_hook_ReadFile, NULL);
-	emu_env_w32_export_new_hook(env, "strstr", new_user_hook_strstr, NULL);
-	emu_env_w32_export_new_hook(env, "strtoul", new_user_hook_strtoul, NULL);
-	emu_env_w32_export_new_hook(env, "GetTempFileNameA", new_user_hook_GetTempFileNameA, NULL);
-	emu_env_w32_export_new_hook(env, "LoadLibraryExA", new_user_hook_LoadLibrary, NULL);
-	emu_env_w32_export_new_hook(env, "LoadLibraryA", new_user_hook_LoadLibrary, NULL);
-	emu_env_w32_export_new_hook(env, "GetModuleFileNameA", new_user_hook_GetModuleFileNameA, NULL);
-	emu_env_w32_export_new_hook(env, "DialogBoxIndirectParamA", new_user_hook_DialogBoxIndirectParamA, NULL);
-	emu_env_w32_export_new_hook(env, "ZwQueryVirtualMemory", new_user_hook_ZwQueryVirtualMemory, NULL);
-	emu_env_w32_export_new_hook(env, "GetEnvironmentVariableA", new_user_hook_GetEnvironmentVariableA, NULL);
-	emu_env_w32_export_new_hook(env, "VirtualAllocEx", new_user_hook_VirtualAllocEx, NULL);
-	emu_env_w32_export_new_hook(env, "WriteProcessMemory", new_user_hook_WriteProcessMemory, NULL);
-	emu_env_w32_export_new_hook(env, "CreateRemoteThread", new_user_hook_CreateRemoteThread, NULL);
-	emu_env_w32_export_new_hook(env, "MultiByteToWideChar", new_user_hook_MultiByteToWideChar, NULL);
-	emu_env_w32_export_new_hook(env, "URLDownloadToCacheFileW", new_user_hook_URLDownloadToCacheFileA, NULL);
-	emu_env_w32_export_new_hook(env, "CreateFileW", new_user_hook_CreateFileW, NULL);
-	emu_env_w32_export_new_hook(env, "CreateProcessInternalW", new_user_hook_CreateProcessInternalA, NULL);
-	
+    #define ADDHOOK(name)     emu_env_w32_export_new_hook(env, #name, hook_##name, NULL);
+	#define GENERICHOOK(name) emu_env_w32_export_new_hook(env, #name, hook_GenericStub, NULL);
 
-	//-----handled by the generic stub
-	emu_env_w32_export_new_hook(env, "InternetReadFile", new_user_hook_GenericStub, NULL);
-	emu_env_w32_export_new_hook(env, "ZwTerminateProcess", new_user_hook_GenericStub, NULL);
-	emu_env_w32_export_new_hook(env, "ZwTerminateThread", new_user_hook_GenericStub, NULL);
-	emu_env_w32_export_new_hook(env, "TerminateThread", new_user_hook_GenericStub, NULL);
-	emu_env_w32_export_new_hook(env, "FreeLibrary", new_user_hook_GenericStub, NULL);
-	emu_env_w32_export_new_hook(env, "GlobalFree", new_user_hook_GenericStub, NULL);
-	emu_env_w32_export_new_hook(env, "GetCurrentProcess", new_user_hook_GenericStub, NULL);
-	emu_env_w32_export_new_hook(env, "TerminateProcess", new_user_hook_GenericStub, NULL);
-	emu_env_w32_export_new_hook(env, "CreateThread", new_user_hook_GenericStub, NULL);
-	emu_env_w32_export_new_hook(env, "GetSystemTime", new_user_hook_GenericStub, NULL);
-	emu_env_w32_export_new_hook(env, "RtlDestroyEnvironment", new_user_hook_GenericStub, NULL);
-	emu_env_w32_export_new_hook(env, "RevertToSelf", new_user_hook_GenericStub, NULL);
-	emu_env_w32_export_new_hook(env, "RtlExitUserThread", new_user_hook_GenericStub, NULL);
-	emu_env_w32_export_new_hook(env, "FlushViewOfFile", new_user_hook_GenericStub, NULL);
-    emu_env_w32_export_new_hook(env, "UnmapViewOfFile", new_user_hook_GenericStub, NULL);
-	emu_env_w32_export_new_hook(env, "FindClose", new_user_hook_GenericStub, NULL);
+	//these dont follow the macro pattern..mostly redirects/multitasks
+	emu_env_w32_export_new_hook(env, "LoadLibraryExA",  hook_LoadLibraryA, NULL);
+	emu_env_w32_export_new_hook(env, "URLDownloadToCacheFileW", hook_URLDownloadToCacheFileA, NULL);
+	emu_env_w32_export_new_hook(env, "CreateProcessInternalW", hook_CreateProcessInternalA, NULL);
+	emu_env_w32_export_new_hook(env, "ExitThread", hook_ExitProcess, NULL);
 
 	//-----handled by the generic stub 2 string
-	emu_env_w32_export_new_hook(env, "InternetOpenA", new_user_hook_GenericStub2String, NULL);
-	emu_env_w32_export_new_hook(env, "InternetOpenUrlA", new_user_hook_GenericStub2String, NULL);
-	emu_env_w32_export_new_hook(env, "SHRegGetBoolUSValueA", new_user_hook_GenericStub2String, NULL);
+	emu_env_w32_export_new_hook(env, "InternetOpenA", hook_GenericStub2String, NULL);
+	emu_env_w32_export_new_hook(env, "InternetOpenUrlA", hook_GenericStub2String, NULL);
+	emu_env_w32_export_new_hook(env, "SHRegGetBoolUSValueA", hook_GenericStub2String, NULL);
 
-	emu_env_w32_export_new_hook_ordinal(env, "shdocvw", 0x65, new_user_hook_shdocvw65);
+	//-----by ordinal
+	emu_env_w32_export_new_hook_ordinal(env, "shdocvw", 0x65,  hook_shdocvw65);
+	emu_env_w32_export_new_hook_ordinal(env, "msvcrt", 0x02E1, hook_memset); //have to hook this one by ordinal cause it finds ntdll.memset first
 
-	//conversions from dll
-    #define ADDHOOK(name) emu_env_w32_export_new_hook(env, #name, new_user_hook_##name, NULL);
+	//-----handled by the generic stub
+	GENERICHOOK(InternetReadFile);
+	GENERICHOOK(ZwTerminateProcess);
+	GENERICHOOK(ZwTerminateThread);
+	GENERICHOOK(TerminateThread);
+	GENERICHOOK(FreeLibrary);
+	GENERICHOOK(GlobalFree);
+	GENERICHOOK(GetCurrentProcess);
+	GENERICHOOK(TerminateProcess);
+	GENERICHOOK(CreateThread);
+	GENERICHOOK(GetSystemTime);
+	GENERICHOOK(RtlDestroyEnvironment);
+	GENERICHOOK(RevertToSelf);
+	GENERICHOOK(RtlExitUserThread);
+	GENERICHOOK(FlushViewOfFile);
+    GENERICHOOK(UnmapViewOfFile);
+	GENERICHOOK(FindClose);
 
+	ADDHOOK(LoadLibraryA);
+	ADDHOOK(GetModuleHandleA);
+	ADDHOOK(GlobalAlloc);
+	ADDHOOK(CreateProcessInternalA);
+	ADDHOOK(MessageBoxA);
+	ADDHOOK(ShellExecuteA);
+	ADDHOOK(SHGetSpecialFolderPathA);
+	ADDHOOK(MapViewOfFile);
+	ADDHOOK(URLDownloadToCacheFileA);
+	ADDHOOK(system);
+	ADDHOOK(VirtualAlloc);
+	ADDHOOK(VirtualProtectEx);
+	ADDHOOK(SetFilePointer);
+	ADDHOOK(ReadFile);
+	ADDHOOK(strstr);
+	ADDHOOK(strtoul);
+	ADDHOOK(GetTempFileNameA);
+	ADDHOOK(GetModuleFileNameA);
+	ADDHOOK(DialogBoxIndirectParamA);
+	ADDHOOK(ZwQueryVirtualMemory);
+	ADDHOOK(GetEnvironmentVariableA);
+	ADDHOOK(VirtualAllocEx);
+	ADDHOOK(WriteProcessMemory);
+	ADDHOOK(CreateRemoteThread);
+	ADDHOOK(MultiByteToWideChar);
+	ADDHOOK(CreateFileW);
 	ADDHOOK(URLDownloadToFileA);
 	ADDHOOK(execv);
 	ADDHOOK(fclose);
@@ -1370,7 +1373,6 @@ void set_hooks(struct emu_env *env){
 	ADDHOOK(Sleep);
 	ADDHOOK(DeleteFileA);
 	ADDHOOK(ExitProcess);
-	emu_env_w32_export_new_hook(env, "ExitThread", new_user_hook_ExitProcess, NULL);
 	ADDHOOK(CloseHandle);
 	ADDHOOK(CreateFileA);
 	ADDHOOK(CreateProcessA);
@@ -1378,7 +1380,7 @@ void set_hooks(struct emu_env *env){
 	ADDHOOK(GetProcAddress);
 	ADDHOOK(GetSystemDirectoryA);
 	ADDHOOK(malloc);
-	ADDHOOK(memset);
+	ADDHOOK(memset);  // finds ntdll.memset first
 	ADDHOOK(SetUnhandledExceptionFilter);
 	ADDHOOK(WaitForSingleObject);
 	ADDHOOK(WriteFile);

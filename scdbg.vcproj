@@ -393,10 +393,6 @@
 				Name="include"
 				>
 				<File
-					RelativePath=".\libemu\include\config.hpp"
-					>
-				</File>
-				<File
 					RelativePath=".\libemu\include\emu.h"
 					>
 				</File>
@@ -514,10 +510,6 @@
 				</File>
 				<File
 					RelativePath=".\libemu\src\emu_env_w32_dll.cpp"
-					>
-				</File>
-				<File
-					RelativePath=".\libemu\src\emu_env_w32_dll_export.cpp"
 					>
 				</File>
 				<File
