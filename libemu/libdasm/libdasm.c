@@ -14,7 +14,8 @@
 #include "libdasm.h"
 #include "opcode_tables.h"
 
-#pragma warning( disable : 4996 ) //unsafe function (strcpy,vsnprintf)
+#pragma warning(disable:4996) //unsafe function (strcpy,vsnprintf)
+#pragma warning(disable:4267) //conversion from 'size_t' to 'int', possible loss of data
 
 
 // Endianess conversion routines (thanks Ero)

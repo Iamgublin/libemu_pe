@@ -30,7 +30,7 @@
 
 #include <emu_cpu_instruction.h>
 #include <emu_fpu_instruction.h>
-#include "emu_track.h"
+//#include "emu_track.h"
 
 
 
@@ -54,11 +54,11 @@ struct emu_instruction
 		struct emu_fpu_instruction fpu;
 	};
 
-	struct  /*looks like this is found source graphing support..*/
+	/*struct  /*looks like this is found source graphing support..* /
 	{
 		struct emu_tracking_info init;
 		struct emu_tracking_info need;		
-	} track;
+	} track;*/
 
 	struct 
 	{

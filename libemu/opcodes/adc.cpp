@@ -105,17 +105,17 @@ INSTR_SET_FLAG_CF(cpu, operation)
 
 
 
-#define TRACK_INIT_ALL_FLAGS(instruction_p) \
-TRACK_INIT_EFLAG(instruction_p, f_zf); \
-TRACK_INIT_EFLAG(instruction_p, f_pf); \
-TRACK_INIT_EFLAG(instruction_p, f_sf); \
-TRACK_INIT_EFLAG(instruction_p, f_of); \
-TRACK_INIT_EFLAG(instruction_p, f_cf); 
+////#define TRACK_INIT_ALL_FLAGS(instruction_p) \
+//TRACK_INIT_EFLAG(instruction_p, f_zf); \
+//TRACK_INIT_EFLAG(instruction_p, f_pf); \
+//TRACK_INIT_EFLAG(instruction_p, f_sf); \
+//TRACK_INIT_EFLAG(instruction_p, f_of); \
+//TRACK_INIT_EFLAG(instruction_p, f_cf); 
 
 
 int32_t instr_adc_10(struct emu_cpu *c, struct emu_cpu_instruction *i)
 {
-	TRACK_INIT_ALL_FLAGS(c->instr);
+	////TRACK_INIT_ALL_FLAGS(c->instr);
 
 	/* 10 /r
 	 * Add with carry byte register to r/m8
@@ -148,7 +148,7 @@ int32_t instr_adc_10(struct emu_cpu *c, struct emu_cpu_instruction *i)
 
 int32_t instr_adc_11(struct emu_cpu *c, struct emu_cpu_instruction *i)
 {
-	TRACK_INIT_ALL_FLAGS(c->instr);
+	////TRACK_INIT_ALL_FLAGS(c->instr);
 
 	if ( i->modrm.mod != 3 )
 	{
@@ -220,7 +220,7 @@ int32_t instr_adc_11(struct emu_cpu *c, struct emu_cpu_instruction *i)
 
 int32_t instr_adc_12(struct emu_cpu *c, struct emu_cpu_instruction *i)
 {
-	TRACK_INIT_ALL_FLAGS(c->instr);
+	////TRACK_INIT_ALL_FLAGS(c->instr);
 
 	/* 12 /r
 	 * Add with carry r/m8 to byte register
@@ -254,7 +254,7 @@ int32_t instr_adc_12(struct emu_cpu *c, struct emu_cpu_instruction *i)
 
 int32_t instr_adc_13(struct emu_cpu *c, struct emu_cpu_instruction *i)
 {
-	TRACK_INIT_ALL_FLAGS(c->instr);
+	////TRACK_INIT_ALL_FLAGS(c->instr);
 
 	if ( i->modrm.mod != 3 )
 	{
@@ -326,7 +326,7 @@ int32_t instr_adc_13(struct emu_cpu *c, struct emu_cpu_instruction *i)
 
 int32_t instr_adc_14(struct emu_cpu *c, struct emu_cpu_instruction *i)
 {
-	TRACK_INIT_ALL_FLAGS(c->instr);
+	////TRACK_INIT_ALL_FLAGS(c->instr);
 
 	/* 14 ib 
 	 * Add with carry imm8 to AL
@@ -343,7 +343,7 @@ int32_t instr_adc_14(struct emu_cpu *c, struct emu_cpu_instruction *i)
 
 int32_t instr_adc_15(struct emu_cpu *c, struct emu_cpu_instruction *i)
 {
-	TRACK_INIT_ALL_FLAGS(c->instr);
+	////TRACK_INIT_ALL_FLAGS(c->instr);
 
 	if ( i->prefixes & PREFIX_OPSIZE )
 	{
@@ -378,7 +378,7 @@ int32_t instr_adc_15(struct emu_cpu *c, struct emu_cpu_instruction *i)
 
 int32_t instr_group_1_80_adc(struct emu_cpu *c, struct emu_cpu_instruction *i)
 {
-	TRACK_INIT_ALL_FLAGS(c->instr);
+	////TRACK_INIT_ALL_FLAGS(c->instr);
 
 	if( i->modrm.mod != 3 )
 	{
@@ -413,7 +413,7 @@ int32_t instr_group_1_80_adc(struct emu_cpu *c, struct emu_cpu_instruction *i)
 
 int32_t instr_group_1_81_adc(struct emu_cpu *c, struct emu_cpu_instruction *i)
 {
-	TRACK_INIT_ALL_FLAGS(c->instr);
+	////TRACK_INIT_ALL_FLAGS(c->instr);
 
 	if ( i->modrm.mod != 3 )
 	{
@@ -499,7 +499,7 @@ int32_t instr_group_1_81_adc(struct emu_cpu *c, struct emu_cpu_instruction *i)
 
 int32_t instr_group_1_83_adc(struct emu_cpu *c, struct emu_cpu_instruction *i)
 {
-	TRACK_INIT_ALL_FLAGS(c->instr);
+	////TRACK_INIT_ALL_FLAGS(c->instr);
 
 	if ( i->modrm.mod != 3 )
 	{

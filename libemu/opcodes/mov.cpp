@@ -32,7 +32,7 @@
 
 #include "emu_memory.h"
 
-#include "emu_track.h"
+//#include "emu_track.h"
 #include "emu_log.h"
 
 /*Intel Architecture Software Developer's Manual Volume 2: Instruction Set Reference (24319102.PDF) page 442*/
@@ -92,8 +92,8 @@ int32_t instr_mov_89(struct emu_cpu *c, struct emu_cpu_instruction *i)
 		{
 			c->reg[i->modrm.rm] = c->reg[i->modrm.opc];
 
-			TRACK_NEED_REG32(c->instr, i->modrm.opc);
-			TRACK_INIT_REG32(c->instr, i->modrm.rm);
+			//TRACK_NEED_REG32(c->instr, i->modrm.opc);
+			//TRACK_INIT_REG32(c->instr, i->modrm.rm);
 		}
 	}
 
@@ -110,7 +110,7 @@ int32_t instr_mov_8a(struct emu_cpu *c, struct emu_cpu_instruction *i)
 	if( i->modrm.mod != 3 )
 	{
 		MEM_BYTE_READ(c, i->modrm.ea, c->reg8[i->modrm.opc]);
-		TRACK_INIT_REG16(c->instr, i->modrm.opc);
+		//TRACK_INIT_REG16(c->instr, i->modrm.opc);
 	}
 	else
 	{
@@ -132,7 +132,7 @@ int32_t instr_mov_8b(struct emu_cpu *c, struct emu_cpu_instruction *i)
 		if( i->modrm.mod != 3 )
 		{
 			MEM_WORD_READ(c, i->modrm.ea, c->reg16[i->modrm.opc]);
-			TRACK_INIT_REG16(c->instr, i->modrm.opc);
+			//TRACK_INIT_REG16(c->instr, i->modrm.opc);
 		}
 		else
 		{
@@ -149,18 +149,18 @@ int32_t instr_mov_8b(struct emu_cpu *c, struct emu_cpu_instruction *i)
 		if( i->modrm.mod != 3 )
 		{
 			MEM_DWORD_READ(c, i->modrm.ea, &c->reg[i->modrm.opc]);
-			TRACK_INIT_REG32(c->instr, i->modrm.opc);
+			//TRACK_INIT_REG32(c->instr, i->modrm.opc);
 		}
 		else
 		{
 			c->reg[i->modrm.opc] = c->reg[i->modrm.rm];
 
-			TRACK_INIT_REG32(c->instr, i->modrm.opc);
+			//TRACK_INIT_REG32(c->instr, i->modrm.opc);
 
-			if ( c->tracking != NULL )
+			/*if ( c->tracking != NULL )
 			{
 				c->tracking->track.reg[i->modrm.opc] = c->tracking->track.reg[i->modrm.rm];
-			}
+			}*/
 		}
 	}
 
@@ -218,7 +218,7 @@ int32_t instr_mov_a1(struct emu_cpu *c, struct emu_cpu_instruction *i)
 		 */
 		MEM_DWORD_READ(c, i->disp, &c->reg[eax]);
 		
-		TRACK_INIT_REG32(c->instr, eax);
+		//TRACK_INIT_REG32(c->instr, eax);
 	}
 	return 0;
 }
@@ -339,7 +339,7 @@ int32_t instr_mov_bx_2(struct emu_cpu *c, struct emu_cpu_instruction *i)
 		 */                         
 
 		c->reg[i->opc & 7] = i->imm;
-		TRACK_INIT_REG32(c->instr, i->opc & 7);
+		//TRACK_INIT_REG32(c->instr, i->opc & 7);
 	}
 
 	return 0;

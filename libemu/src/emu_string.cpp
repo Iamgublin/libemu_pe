@@ -32,7 +32,7 @@
 
 
 #include "emu_string.h"
-
+#pragma warning(disable:4996)
 
 struct emu_string *emu_string_new(void)
 {

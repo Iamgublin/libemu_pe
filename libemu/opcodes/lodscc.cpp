@@ -66,7 +66,7 @@ int32_t instr_lods_ac(struct emu_cpu *c, struct emu_cpu_instruction *i)
 			c->reg[esi] += 1;
 		}
 
-		TRACK_INIT_REG8(c->instr, al);
+		//TRACK_INIT_REG8(c->instr, al);
 	}
 
 
@@ -136,7 +136,7 @@ int32_t instr_lods_ad(struct emu_cpu *c, struct emu_cpu_instruction *i)
 				c->reg[esi] += 4;
 			}
 
-			TRACK_INIT_REG32(c->instr, eax);
+			//TRACK_INIT_REG32(c->instr, eax);
 		}
 	}
 

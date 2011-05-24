@@ -47,7 +47,7 @@ enum emu_cpu_flag {
 #define CPU_FLAG_TOGGLE(cpu_p, fl) (cpu_p)->eflags ^= 1 << (fl)
 #define CPU_FLAG_ISSET(cpu_p, fl) ((cpu_p)->eflags & (1 << (fl)))
 
-struct emu_track_and_source;
+//struct emu_track_and_source;
 
 
 #define CPU_DEBUG_FLAG_SET(cpu_p, fl) (cpu_p)->debugflags |= 1 << (fl)
@@ -79,7 +79,7 @@ struct emu_cpu
 	uint32_t last_fpu_instr[2];
 
 	char *instr_string;
-	struct emu_track_and_source *tracking;
+	//struct emu_track_and_source *tracking;
 };
 
 
@@ -261,26 +261,27 @@ memcpy(((char *)&to)+4,&upper,4);
 
 
 
-#define TRACK_INIT_REG32(instruction, reg32) (instruction).track.init.reg[reg32] = 0xffffffff;
-#define TRACK_NEED_REG32(instruction, reg32) (instruction).track.need.reg[reg32] = 0xffffffff;
+/*//#define TRACK_INIT_REG32(instruction, reg32) (instruction).track.init.reg[reg32] = 0xffffffff;
+//#define TRACK_NEED_REG32(instruction, reg32) (instruction).track.need.reg[reg32] = 0xffffffff;
 
-#define TRACK_INIT_REG16(instruction, reg16) (instruction).track.init.reg[reg16] |= 0xffff << 16;
-#define TRACK_NEED_REG16(instruction, reg16) (instruction).track.need.reg[reg16] |= 0xffff << 16;
+//#define TRACK_INIT_REG16(instruction, reg16) (instruction).track.init.reg[reg16] |= 0xffff << 16;
+//#define TRACK_NEED_REG16(instruction, reg16) (instruction).track.need.reg[reg16] |= 0xffff << 16;
 
-#define TRACK_INIT_REG8(instruction, reg8) (instruction).track.init.reg[reg8] |= 0xff << 24;
-#define TRACK_NEED_REG8(instruction, reg8) (instruction).track.need.reg[reg8] |= 0xff << 24;
+//#define TRACK_INIT_REG8(instruction, reg8) (instruction).track.init.reg[reg8] |= 0xff << 24;
+//#define TRACK_NEED_REG8(instruction, reg8) (instruction).track.need.reg[reg8] |= 0xff << 24;
 
-#define TRACK_INIT_EFLAG(instruction, fl) (instruction).track.init.eflags |= 1 << (fl)
-#define TRACK_NEED_EFLAG(instruction, fl) (instruction).track.need.eflags |= 1 << (fl)
+//#define TRACK_INIT_EFLAG(instruction, fl) (instruction).track.init.eflags |= 1 << (fl)
+//#define TRACK_NEED_EFLAG(instruction, fl) (instruction).track.need.eflags |= 1 << (fl)
+*/
 
 #define SOURCE_NORM_POS(instruction, pos) (instruction).source.norm_pos = pos;
 #define SOURCE_COND_POS(instruction, pos)	(instruction).source.has_cond_pos = 1; (instruction).source.cond_pos = pos;
 
 
-#define TRACK_FPU_LAST_INSTRUCTION  0x0
+//#define TRACK_FPU_LAST_INSTRUCTION  0x0
 
-#define TRACK_INIT_FPU(instruction, what) (instruction).track.init.fpu |= 1 << (what);
-#define TRACK_NEED_FPU(instruction, what) (instruction).track.need.fpu |= 1 << (what);
+//#define TRACK_INIT_FPU(instruction, what) (instruction).track.init.fpu |= 1 << (what);
+//#define TRACK_NEED_FPU(instruction, what) (instruction).track.need.fpu |= 1 << (what);
 
 
 

@@ -2,6 +2,7 @@
 	
 5.21.11
 		- export_copy fix * 2, more hook conversions to popd(), /lookup mode
+		- removed emu_track (was used in graphing and shellcode detection code)
 5.19.11
 		- imlemented movsw/movsb with rep support
 		- new hooks: IsBadReadPtr, GetCommandLineA	
@@ -309,7 +310,7 @@
  - fpu backwards traversal was dodgy, comparing fpu state with eflags does not make any sense
    look at the src/emu_track.c diff to see the mess
    when fixing, the size of the fpu state got shrinked to one bit, we don't need the others anyway
-   TRACK_FPU_LAST_INSTRUCTION had to be adjusted to comply with one bit vars
+   //TRACK_FPU_LAST_INSTRUCTION had to be adjusted to comply with one bit vars
  - sub reg32_a,reg32_b inits reg32_a if reg32_a == reg32_b
  - proper linux syscall hooking, removed the int_cd code and created a linux environment
    - lookup the syscalls name from a struct, in case of syscall groups like socketcall for accept,socket,connect,... provide a helper fn within the struct which returns the proper syscall name

@@ -44,8 +44,8 @@ int32_t instr_loopcc_e0(struct emu_cpu *c, struct emu_cpu_instruction *i)
 	 */
 	if ( i->prefixes & PREFIX_OPSIZE)
 	{
-		TRACK_NEED_REG16(c->instr, cx);
-		TRACK_NEED_EFLAG(c->instr, f_zf);
+		//TRACK_NEED_REG16(c->instr, cx);
+		////TRACK_NEED_EFLAG(c->instr, f_zf);
 
 		*c->reg16[cx] = *c->reg16[cx]-1;
 		if (*c->reg16[cx] != 0 && !CPU_FLAG_ISSET(c,f_zf))
@@ -54,8 +54,8 @@ int32_t instr_loopcc_e0(struct emu_cpu *c, struct emu_cpu_instruction *i)
 		}
 	}else
 	{
-		TRACK_NEED_REG32(c->instr, ecx);
-		TRACK_NEED_EFLAG(c->instr, f_zf);
+		//TRACK_NEED_REG32(c->instr, ecx);
+		////TRACK_NEED_EFLAG(c->instr, f_zf);
 
 		c->reg[ecx]--;
 		if (c->reg[ecx] != 0 && !CPU_FLAG_ISSET(c,f_zf))
@@ -79,8 +79,8 @@ int32_t instr_loopcc_e1(struct emu_cpu *c, struct emu_cpu_instruction *i)
 	 */				   
 	if ( i->prefixes & PREFIX_OPSIZE)
 	{
-		TRACK_NEED_REG16(c->instr, cx);
-		TRACK_NEED_EFLAG(c->instr, f_zf);
+		//TRACK_NEED_REG16(c->instr, cx);
+		////TRACK_NEED_EFLAG(c->instr, f_zf);
 
 		*c->reg16[cx] = *c->reg16[cx]-1;
 		if (*c->reg16[cx] != 0 && CPU_FLAG_ISSET(c,f_zf))
@@ -89,8 +89,8 @@ int32_t instr_loopcc_e1(struct emu_cpu *c, struct emu_cpu_instruction *i)
 		}
 	}else
 	{
-		TRACK_NEED_REG32(c->instr, ecx);
-		TRACK_NEED_EFLAG(c->instr, f_zf);
+		//TRACK_NEED_REG32(c->instr, ecx);
+		////TRACK_NEED_EFLAG(c->instr, f_zf);
 
 		c->reg[ecx]--;
 		if (c->reg[ecx] != 0 && CPU_FLAG_ISSET(c,f_zf))
@@ -114,7 +114,7 @@ int32_t instr_loop_e2(struct emu_cpu *c, struct emu_cpu_instruction *i)
 
 	if ( i->prefixes & PREFIX_OPSIZE)
 	{
-		TRACK_NEED_REG16(c->instr, cx);
+		//TRACK_NEED_REG16(c->instr, cx);
 
 		*c->reg16[cx] = *c->reg16[cx]-1;
 		if (*c->reg16[cx] != 0 )
@@ -123,7 +123,7 @@ int32_t instr_loop_e2(struct emu_cpu *c, struct emu_cpu_instruction *i)
 		}
 	}else
 	{
-		TRACK_NEED_REG32(c->instr, ecx);
+		//TRACK_NEED_REG32(c->instr, ecx);
 
 		c->reg[ecx]--;
 		if (c->reg[ecx] != 0)

@@ -125,7 +125,7 @@ int32_t instr_group_5_ff_call(struct emu_cpu *c, struct emu_cpu_instruction *i)
 				c->eip = *c->reg16[i->modrm.rm];
 
 				SOURCE_NORM_POS(c->instr, c->eip);
-				TRACK_NEED_REG16(c->instr, i->modrm.rm);
+				//TRACK_NEED_REG16(c->instr, i->modrm.rm);
 			}
 			else
 			{
@@ -137,7 +137,7 @@ int32_t instr_group_5_ff_call(struct emu_cpu *c, struct emu_cpu_instruction *i)
 				c->eip = c->reg[i->modrm.rm];
 
 				SOURCE_NORM_POS(c->instr, c->eip);
-				TRACK_NEED_REG32(c->instr, i->modrm.rm);
+				//TRACK_NEED_REG32(c->instr, i->modrm.rm);
 			}
 		}
 	}

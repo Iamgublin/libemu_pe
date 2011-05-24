@@ -35,7 +35,7 @@
 #include "emu_cpu_stack.h"
 #include "emu_memory.h"
 
-#include "emu_track.h"
+//#include "emu_track.h"
 
 /*Intel Architecture Software Developer's Manual Volume 2: Instruction Set Reference (24319102.PDF) page 754*/
 
@@ -165,12 +165,12 @@ int32_t instr_xchg_9x(struct emu_cpu *c, struct emu_cpu_instruction *i)
 		c->reg[eax] = c->reg[i->opc & 7];
 		c->reg[i->opc & 7] = swap32;
 
-		if ( c->tracking != NULL )
+		/*if ( c->tracking != NULL )
 		{
 			swap32 = c->tracking->track.reg[eax];
 			c->tracking->track.reg[eax] = c->tracking->track.reg[i->opc & 7];
 			c->tracking->track.reg[i->opc & 7] = swap32;
-		}
+		}*/
 
 	}
 	return 0;

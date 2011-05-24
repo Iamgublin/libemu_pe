@@ -76,6 +76,40 @@ static void init_prefix_map(void)
 	prefix_map[0xf3] = PREFIX_F3;
 }
 
+/**
+ * int type min/max for signed/unsigned int to 32bits size 
+ *  
+ * access is 
+ * max_inittype_border[bits/8][signed|unsigned][min|max] 
+ *  
+ * where signed/min is 0 
+ * and unsigned/max is 1 
+ */
+
+int64_t max_inttype_borders[][2][2] =                                            
+{                                                                          
+	{                                                                      
+		{0, 0},                                                             
+		{0, 0},                                                             
+	},                                                                     
+	{                                                                      
+		{MIN_INT8, MAX_INT8},                                              
+		{MIN_UINT8, MAX_UINT8},                                            
+	},                                                                     
+	{                                                                      
+		{MIN_INT16, MAX_INT16},                                            
+		{MIN_UINT16, MAX_UINT16},                                          
+	},                                                                     
+	{                                                                      
+		{0, 0},                                                             
+		{0, 0},                                                             
+	},                                                                     
+	{                                                                      
+		{MIN_INT32, MAX_INT32},                                            
+		{MIN_UINT32, MAX_UINT32},                                          
+	}                                                                      
+};                                                                          
+
 struct emu_cpu *emu_cpu_new(struct emu *e)
 {
 	struct emu_cpu *c = (struct emu_cpu *)malloc(sizeof(struct emu_cpu));
@@ -339,8 +373,8 @@ void debug_instruction(struct emu_instruction *ei)
 
 //	printf("%s\n",
 
+	/*
 	int j;
-	
 	bool trace_eflag_need = false;
 	bool trace_eflag_init = false;
 	bool trace_reg_need = false;
@@ -429,7 +463,7 @@ void debug_instruction(struct emu_instruction *ei)
 	if (ei->source.has_cond_pos == 1)
     	printf("\t\tcond pos 0x%08x\n", ei->source.cond_pos);
 	
-
+*/
 }
 
 #undef PREFIX_LOCK
@@ -507,14 +541,14 @@ int32_t emu_cpu_parse(struct emu_cpu *c)
 
 	c->instr.source.has_cond_pos = 0;
 
-	c->instr.track.init.eflags = 0;
+	/*c->instr.track.init.eflags = 0;
 	memset(c->instr.track.init.reg, 0, sizeof(uint32_t) * 8);
 	c->instr.track.init.fpu = 0;
 
 	c->instr.track.need.eflags = 0;
 	memset(c->instr.track.need.reg, 0, sizeof(uint32_t) * 8);
 	c->instr.track.need.fpu = 0;
-
+	*/
 
 	while( 1 )
 	{
@@ -592,7 +626,7 @@ int32_t emu_cpu_parse(struct emu_cpu *c)
 							if( c->instr.cpu.modrm.rm != 4 && !(c->instr.cpu.modrm.mod == 0 && c->instr.cpu.modrm.rm == 5) )
 							{
                                 c->instr.cpu.modrm.ea = c->reg[c->instr.cpu.modrm.rm];
-								TRACK_NEED_REG32(c->instr, c->instr.cpu.modrm.rm);
+								//TRACK_NEED_REG32(c->instr, c->instr.cpu.modrm.rm);
 							}
 							else
 								c->instr.cpu.modrm.ea = 0;
@@ -611,18 +645,18 @@ int32_t emu_cpu_parse(struct emu_cpu *c)
 								if( c->instr.cpu.modrm.sib.base != 5 )
 								{
 									c->instr.cpu.modrm.ea += c->reg[c->instr.cpu.modrm.sib.base];
-									TRACK_NEED_REG32(c->instr, c->instr.cpu.modrm.sib.base);
+									//TRACK_NEED_REG32(c->instr, c->instr.cpu.modrm.sib.base);
 								}
 								else if( c->instr.cpu.modrm.mod != 0 )
 								{
 									c->instr.cpu.modrm.ea += c->reg[ebp];
-									TRACK_NEED_REG32(c->instr, ebp);
+									//TRACK_NEED_REG32(c->instr, ebp);
 								}
 	
 								if( c->instr.cpu.modrm.sib.index != 4 )
 								{
 									c->instr.cpu.modrm.ea += c->reg[c->instr.cpu.modrm.sib.index] * scalem[c->instr.cpu.modrm.sib.scale];
-									TRACK_NEED_REG32(c->instr, c->instr.cpu.modrm.sib.index);
+									//TRACK_NEED_REG32(c->instr, c->instr.cpu.modrm.sib.index);
 								}
 							}
 							
@@ -869,17 +903,17 @@ int32_t emu_cpu_step(struct emu_cpu *c)
 				MEM_DWORD_WRITE(c, c->instr.fpu.ea + 0x14, null);
 				MEM_DWORD_WRITE(c, c->instr.fpu.ea + 0x18, null);
 
-				TRACK_NEED_FPU(c->instr, TRACK_FPU_LAST_INSTRUCTION);
-//				TRACK_INIT_FPU(c->instr, TRACK_FPU_LAST_INSTRUCTION);
+				//TRACK_NEED_FPU(c->instr, //TRACK_FPU_LAST_INSTRUCTION);
+//				//TRACK_INIT_FPU(c->instr, //TRACK_FPU_LAST_INSTRUCTION);
 			}
 			else if( c->instr.fpu.fpu_data[1] == 0xee )
 			{
 				/* fldz */
-				TRACK_INIT_FPU(c->instr, TRACK_FPU_LAST_INSTRUCTION);
+				//TRACK_INIT_FPU(c->instr, //TRACK_FPU_LAST_INSTRUCTION);
 			}
 			else
 			{ // catch all others to init fpu
-				TRACK_INIT_FPU(c->instr, TRACK_FPU_LAST_INSTRUCTION);
+				//TRACK_INIT_FPU(c->instr, //TRACK_FPU_LAST_INSTRUCTION);
 			}
 
 		}
@@ -888,14 +922,13 @@ int32_t emu_cpu_step(struct emu_cpu *c)
 			if( (c->instr.fpu.fpu_data[1] & 0xf8) == 0xc0 )
 			{
 				/* ffree */
-//				TRACK_INIT_FPU(c->instr, TRACK_FPU_LAST_INSTRUCTION);
+//				//TRACK_INIT_FPU(c->instr, //TRACK_FPU_LAST_INSTRUCTION);
 			}
 		}
 	}
 
 
-	if (0)
-		debug_instruction(&c->instr);
+	if (0) debug_instruction(&c->instr);
 //	emu_cpu_debug_print(c);
 
 	return ret;

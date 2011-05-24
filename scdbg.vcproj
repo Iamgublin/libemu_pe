@@ -465,10 +465,6 @@
 					>
 				</File>
 				<File
-					RelativePath=".\libemu\include\emu_track.h"
-					>
-				</File>
-				<File
 					RelativePath=".\libemu\include\env_w32_dll_export_hooks.h"
 					>
 				</File>
@@ -497,10 +493,6 @@
 					>
 				</File>
 				<File
-					RelativePath=".\libemu\src\emu_cpu_data.cpp"
-					>
-				</File>
-				<File
 					RelativePath=".\libemu\src\emu_env.cpp"
 					>
 				</File>
@@ -526,10 +518,6 @@
 				</File>
 				<File
 					RelativePath=".\libemu\src\emu_string.cpp"
-					>
-				</File>
-				<File
-					RelativePath=".\libemu\src\emu_track.cpp"
 					>
 				</File>
 			</Filter>
