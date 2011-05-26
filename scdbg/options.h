@@ -7,8 +7,9 @@ struct run_time_options
 	int verbose;
 	uint32_t steps;
 	unsigned char *scode;
-	uint32_t size;
-	uint32_t offset;
+	uint32_t size;        //shellcode size
+	uint32_t offset;      //start at offset x within shellcode (usually 0)
+	uint32_t baseAddress; //where in memory shellcode is based at
 	bool file_mode;
 	bool getpc_mode;
 	char sc_file[500];
@@ -39,6 +40,7 @@ struct run_time_options
 	char* scan_dir;
 	bool  CreateFileOverride;
 	char* cmdline;
+	bool findApi;
 
 	struct
 	{

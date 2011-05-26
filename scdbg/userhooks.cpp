@@ -59,7 +59,6 @@ extern "C"{
 #include <wininet.h>
 #include <Shlobj.h>
 
-extern int CODE_OFFSET;
 extern uint32_t FS_SEGMENT_DEFAULT_OFFSET;
 extern void hexdump(unsigned char*, int);
 extern int file_length(FILE *f);

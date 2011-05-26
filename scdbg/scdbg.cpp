@@ -154,7 +154,7 @@ void HandleDirMode(char* folder);
 
 
 uint32_t FS_SEGMENT_DEFAULT_OFFSET = 0x7ffdf000;
-int CODE_OFFSET = 0x00401000;
+
 int ctrl_c_count=0;
 uint32_t last_good_eip=0;
 uint32_t previous_eip=0;
@@ -510,7 +510,15 @@ void symbol_lookup(char* symbol){
 	if(!dllmap_mode) printf("\tNo results found...\n");
 }
 
+int validated_lookup(uint32_t eip){
 
+	if(eip < 0x71ab0000 || eip > 0x7e4a1000){ //only do a full lookup for addresses in dll addr range
+		if( eip < 0x3d930000 || eip > 0x3da01000) return 0;
+	}
+
+	char tmp[256];
+	return fulllookupAddress(eip, &tmp[0]);
+}
 
 int fulllookupAddress(int eip, char* buf255){
 
@@ -558,10 +566,98 @@ int fulllookupAddress(int eip, char* buf255){
 	return 0;
 }
 
+bool find_apiTable(uint32_t offset, uint32_t size){
+	
+	uint32_t lastApi = symbol2addr(env->win->lastApiCalled);
+	//printf("\tStart=%x    End=%x   LastApi=%x\n", offset, offset+size, lastApi);
+
+	if(lastApi == 0) return false;
+
+	uint32_t b;
+	uint32_t tableAt = -1;
+	int i=0;
+
+	//first try to find a known used address to locate table.
+	for(i=0; i < size; i+=4){
+		//if(offset+i == 0x401347) printf("at marker!");
+		emu_memory_read_dword(mem, offset+i, &b);
+		if(b == lastApi){ tableAt = i; break;}
+	}
+
+	if(tableAt == -1){ //lets try a 1 byte misaligned search..
+		for(i=1; i < size; i+=4){
+			emu_memory_read_dword(mem, offset+i, &b);
+			if(b == lastApi){ tableAt = i; break;}
+		}
+		if(tableAt == -1){ //lets try a 2 byte misaligned search..
+			for(i=2; i < size; i+=4){
+				emu_memory_read_dword(mem, offset+i, &b);
+				if(b == lastApi){ tableAt = i; break;}
+			}
+			if(tableAt == -1){ //lets try a 3 byte misaligned search..
+				for(i=3; i < size; i+=4){
+					//if(offset+i == 0x401347) printf("at marker!");
+					emu_memory_read_dword(mem, offset+i, &b);
+					if(b == lastApi){ tableAt = i; break;}
+				}
+			}
+		}	
+	}
+
+	if(tableAt == -1) return false; //i give up
+
+	//now search for the table begin..
+	i = tableAt-4;
+	uint32_t tableStart = -1;
+	char *buf = (char*)malloc(256);
+
+	while( i >= 0 ){
+		emu_memory_read_dword(mem, offset+i, &b);
+		if( validated_lookup(b) == 0 ) break; //not an api address
+		tableStart = i;
+		i -= 4;
+	}
+
+	if( tableStart == -1 ) tableStart = tableAt; //assume we were at first api address...
+
+	uint32_t tableEnd = -1;
+	i = tableAt + 4;
+	while( i < size){
+		emu_memory_read_dword(mem, offset+i, &b);
+		if( validated_lookup(b) == 0 ) break; //not an api address
+		tableEnd = i;
+		i += 4;
+	}
+
+	if( tableEnd == -1) tableEnd = tableAt; 
+
+	if( tableStart == tableEnd) return false; //we only found one api address?
+
+	int j=0;
+	printf("\n\tFound Api table at: %x\n", offset+tableStart);
+	
+	for( i=0; i < 8; i++){
+		if( tableStart == cpu->reg[i] ){
+			printf("\ttable is %s based\n", regm[i]);
+			break;
+		}
+	}
+	
+	for(i=tableStart; i <= tableEnd; i+=4){
+		 emu_memory_read_dword(mem, offset+i, &b);
+		 if( fulllookupAddress(b, buf) == 1 ){
+			 printf("\t\t[x + %d] = %s\n", j, buf);
+		 }
+		 j+=4;
+	}
+	
+	return true;
+}
+
 bool was_packed(void){
 	unsigned char* tmp; int ii;
 	tmp = (unsigned char*)malloc(opts.size);
-	if(emu_memory_read_block(mem, CODE_OFFSET, tmp,  opts.size) == -1) return false;
+	if(emu_memory_read_block(mem, opts.baseAddress, tmp,  opts.size) == -1) return false;
 	for(ii=0;ii<opts.size;ii++){
 		if(opts.scode[ii] != tmp[ii]) break;
 	}
@@ -575,11 +671,11 @@ void do_memdump(void){
 	int ii;
 	FILE *fp;
 
-	printf("Primary memory: Reading 0x%x bytes from 0x%x\n", opts.size, CODE_OFFSET);
+	printf("Primary memory: Reading 0x%x bytes from 0x%x\n", opts.size, opts.baseAddress);
 	tmp = (unsigned char*)malloc(opts.size);
    	tmp_path = (char*)malloc( strlen(opts.sc_file) + 50);
 
-	if(emu_memory_read_block(mem, CODE_OFFSET, tmp,  opts.size) == -1){
+	if(emu_memory_read_block(mem, opts.baseAddress, tmp,  opts.size) == -1){
 		printf("ReadBlock failed!\n");
 	}else{
    	 
@@ -834,7 +930,7 @@ int disasm_addr(struct emu *e, int va){  //arbitrary offset
 	uint32_t m_eip     = va;
 	instr_len = emu_disasm_addr(cpu, m_eip, disasm); 
 	
-	int foffset = m_eip - CODE_OFFSET;
+	int foffset = m_eip - opts.baseAddress;
 	if(foffset < 0) foffset = m_eip; //probably a stack address.
 
 	start_color(mgreen);
@@ -1082,9 +1178,9 @@ void interactive_command(struct emu *e){
 		}
 		
 		if(c=='o'){
-			if(previous_eip < CODE_OFFSET || previous_eip > (CODE_OFFSET + opts.size)) previous_eip = last_good_eip;
-			if(previous_eip < CODE_OFFSET || previous_eip > (CODE_OFFSET + opts.size) ) previous_eip = cpu->eip ;
-			if(previous_eip >= CODE_OFFSET && previous_eip <= (CODE_OFFSET + opts.size) ){
+			if(previous_eip < opts.baseAddress || previous_eip > (opts.baseAddress + opts.size)) previous_eip = last_good_eip;
+			if(previous_eip < opts.baseAddress || previous_eip > (opts.baseAddress + opts.size) ) previous_eip = cpu->eip ;
+			if(previous_eip >= opts.baseAddress && previous_eip <= (opts.baseAddress + opts.size) ){
 				opts.step_over_bp = previous_eip + get_instr_length(previous_eip);
 				opts.verbose = 0;
 				/*start_color(myellow);
@@ -1498,7 +1594,7 @@ int handle_seh(struct emu *e,int last_good_eip){
 		 
 
 		start_color(myellow);
-		printf("\n%x\tException caught SEH=0x%x (seh foffset:%x)\n", last_good_eip, seh_handler, seh_handler - CODE_OFFSET);
+		printf("\n%x\tException caught SEH=0x%x (seh foffset:%x)\n", last_good_eip, seh_handler, seh_handler - opts.baseAddress);
 		
 		//now take our saved esp, add two ints to stack (subtract 8) and set org esp pointer there.
 		uint32_t cur_esp = cpu->reg[esp];
@@ -1579,13 +1675,13 @@ int find_sc(void){ //loose brute force let user decide...
 
 	for(i=0; i < opts.size ; i++){
 
-		emu_memory_write_block(mem, CODE_OFFSET, opts.scode,  opts.size);
+		emu_memory_write_block(mem, opts.baseAddress, opts.scode,  opts.size);
 		for (j=0;j<8;j++) cpu->reg[j] = regs[j];
 
 		if( opts.scode[i] != 0 ){
-			cpu->eip = CODE_OFFSET + i;
+			cpu->eip = opts.baseAddress + i;
 			s = mini_run(limit);
-			if(s > 100 && cpu->eip > (CODE_OFFSET + i + 100) ){
+			if(s > 100 && cpu->eip > (opts.baseAddress + i + 100) ){
 				if(last_step_cnt >= s && (last_offset+1) == i ){ //try not to spam
 					last_offset++;
 				}else{
@@ -1622,7 +1718,7 @@ int find_sc(void){ //loose brute force let user decide...
 		/*real_hexdump(opts.scode + results[s].offset, 10, -1, true);
 		nl();
 		start_color(mgreen);
-		disasm_block(CODE_OFFSET + results[s].offset, 5);
+		disasm_block(opts.baseAddress + results[s].offset, 5);
 		end_color();*/
 		nl();
 		results[s].steps = -1; //zero out this entry so it wont be chosen again
@@ -1683,11 +1779,11 @@ void init_emu(void){
     emu_memory_write_dword(mem, 0x7df7b0bb, 0x00000000); //UrldownloadToFile
 	
 	//write shellcode to memory
-	emu_memory_write_block(mem, CODE_OFFSET, opts.scode,  opts.size);
+	emu_memory_write_block(mem, opts.baseAddress, opts.scode,  opts.size);
 	
 	unsigned char tmp[0x1000]; //extra buffer on end in case they expect it..
 	memset(tmp, 0, sizeof(tmp));
-	emu_memory_write_block(mem, CODE_OFFSET + opts.size+1,tmp, sizeof(tmp));
+	emu_memory_write_block(mem, opts.baseAddress + opts.size+1,tmp, sizeof(tmp));
 	
 
 }
@@ -1708,7 +1804,7 @@ int run_sc(void)
 	struct emu_hashtable_item *ehi = NULL;
 
 	//printf("Setting eip\n");
-	emu_cpu_eip_set(emu_cpu_get(e), CODE_OFFSET + opts.offset);  //+ opts.offset for getpc mode
+	emu_cpu_eip_set(emu_cpu_get(e), opts.baseAddress + opts.offset);  //+ opts.offset for getpc mode
 
 	set_hooks(env);
 
@@ -1910,6 +2006,30 @@ int run_sc(void)
 				disasm_addr_simple(ov_decode_self_addr[i]);
 			}
 		}
+
+	}
+
+	if( opts.findApi){
+		if( env->win->lastApiCalled == NULL){
+			printf("No Api were called can not scan for api table...\n");
+		}else{
+			printf("\n\nScanning main code body for api table...\n");
+			if ( !find_apiTable(opts.baseAddress, opts.size)){
+				uint32_t stack_start = cpu->reg[esp];
+				int stack_size = cpu->reg[ebp] - cpu->reg[esp];
+				if( stack_size < 1 || stack_size > 0x1000) stack_size = 0x1000;
+				printf("Scanning stack for api table start=%x sz=%x\n", stack_start, stack_size);
+				find_apiTable( stack_start , stack_size );	
+			}
+			if( malloc_cnt > 0 ){ //then there were allocs made..
+				for(i=0; i < malloc_cnt; i++){
+					uint32_t msize = mallocs[i].size;
+					if(msize > 0x2600) msize = 0x2600; 
+					printf("Scanning memory allocation base=%x, sz=%x\n", mallocs[i].base, msize);
+					find_apiTable(mallocs[i].base, msize);
+				}
+			}
+		}
 	}
 
 	if(opts.mem_monitor){
@@ -1985,6 +2105,7 @@ void show_help(void)
 	struct help_info help_infos[] =
 	{
 		{"f", "fpath"    ,   "load shellcode from file specified."},
+		{"api", NULL  ,      "scan memory and try to find API table"},
 		{"ba", "hexnum"  ,   "break above - breaks if eip > hexnum"},
 		{"bp", "hexnum"  ,   "set breakpoint on addr or api name (same as -laa <hexaddr> -vvv)"},
 		{"bs", "int"     ,   "break on step (shortcut for -las <int> -vvv)"},
@@ -2103,6 +2224,8 @@ void parse_opts(int argc, char* argv[] ){
 	opts.mem_monitor_dlls = false;
 	opts.report = false;
 	opts.CreateFileOverride = false;
+	opts.findApi = false;
+	opts.baseAddress = 0x00401000;
 
 	for(i=1; i < argc; i++){
 
@@ -2130,6 +2253,7 @@ void parse_opts(int argc, char* argv[] ){
 		if(sl==3 && strstr(argv[i],"/vv")  > 0 ) { opts.verbose = 2;handled=true;}
 		if(sl==3 && strstr(argv[i],"/mm")  > 0 )  {opts.mem_monitor = true;handled=true;}
 		if(sl==5 && strstr(argv[i],"/mdll")  > 0 ){  opts.mem_monitor_dlls  = true;handled=true;}
+		if(sl==4 && strstr(argv[i],"/api")  > 0 ){  opts.findApi = true;handled=true;}
 		if(sl==5 && strstr(argv[i],"/dump")  > 0 ){  opts.hexdump_file = 1;handled=true;}
 		if(sl==6 && strstr(argv[i],"/hooks")  > 0 ){ show_supported_hooks();handled=true;}
 		if(sl==4 && strstr(argv[i],"/cfo")  > 0 ){ opts.CreateFileOverride = true;handled=true;}
@@ -2194,7 +2318,7 @@ void parse_opts(int argc, char* argv[] ){
 				printf("Invalid option /o must specify a hex base addr as next arg\n");
 				exit(0);
 			}
-		    CODE_OFFSET = strtol(argv[i+1], NULL, 16);			
+		    opts.baseAddress = strtol(argv[i+1], NULL, 16);			
 			i++;handled=true;
 		}
 
@@ -2458,7 +2582,7 @@ reinit:
 	}
 	
 	if(opts.report){ //monitor writes to main code mem.
-		emu_memory_add_monitor_range(0x66, CODE_OFFSET, CODE_OFFSET + opts.size); 
+		emu_memory_add_monitor_range(0x66, opts.baseAddress, opts.baseAddress + opts.size); 
     }
 	//---- end memory monitor init 
 
@@ -2478,7 +2602,7 @@ reinit:
 		if(opts.offset >= opts.size ) opts.offset = 0;
 		if(opts.offset > 0) printf("Starting at offset %x\n", opts.offset);
 		start_color(mgreen);
-		disasm_block(CODE_OFFSET+opts.offset, opts.disasm_mode);
+		disasm_block(opts.baseAddress+opts.offset, opts.disasm_mode);
 		end_color();
 		return 0;
 	}
@@ -2489,7 +2613,7 @@ reinit:
 		real_hexdump(opts.scode + opts.offset, 10,-1,true);
 		nl();
 		start_color(mgreen);
-		disasm_block(CODE_OFFSET+opts.offset, 5);
+		disasm_block(opts.baseAddress+opts.offset, 5);
 		end_color();
 		nl();
 	}
@@ -2526,7 +2650,7 @@ reinit:
 	}
 
 	printf("Max Steps: %d\n", opts.steps);
-	printf("Using base offset: 0x%x\n", CODE_OFFSET);
+	printf("Using base offset: 0x%x\n", opts.baseAddress);
 	if(opts.verbose>0) printf("Verbosity: %i\n", opts.verbose);
 
 	nl();
