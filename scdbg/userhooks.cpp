@@ -25,8 +25,9 @@
  *
  *******************************************************************************/
 
-
-
+#pragma warning(disable: 4311)
+#pragma warning(disable: 4312)
+#pragma warning(disable: 4267)
 
 #include <stdint.h>
 #include <stdio.h>
@@ -48,7 +49,6 @@ extern "C"{
 	#include "emu_hashtable.h"
 }
 
-#include "userhooks.h"
 #include "options.h"
 #include <stdint.h>
 #include <stdarg.h>
@@ -80,10 +80,25 @@ int get_fhandle(void){
 	return nextFhandle;
 }
 
+void pushd(uint32_t arg){														
+	uint32_t pushme;									
+	bcopy(&arg, &pushme, 4);							
+	if (cpu->reg[esp] < 4)								
+	{													
+		printf("ran out of stack space writing a dword\n");	
+		exit(0);										
+	}													
+	cpu->reg[esp]-=4;									
+	emu_memory_write_dword(cpu->mem, cpu->reg[esp], pushme);																			
+}
+
 /*these next 2 (maybe 3) seem to be the cleanest way to load args from the stack...*/
 uint32_t popd(void){
 	uint32_t x=0;
-	emu_memory_read_dword(cpu->mem, cpu->reg[esp], &x); 
+	if( emu_memory_read_dword(cpu->mem, cpu->reg[esp], &x) == -1){
+		printf("Failed to read stack memory at 0x%x", cpu->reg[esp]);
+		exit(0);
+	}
 	cpu->reg[esp] += 4; 
 	return x;
 }
@@ -160,7 +175,7 @@ void set_next_alloc(int size){  //space allocs at 0x1000 bytes for easy offset r
 }
 
 void GetSHFolderName(int id, char* buf255){
-	
+	// Shlobj.h   http://msdn.microsoft.com/en-us/library/bb762494(v=vs.85).aspx
 	switch(id){
 		case 0:      strcpy(buf255, "./DESKTOP"); break;
 		case 1:      strcpy(buf255, "./INTERNET");break;
@@ -304,6 +319,37 @@ CopyBOOL SHGetSpecialFolderPath(
 	GetSHFolderName(csidl, (char*)&buf255);
 
 	printf("%x\tSHGetSpecialFolderPathA(buf=%x, %s)\n",eip_save, buf, buf255 );
+	
+	emu_memory_write_block(mem,buf,buf255,strlen(buf255));
+
+	cpu->reg[eax] = 0;
+	emu_cpu_eip_set(cpu, eip_save);
+	return 0;
+}
+
+int32_t	__stdcall hook_SHGetFolderPathA(struct emu_env_w32 *win, struct emu_env_w32_dll_export *ex)
+{
+/*
+HRESULT SHGetFolderPath(
+  __in   HWND hwndOwner,
+  __in   int nFolder,
+  __in   HANDLE hToken,
+  __in   DWORD dwFlags,
+  __out  LPTSTR pszPath
+);
+*/
+	uint32_t eip_save = popd();
+	uint32_t hwnd = popd();
+	uint32_t csidl = popd();
+	uint32_t hToken = popd();
+	uint32_t flags = popd();
+	uint32_t buf = popd();
+
+	char buf255[255];
+	memset(buf255,0,254);
+	GetSHFolderName(csidl, (char*)&buf255);
+
+	printf("%x\tSHGetFolderPathA(buf=%x, %s)\n",eip_save, buf, buf255 );
 	
 	emu_memory_write_block(mem,buf,buf255,strlen(buf255));
 
@@ -467,8 +513,8 @@ int32_t	__stdcall hook_GenericStub(struct emu_env_w32 *win, struct emu_env_w32_d
 	}
 
 	if(strcmp(func, "CreateThread") ==0 && (dwCreationFlags == 0 || dwCreationFlags == 0x10000) ){ /* actually should check for bitflags */
-		PUSH_DWORD(cpu, log_val2);
-		PUSH_DWORD(cpu, eip_save);
+		pushd(log_val2);
+		pushd(eip_save);
 		emu_cpu_eip_set(cpu, log_val);
 		printf("\tTransferring execution to threadstart...\n");
 	}else{
@@ -1143,8 +1189,8 @@ int32_t	__stdcall hook_DialogBoxIndirectParamA(struct emu_env_w32 *win, struct e
 	cpu->reg[eax] = 1;
 
 	if( lpproc != 0 ){
-		PUSH_DWORD(cpu, param);
-		PUSH_DWORD(cpu, eip_save);
+		pushd(param);
+		pushd(eip_save);
 		emu_cpu_eip_set(cpu, lpproc);
 		printf("\tTransferring execution to DialogProc...\n");
 	}else{
@@ -1223,16 +1269,16 @@ int32_t	__stdcall hook_ZwQueryVirtualMemory(struct emu_env_w32 *win, struct emu_
 	return 0;
 }
 
-int32_t	__stdcall hook_GetwinironmentVariableA(struct emu_env_w32 *win, struct emu_env_w32_dll_export *ex)
+/*int32_t	__stdcall hook_GetEnvironmentVariableA(struct emu_env_w32 *win, struct emu_env_w32_dll_export *ex)
 {
 	
 /*
-	DWORD WINAPI GetwinironmentVariable(
+	DWORD WINAPI GetEnvironmentVariableA(
 	  __in_opt   LPCTSTR lpName,
 	  __out_opt  LPTSTR lpBuffer,
 	  __in       DWORD nSize
 	);	
-*/
+* /
 	uint32_t eip_save = popd();
 	struct emu_string *var_name = popstring();
 	uint32_t buf = popd();
@@ -1250,12 +1296,12 @@ int32_t	__stdcall hook_GetwinironmentVariableA(struct emu_env_w32 *win, struct e
 
 	if(sl < size) emu_memory_write_block(mem, buf, out, sl);
 		
-	printf("%x\tGetwinironmentVariableA(name=%s, buf=%x, size=%x) = %s\n", eip_save, var, buf, size, out );
+	printf("%x\tGetEnvironmentVariableA(name=%s, buf=%x, size=%x) = %s\n", eip_save, var, buf, size, out );
 
 	cpu->reg[eax] =  sl;	 
 	emu_cpu_eip_set(cpu, eip_save);
 	return 0;
-}
+}*/
 
 int32_t	__stdcall hook_VirtualAllocEx(struct emu_env_w32 *win, struct emu_env_w32_dll_export *ex)
 {
@@ -1365,8 +1411,8 @@ int32_t	__stdcall hook_CreateRemoteThread(struct emu_env_w32 *win, struct emu_en
 	printf("%x\tCreateRemoteThread(pid=%x, addr=%x , arg=%x, flags=%x, *id=%x)\n", eip_save, hproc, address, arg, flags, id);
 
 	if((flags == 0 || flags == 0x10000) ){ /* actually should check specific bitflags */
-		PUSH_DWORD(cpu, arg);
-		PUSH_DWORD(cpu, eip_save);
+		pushd(arg);
+		pushd(eip_save);
 		emu_cpu_eip_set(cpu, address);
 		printf("\tTransferring execution to threadstart...\n");
 	}else{
@@ -1979,7 +2025,9 @@ int32_t	__stdcall hook_GetProcAddress(struct emu_env_w32 *win, struct emu_env_w3
 	if(ordinal==0){
 		printf("%x\tGetProcAddress(%s)\n",eip_save, emu_string_char(procname));
 	}else{
-		printf("%x\tGetProcAddress(%s.0x%x) - ordinal\n",eip_save, dllFromAddress(module), ordinal);
+		char buf[255]={0};
+		fulllookupAddress(cpu->reg[eax], &buf[0]); 
+		printf("%x\tGetProcAddress(%s.0x%x) - %s by ordinal\n",eip_save, dllFromAddress(module), ordinal, buf);
 	}
 
 	if(module == 0 || cpu->reg[eax] == 0 ) printf("\tLookup not found: module base=%x dllName=%s\n", module, dllFromAddress(module) );  
@@ -2792,9 +2840,9 @@ int32_t	__stdcall hook_EnumWindows(struct emu_env_w32 *win, struct emu_env_w32_d
 	if( lpfnEnum != 0 ){ 
 		//BOOL CALLBACK EnumWindowsProc(HWND hwnd,LPARAM lParam);
 		uint32_t hwnd = 0xDEADBEEF;
-		PUSH_DWORD(cpu, lParam);
-		PUSH_DWORD(cpu, hwnd);      //possible error in my sample..
-		PUSH_DWORD(cpu, eip_save);
+		pushd(lParam);
+		pushd(hwnd);      //possible error in my sample..
+		pushd(eip_save);
 		emu_cpu_eip_set(cpu, lpfnEnum);
 		printf("\tTransferring execution to EnumWindowsProc...\n");
 	}else{

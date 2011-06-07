@@ -1,8 +1,12 @@
 		Changelog for libemu
 	
+6.6.11  - made sure interrupts throw error (linux shellcode no longer supported)
+        - new hook: SHGetFolderPathA
+        - removed userhooks.h, ADDHOOK macro now builds prototypes
 5.21.11
 		- export_copy fix * 2, more hook conversions to popd(), /lookup mode
 		- removed emu_track (was used in graphing and shellcode detection code)
+		- added /api option to locate API table in memory (scans body/stack/allocs)
 5.19.11
 		- imlemented movsw/movsb with rep support
 		- new hooks: IsBadReadPtr, GetCommandLineA	

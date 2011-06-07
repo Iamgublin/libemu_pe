@@ -30,45 +30,13 @@
 	I am not going to really impement Wchar api..if they call MultiByte2Wc, i am just returning
 	the ascii string, cause they are just going to send it to hooks latter on. So fake it and
 	use the A hooks for the W api. works out unless they were natively working in Wchar which
-	I have yet to see. its a dirty hack, but in practice (so far) its working just fine...
+	I have yet to see. its a dirty hack, but in practice its working just fine...
 
 	TODO: 
-
-		  fix peb module order..(specific legit order for each list)
-
-		  CreateFileMapping/MapViewofFile - figure out how to make work...
-
-		  for hooks with lots of args, (and needed for debugging) use opts.verbose to
-		  select which to use (simple vrs debug)
-
-		  InMemoryOrderModuleList 2nd dll supposed to be k32 ? 
-
-		  update the mdll ranges for new dlls
-
-		  if you let a dll load on demand, you have to set the hooks as that dll loads?
-
-		  implement guts of ZwQueryVirtualMemory hook if warrented (probably not lots of work)
-
-	      it would be nice to be able to load arbitrary dlls on cmdline would need:
-		      pe parsing to load and parse dll format 
-			  either need to call some export before emu_env_w32_new, or cache last peb pointers
-			  used, and load after the fact..maybe could eliminate all internal dlls then?
-
-		  add string deref for pointers in stack dump, deref regs and dword dump?
-		  opcode 2F could use supported 
-
-		  [0] should return memory not mapped error...why doesnt it? (-1 too)
-			answer: any call to write memory created memory if it didnt exist.
-			        so only mem reads of non-existant addresses triggered not mapped
-					errors. I put a very basic restriction in so no address < 0x1000
-					will do this..this will support shellcode which expect to trigger errors
-					with a write to 0 or the execute of code which is all 0000 add [eax], al
-					now leads to immediate crash as expected. (and confusing if it doesnt!)
-
-		  how/why/where are loadlibraryA opcodes being written to memory?
-		     answer: looks like entire .text section with imports was included.
-			         (I have just been using the mz/pe header and the export table when i add a dll)
-
+		  - implement a break on memory access command using mem monitor? maybe overkill for shellcode...
+		  - CreateFileMapping/MapViewofFile - figure out how to make work...
+		  - add string deref for pointers in stack dump, deref regs and dword dump?
+		  - opcode 2F could use implemented? (empty wrapper now) - das http://www.ray.masmcode.com/BCDdas.html
 
 */
 
@@ -101,7 +69,6 @@ extern "C"{
 #define CPU_FLAG_ISSET(cpu_p, fl) ((cpu_p)->eflags & (1 << (fl)))
 #define FLAG(fl) (1 << (fl))
 
-#include "userhooks.h"
 #include "options.h"
 #include <io.h>
 #include <signal.h>
@@ -654,6 +621,33 @@ bool find_apiTable(uint32_t offset, uint32_t size){
 	return true;
 }
 
+void doApiScan(void){
+
+	uint32_t i;
+
+	if( env->win->lastApiCalled == NULL){
+		printf("No Api were called can not scan for api table...\n");
+	}else{
+		printf("\n\nScanning main code body for api table...\n");
+		if ( !find_apiTable(opts.baseAddress, opts.size)){
+			uint32_t stack_start = cpu->reg[esp];
+			int stack_size = cpu->reg[ebp] - cpu->reg[esp];
+			if( stack_size < 1 || stack_size > 0x1000) stack_size = 0x1000;
+			printf("Scanning stack for api table base=%x sz=%x\n", stack_start, stack_size);
+			find_apiTable( stack_start , stack_size );	
+		}
+		if( malloc_cnt > 0 ){ //then there were allocs made..
+			for(i=0; i < malloc_cnt; i++){
+				uint32_t msize = mallocs[i].size;
+				if(msize > 0x2600) msize = 0x2600; 
+				printf("Scanning memory allocation base=%x, sz=%x\n", mallocs[i].base, msize);
+				find_apiTable(mallocs[i].base, msize);
+			}
+		}
+	}
+
+}
+
 bool was_packed(void){
 	unsigned char* tmp; int ii;
 	tmp = (unsigned char*)malloc(opts.size);
@@ -1128,7 +1122,8 @@ void show_debugshell_help(void){
 			"\tf - dereF registers (show any common api addresses in regs)\n"  
 			"\to - step over\n" 
 			"\t.lp - lookup - get symbol for address\n"  
-			"\t.pl - reverse lookup - get address for symbol\n"  
+			"\t.pl - reverse lookup - get address for symbol\n" 
+			"\t.api - scan memory for api table\n"
 			"\t.seh - shows current value at fs[0]\n"
 			"\t.reg - manually set register value\n"
 			"\t.poke1 - write a single byte to memory\n"
@@ -1196,6 +1191,7 @@ void interactive_command(struct emu *e){
 		if(c=='.'){  //dot commands
 			i = read_string("",tmp);
 			if(i>0){
+				if(strcmp(tmp,"api")==0) doApiScan();
 				if(strcmp(tmp,"seh")==0) show_seh();
 				if(strcmp(tmp,"savemem")==0) savemem();
 				if(strcmp(tmp,"pl")==0){
@@ -1392,8 +1388,23 @@ void debugCPU(struct emu *e, bool showdisasm){
 
 void set_hooks(struct emu_env *env){
 
-    #define ADDHOOK(name)     emu_env_w32_export_new_hook(env, #name, hook_##name, NULL);
+    //#define ADDHOOK(name)     emu_env_w32_export_new_hook(env, #name, hook_##name, NULL);
+
+	extern int32_t	__stdcall hook_GenericStub(struct emu_env_w32 *win, struct emu_env_w32_dll_export *ex);
+	extern int32_t	__stdcall hook_GenericStub2String(struct emu_env_w32 *win, struct emu_env_w32_dll_export *ex);
+	extern int32_t	__stdcall hook_shdocvw65(struct emu_env_w32 *win, struct emu_env_w32_dll_export *ex);
+
 	#define GENERICHOOK(name) emu_env_w32_export_new_hook(env, #name, hook_GenericStub, NULL);
+
+	#define ADDHOOK(name) \
+		extern int32_t	__stdcall hook_##name(struct emu_env_w32 *win, struct emu_env_w32_dll_export *ex);\
+		emu_env_w32_export_new_hook(env, #name, hook_##name, NULL);
+
+	ADDHOOK(LoadLibraryA);
+	ADDHOOK(URLDownloadToCacheFileA);
+	ADDHOOK(CreateProcessInternalA);
+	ADDHOOK(ExitProcess);
+	ADDHOOK(memset);
 
 	//these dont follow the macro pattern..mostly redirects/multitasks
 	emu_env_w32_export_new_hook(env, "LoadLibraryExA",  hook_LoadLibraryA, NULL);
@@ -1428,15 +1439,12 @@ void set_hooks(struct emu_env *env){
     GENERICHOOK(UnmapViewOfFile);
 	GENERICHOOK(FindClose);
 
-	ADDHOOK(LoadLibraryA);
 	ADDHOOK(GetModuleHandleA);
 	ADDHOOK(GlobalAlloc);
-	ADDHOOK(CreateProcessInternalA);
 	ADDHOOK(MessageBoxA);
 	ADDHOOK(ShellExecuteA);
 	ADDHOOK(SHGetSpecialFolderPathA);
 	ADDHOOK(MapViewOfFile);
-	ADDHOOK(URLDownloadToCacheFileA);
 	ADDHOOK(system);
 	ADDHOOK(VirtualAlloc);
 	ADDHOOK(VirtualProtectEx);
@@ -1468,7 +1476,6 @@ void set_hooks(struct emu_env *env){
 	ADDHOOK(WinExec);
 	ADDHOOK(Sleep);
 	ADDHOOK(DeleteFileA);
-	ADDHOOK(ExitProcess);
 	ADDHOOK(CloseHandle);
 	ADDHOOK(CreateFileA);
 	ADDHOOK(CreateProcessA);
@@ -1507,7 +1514,7 @@ void set_hooks(struct emu_env *env){
 	ADDHOOK(fread);
 	ADDHOOK(IsBadReadPtr);
 	ADDHOOK(GetCommandLineA);
-
+	ADDHOOK(SHGetFolderPathA);
 
 }
 
@@ -2009,28 +2016,7 @@ int run_sc(void)
 
 	}
 
-	if( opts.findApi){
-		if( env->win->lastApiCalled == NULL){
-			printf("No Api were called can not scan for api table...\n");
-		}else{
-			printf("\n\nScanning main code body for api table...\n");
-			if ( !find_apiTable(opts.baseAddress, opts.size)){
-				uint32_t stack_start = cpu->reg[esp];
-				int stack_size = cpu->reg[ebp] - cpu->reg[esp];
-				if( stack_size < 1 || stack_size > 0x1000) stack_size = 0x1000;
-				printf("Scanning stack for api table start=%x sz=%x\n", stack_start, stack_size);
-				find_apiTable( stack_start , stack_size );	
-			}
-			if( malloc_cnt > 0 ){ //then there were allocs made..
-				for(i=0; i < malloc_cnt; i++){
-					uint32_t msize = mallocs[i].size;
-					if(msize > 0x2600) msize = 0x2600; 
-					printf("Scanning memory allocation base=%x, sz=%x\n", mallocs[i].base, msize);
-					find_apiTable(mallocs[i].base, msize);
-				}
-			}
-		}
-	}
+	if( opts.findApi) doApiScan();
 
 	if(opts.mem_monitor){
 		printf("\nMemory Monitor Log:\n");

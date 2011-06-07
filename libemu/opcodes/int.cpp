@@ -32,7 +32,10 @@
 
 int32_t instr_int_cd(struct emu_cpu *c, struct emu_cpu_instruction *i)
 {
-	return 0;
+	if( *i->imm8 == 0x80 ) emu_strerror_set(c->emu, "Linux Shellcode Unsupported: Called Int 0x%x\n", *i->imm8);
+	  else emu_strerror_set(c->emu, "Unsupported instruction Interrupt 0x%x\n", *i->imm8);
+
+	return -1;
 }
 
 

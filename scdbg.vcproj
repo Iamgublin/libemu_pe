@@ -537,10 +537,6 @@
 				RelativePath=".\scdbg\userhooks.cpp"
 				>
 			</File>
-			<File
-				RelativePath=".\scdbg\userhooks.h"
-				>
-			</File>
 		</Filter>
 		<File
 			RelativePath=".\CHANGES"
