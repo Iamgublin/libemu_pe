@@ -41,13 +41,13 @@ struct emu_string *emu_string_new(void)
     {
     	return NULL;
     }
-    memset(s, 0, sizeof(struct emu_string));
+    memset(s, 0, sizeof(struct emu_string)); //sets all fields to null..
     return s;
 }
 
 void emu_string_free(struct emu_string *s)
 {
-    free(s->data);
+    if( s->data != NULL ) free(s->data); //added null check in case? only malloced on read not new.. dzzie
     free(s);
 }
 
@@ -56,6 +56,16 @@ char *emu_string_char(struct emu_string *s)
     return (char *)s->data;
 }
 
+void emu_string_clear(struct emu_string* s){ //dzzie 6.8.11
+	if(s != NULL){
+		if( s->data != NULL ) free(s->data);
+		s->data = (char*)malloc(4);
+		strcpy((char*)s->data, "");
+		s->size = 0;
+		s->emu_offset = 0;
+		s->invalidAddress = 1;
+	}
+}
 
 #include <stdio.h>
 void emu_string_append_char(struct emu_string *s, const char *data)

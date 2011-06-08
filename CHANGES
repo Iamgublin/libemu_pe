@@ -1,5 +1,9 @@
 		Changelog for libemu
-	
+		
+6.8.11  - emu_memory_read_string now allows for partial string reads
+	    - new function emu_string_clear
+        - string dereferencing added to deref_regs, stack dump, and dword dump
+        	
 6.6.11  - made sure interrupts throw error (linux shellcode no longer supported)
         - new hook: SHGetFolderPathA
         - removed userhooks.h, ADDHOOK macro now builds prototypes

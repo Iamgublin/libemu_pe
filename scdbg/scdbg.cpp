@@ -36,12 +36,10 @@
 		  - implement a break on memory access command using mem monitor? maybe overkill for shellcode...
 		  - CreateFileMapping/MapViewofFile - figure out how to make work...
 		  - add string deref for pointers in stack dump, deref regs and dword dump?
-		  - opcode 2F could use implemented? (empty wrapper now) - das http://www.ray.masmcode.com/BCDdas.html
-
 */
 
 
-# include <stdlib.h>
+#include <stdlib.h>
 #include <stdint.h>
 #include <stdio.h>
 #include <stdarg.h>
@@ -648,6 +646,34 @@ void doApiScan(void){
 
 }
 
+uint32_t isString(uint32_t va, uint32_t max_len){ //returns string length
+	bool retval = 0;
+	char* buf = (char*)malloc(max_len);
+	if( emu_memory_read_block(mem, va, buf, max_len) != -1 ){
+		for(int i=0;i<max_len;i++){
+			unsigned char c = buf[i];
+			//61 7A 41 5A 30 31 39 21  3F 2E   azAZ019!?.
+			if( isalnum(c)==0 ){
+				if( c !='!' && c !='.' && c!='?' && c!=':' && c!='\\' && c!='/' && c!=';' && c!='=') break; 
+			}
+			retval++;
+		}
+	}
+	free(buf);
+	return retval;
+}
+
+bool derefStringAddr(struct emu_string* s, uint32_t va, uint32_t len){
+		uint32_t slen = isString(va, len);
+		if(slen > 0){
+			emu_memory_read_string(mem, va, s, slen);
+			return true;
+		}else{
+			emu_string_clear(s);
+			return false;
+		}
+}
+
 bool was_packed(void){
 	unsigned char* tmp; int ii;
 	tmp = (unsigned char*)malloc(opts.size);
@@ -791,6 +817,22 @@ void deref_regs(void){
 			if(output_addr++==3) nl();
 		}
 	}
+	
+	struct emu_string* s = emu_string_new();
+	bool first = true;
+
+	for(i=0;i<8;i++){
+		uint32_t slen = isString(cpu->reg[i], 20);
+		if(slen > 0){
+			emu_memory_read_string(mem, cpu->reg[i], s, slen);
+			if( first ){ printf("\n"); first = false; }
+			printf("\t%s -> ASCII: %s %d\n", regm[i], s->data, slen);
+			output_addr++;
+		}
+	}
+	
+	emu_string_free(s);
+
 	if(output_addr==0) printf("No known values found...");
 	nl();
 }
@@ -1056,18 +1098,22 @@ void show_stack(void){
 	uint32_t curesp = cpu->reg[esp];
 	uint32_t mretval=0;
 	char buf[255];
+	struct emu_string* es = emu_string_new();
 
 	for(i = -16; i<=24;i+=4){
 		emu_memory_read_dword(mem,curesp+i,&mretval);
 		fulllookupAddress(mretval, (char*)&buf);
+		derefStringAddr(es, mretval, 256); 
 		if(i<0){
-			printf("[ESP - %-2x] = %08x\t%s\n", abs(i), mretval, buf);
+			printf("[ESP - %-2x] = %08x\t%s\t%s\n", abs(i), mretval, buf, es->data);
 		}else if(i==0){
-			printf("[ESP --> ] = %08x\t%s\n", mretval, buf);
+			printf("[ESP --> ] = %08x\t%s\t%s\n", mretval, buf, es->data);
 		}else{
-			printf("[ESP + %-2x] = %08x\t%s\n", i, mretval, buf);
+			printf("[ESP + %-2x] = %08x\t%s\t%s\n", i, mretval, buf, es->data);
 		}
 	}
+
+	emu_string_free(es);
 	
 }
 
@@ -1121,6 +1167,7 @@ void show_debugshell_help(void){
 			"\ti - break at instruction (scans disasm for next string match)\n"
 			"\tf - dereF registers (show any common api addresses in regs)\n"  
 			"\to - step over\n" 
+			"\t+/- - basic calculator to add or subtract 2 hex values\n"  
 			"\t.lp - lookup - get symbol for address\n"  
 			"\t.pl - reverse lookup - get address for symbol\n" 
 			"\t.api - scan memory for api table\n"
@@ -1148,6 +1195,7 @@ void interactive_command(struct emu *e){
 	uint32_t bytes_read=0;
 	char x[2]; x[1]=0;
     char c=0;;
+	struct emu_string *es = emu_string_new();
 
 	while(1){
 
@@ -1302,12 +1350,25 @@ void interactive_command(struct emu *e){
 
 		}
 
+		if(c=='+'){
+			base = read_hex("Enter first number to add", tmp);
+			size = read_hex("Enter second number",tmp);
+			printf("%x + %x = %x\n", base,size, base+size);
+		}
+
+		if(c=='-'){
+			base = read_hex("Enter first number to subtract", tmp);
+			size = read_hex("Enter second number",tmp);
+			printf("%x - %x = %x\n", base,size, base-size);
+		}
+
 		if(c=='w'){
 			base = read_hex("Enter hex base to dump", tmp);
 			size = read_hex("Enter words to dump",tmp);
 			int rel = read_int("Offset mode 1,2,-1,-2 (abs/rel/-abs/-rel)", tmp);			
 			if(rel==0) rel = 1;
-
+			size*=4; //num of 4 byte words to show, adjust for 0 based
+		
 			if( rel < 1 ){
 				for(i=base-size;i<=base;i+=4){
 					if(emu_memory_read_dword(mem, i, &bytes_read) == -1){
@@ -1315,10 +1376,11 @@ void interactive_command(struct emu *e){
 						break;
 					}else{
 						fulllookupAddress(bytes_read,(char*)&lookup);
+						derefStringAddr(es,bytes_read, 50);
 						if(rel == -2){
-							printf("[x - %-2x]\t%08x\t%s\n", (base-i), bytes_read, lookup );
+							printf("[x - %-2x]\t%08x\t%s\t%s\n", (base-i), bytes_read, lookup, es->data );
 						}else{
-							printf("%08x\t%08x\t%s\n", i, bytes_read, lookup);
+							printf("%08x\t%08x\t%s\t%s\n", i, bytes_read, lookup, es->data);
 						}
 					}
 				}
@@ -1328,11 +1390,12 @@ void interactive_command(struct emu *e){
 						printf("Memory read of %x failed \n", base+i );
 						break;
 					}else{
+						derefStringAddr(es,bytes_read, 50);
 						fulllookupAddress(bytes_read,(char*)&lookup);
 						if(rel == 2){
-							printf("[x + %-2x]\t%08x\t%s\n", i, bytes_read, lookup );
+							printf("[x + %-2x]\t%08x\t%s\t%s\n", i, bytes_read, lookup, es->data );
 						}else{
-							printf("%08x\t%08x\t%s\n", base+i, bytes_read, lookup);
+							printf("%08x\t%08x\t%s\t%s\n", base+i, bytes_read, lookup, es->data);
 						}
 					}
 				}
@@ -1344,6 +1407,7 @@ void interactive_command(struct emu *e){
 
 	printf("\n");
 	free(tmp);
+	emu_string_free(es);
 	disable_mm_logging = false;
 
 }

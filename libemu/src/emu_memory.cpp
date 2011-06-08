@@ -429,7 +429,9 @@ int32_t emu_memory_read_string(struct emu_memory *m, uint32_t addr, struct emu_s
 }*/
 
 //modified so that even if it fails it still returns an empty string..makes logging easier.. -dzzie 3.10.11
-//note reads to first null, size is set to strlen(), error size = 0
+//note reads to first null, size is set to strlen(), error size = 0\
+//behavior changed again 6.7.11 -> read of partial strings ok.. not complete fail -dzzie
+// + now allows for object reuse without memory leak
 int32_t emu_memory_read_string(struct emu_memory *m, uint32_t addr, struct emu_string *s, uint32_t maxsize)
 {
 	uint32_t i = 0;
@@ -438,7 +440,7 @@ int32_t emu_memory_read_string(struct emu_memory *m, uint32_t addr, struct emu_s
 	
 	while( 1 )
 	{
-		if (i > maxsize - 1) return -1;
+		if (i > maxsize - 1) break; //return -1; 
 		address = translate_addr(m, addr + i);
 		if( address == NULL ) break;
 		if( *(uint8_t *)address == '\0' ) break;
@@ -447,16 +449,17 @@ int32_t emu_memory_read_string(struct emu_memory *m, uint32_t addr, struct emu_s
 
 	s->emu_offset = addr;
 	s->invalidAddress = 0;
+	if( s->data != NULL ) free(s->data); //allow object reuse without memleak..
 
 	if(address == NULL){
 		s->data = (char*)malloc(4);
-		strcpy((char*)s->data, ""); 
+		strcpy((char*)s->data, "");
 		s->size = 0;
 		s->invalidAddress = 1;
 		return 0;
 	}else{
 		s->data = (char*)malloc(i + 1);
-		memset(s->data, 0, i + 1);
+		memset(s->data, 0, i + 1); //always null terminated..
 		s->size = i;
 		return emu_memory_read_block(m, addr, s->data, i);
 	}
