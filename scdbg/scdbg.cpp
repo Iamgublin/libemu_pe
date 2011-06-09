@@ -114,7 +114,6 @@ struct emu *e = 0;           //one global object
 struct emu_cpu *cpu = 0;
 struct emu_memory *mem = 0;
 struct emu_env *env = 0;
-//struct nanny *na = 0;
 	
 void debugCPU(struct emu *e, bool showdisasm);
 int fulllookupAddress(int eip, char* buf255);
@@ -122,7 +121,7 @@ void init_emu(void);
 void disasm_addr_simple(int);
 void LoadPatch(char* fpath);
 void HandleDirMode(char* folder);
-
+void nl(void);
 
 uint32_t FS_SEGMENT_DEFAULT_OFFSET = 0x7ffdf000;
 
@@ -236,9 +235,15 @@ struct signature signatures[] =
 	{"encoder.msf.call4_dw",			"\xFF\xC0\x5E\x81\x76\x0E", 6 },
 	{"encoder.77efe4.xor",				"\x30\x45\x00\x45\x49\x75\xF9\xEB\x00", 9 },
 	{"hasher.ror7",					    "\x3A\xD6\x74\x08\xC1\xCB\x07\x03\xDA\x40", 10 },
+	{"hasher.rorD.edx",                 "\xAC\x84\xC0\x74\x07\xC1\xCA\x0D\x01\xC2\xEB\xF4", 12},
+	{"hasher.rorD.edi.msf",             "\x33\xC0\xAC\x3A\xC4\x74\x07\xC1\xCF\x0D\x03\xF8\xEB\xF2", 14},
 	{"hasher.rol3xor",					"\xC1\xC2\x03\x32\x10\x40\x80\x38\x00\x75\xF5", 11 },
+	{"hasher.ror12",                    "\xAC\x84\xC0\x74\x07\xC1\xCF\x12\x01\xC7\xEB\xF4", 12},
 	{"hasher.harmony",					"\x31\xFF\x31\xC0\xAC\x3C\x61\x7C\x02\x2C\x20\xC1\xCF\x0D\x01\xC7\xE2\xF0\x52\x57\x8B\x52\x10", 23 },
 	{"template.hll.didier",				"\x89\x45\xF8\x68\xFA\x8B\x34\x00\x68\x88\x4E\x0D\x00\xE8\x08\x00\x00\x00\x89\x45\xFC", 21 },
+	{"template.hll.wishmaster",		    "\x57\x8B\x6C\x24\x18\x8B\x45\x3C\xFF\x74\x05\x78\xFF\x74\x05\x7C\x8B\x54\x05\x78\x03\xD5\x8B\x4A\x18\x8B\x5A\x20", 28 },
+	{"peb.k32Base.ru",                  "\x64\x8B\x71\x30\x8B\x76\x0C\x8B\x76\x1C\x8B\x5E\x08\x8B\x56\x20\x8B\x36\x66\x39\x4A\x18", 22 },
+	{"scanner.GetProcAddress",          "\x56\xAC\x3C\x8B\x75\xFB\x80\x3E\x7D\x75\xF6\x83\xC6\x03\xAD\x3D\xFF\xFF\x00\x00\x75\xEB\x83\xEE\x11", 25},
 	{NULL, NULL, 0},
 };
 
@@ -260,19 +265,30 @@ int bInstr(char *buf, char *match, int bufLen, int matchLen){
 	return -1;
 }
 
+void showSigs(void){
+	int i=0; 
+	printf("\n Signatures: \n");
+	while( signatures[i].siglen > 0 ){
+		printf("\t%s\n",signatures[i].name);
+		//add disassembly of them here too?
+		i++;
+	}
+	printf("\n Total %d\n", i);
+}
+
 void sigChecks(void){
 
 	int i=0; 
 	int match_at = -1;
 	char* tmp = (char*)malloc(opts.size);
 	emu_memory_read_block(mem, opts.baseAddress, tmp, opts.size);
+	nl();
 
 	while( signatures[i].siglen > 0 ){
 		match_at = bInstr( tmp, signatures[i].sig, opts.size, signatures[i].siglen - 1);
-		if(match_at >= 0) printf("\tSignature %s found at %x\n", signatures[i].name, opts.baseAddress + match_at); 
+		if(match_at >= 0) printf("Signature %s found at %x\n", signatures[i].name, opts.baseAddress + match_at); 
 		i++;
 	}
-
 }
 
 //enum Color { DARKBLUE = 1, DARKGREEN=2, DARKTEAL=3, DARKRED=4, 
@@ -2249,6 +2265,7 @@ void show_help(void)
 		{"r", NULL ,         "show analysis report at end of run (includes -mm)"},
 		{"redir", "ip:port", "redirect connect to ip (port optional)"},
 		{"s", "int"	     ,   "max number of steps to run (def=2000000, -1 unlimited)"},	
+		{"sigs", NULL	 ,   "show signatures"},	
 		{"t", "int"	     ,   "time to delay (ms) between steps when v=1 or 2"},
 		{"u", NULL ,         "unlimited steps (same as -s -1)"},
 		{"v",  NULL		 ,   "verbosity, can be used up to 4 times, ex. /v /v /vv"},
@@ -2360,6 +2377,7 @@ void parse_opts(int argc, char* argv[] ){
 		if(sl==2 && strstr(buf,"/r") > 0 ){ opts.report = true; opts.mem_monitor = true;handled=true;}
 		if(sl==2 && strstr(buf,"/u") > 0 ){opts.steps = -1;handled=true;}
 		if(sl==3 && strstr(argv[i],"/nc") > 0 ){   opts.no_color = true; handled=true;}
+		if(sl==5 && strstr(argv[i],"/sigs") > 0 ){ showSigs(); exit(0); }
 		if(sl==3 && strstr(argv[i],"/b0") > 0 ){   opts.break0  = true;handled=true;}
 		if(sl==4 && strstr(argv[i],"/hex") > 0 ) { opts.show_hexdumps = true;handled=true;}
 		if(sl==7 && strstr(argv[i],"/findsc") > 0 ){ opts.getpc_mode = true;handled=true;}
