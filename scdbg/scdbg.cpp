@@ -2669,6 +2669,13 @@ reinit:
 		goto reinit; //this gives us a full reinitilization of the whole envirnoment for the run..had a weird bug otherwise..
 	}
 
+	if( opts.offset > opts.baseAddress ){
+		start_color(myellow);
+		printf("/foff looks like a VirtualAddress adjusting to file offset...\n");
+		end_color();
+		opts.offset -= opts.baseAddress;
+	}
+
 	if(opts.interactive_hooks==1){
 		WORD wVersionRequested;
 		WSADATA wsaData;
