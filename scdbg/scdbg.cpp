@@ -99,6 +99,12 @@ struct result{
 	int org_i;
 };
 
+struct signature{
+	char* name;
+	char* sig;
+	int   siglen;
+};
+
 int malloc_cnt=0;
 struct m_allocs mallocs[21];
 
@@ -218,6 +224,56 @@ struct mmm_range mm_ranges[] =
 
 	{0, NULL, 0,0},
 };
+
+struct signature signatures[] = 
+{ 
+	{"encoder.msf.fnstenv_mov",			"\xD9\xEE\xD9\x74\x24\xF4\x5B\x81\x73\x13", 10 },
+	{"encoder.msf.jmp_call_additive",	"\xEB\x0C\x5E\x56\x31\x1E\xAD\x01\xC3",		9 },
+	{"encoder.msf.noupper",				"\xEB\x19\x5E\x8B\xFE\x83\xC7\x00\x8B\xD7", 10 },
+	{"encoder.msf.shikata_ga_nai",		"\xDA\xD7\x29\xC9\xB1\x5A\xD9\x74\x24\xF4", 10 },
+	{"encoder.msf.single_static_bit",	"\xEB\x65\x5E\x31\xED\x83\xE1\x01\x83\xE3\x01", 11 },
+	{"encoder.msf.countdown",			"\xFF\xC1\x5E\x30\x4C\x0E\x07\xE2\xFA", 9 },
+	{"encoder.msf.call4_dw",			"\xFF\xC0\x5E\x81\x76\x0E", 6 },
+	{"encoder.77efe4.xor",				"\x30\x45\x00\x45\x49\x75\xF9\xEB\x00", 9 },
+	{"hasher.ror7",					    "\x3A\xD6\x74\x08\xC1\xCB\x07\x03\xDA\x40", 10 },
+	{"hasher.rol3xor",					"\xC1\xC2\x03\x32\x10\x40\x80\x38\x00\x75\xF5", 11 },
+	{"hasher.harmony",					"\x31\xFF\x31\xC0\xAC\x3C\x61\x7C\x02\x2C\x20\xC1\xCF\x0D\x01\xC7\xE2\xF0\x52\x57\x8B\x52\x10", 23 },
+	{"template.hll.didier",				"\x89\x45\xF8\x68\xFA\x8B\x34\x00\x68\x88\x4E\x0D\x00\xE8\x08\x00\x00\x00\x89\x45\xFC", 21 },
+	{NULL, NULL, 0},
+};
+
+int bInstr(char *buf, char *match, int bufLen, int matchLen){
+
+	int i, j;
+
+	for(i=0; i < bufLen ; i++){
+		
+		if(buf[i] == match[0]){
+			for(j=1; j < matchLen; j++){
+				if(buf[i+j] != match[j]) break;
+			}
+			if(j==matchLen) return i;
+		}
+
+	}
+
+	return -1;
+}
+
+void sigChecks(void){
+
+	int i=0; 
+	int match_at = -1;
+	char* tmp = (char*)malloc(opts.size);
+	emu_memory_read_block(mem, opts.baseAddress, tmp, opts.size);
+
+	while( signatures[i].siglen > 0 ){
+		match_at = bInstr( tmp, signatures[i].sig, opts.size, signatures[i].siglen - 1);
+		if(match_at >= 0) printf("\tSignature %s found at %x\n", signatures[i].name, opts.baseAddress + match_at); 
+		i++;
+	}
+
+}
 
 //enum Color { DARKBLUE = 1, DARKGREEN=2, DARKTEAL=3, DARKRED=4, 
 //			   DARKPINK=5, DARKYELLOW=6, GRAY=7, DARKGRAY=8, 
@@ -475,13 +531,17 @@ void symbol_lookup(char* symbol){
 	if(!dllmap_mode) printf("\tNo results found...\n");
 }
 
-int validated_lookup(uint32_t eip){
+bool isDllMemAddress(uint32_t eip){
 
-	if(eip < 0x71ab0000 || eip > 0x7e4a1000){ //only do a full lookup for addresses in dll addr range
-		if( eip < 0x3d930000 || eip > 0x3da01000) return 0;
+	if(eip < 0x71ab0000 || eip > 0x7e4a1000){ 
+		if( eip < 0x3d930000 || eip > 0x3da01000) return false;
 	}
+	return true;
+}
 
+int validated_lookup(uint32_t eip){
 	char tmp[256];
+	if(!isDllMemAddress(eip) ) return 0;
 	return fulllookupAddress(eip, &tmp[0]);
 }
 
@@ -1705,6 +1765,8 @@ int mini_run(int limit){
 		if ( emu_cpu_step(cpu) != 0 ) break;
         if(steps >= limit) break;
 		if(!cpu->repeat_current_instr) steps++;
+		if( isDllMemAddress(cpu->eip) ) break;  //bails on dll mem addr (we dont have hooks set cause no output wanted, if end eip = an api address good sign!)
+		if( cpu->instr.opc == 0 ) break; //we will consider 0000 add [eax], eax as invalid memory.. 
 	}
 	return steps;
 }
@@ -1778,7 +1840,7 @@ int find_sc(void){ //loose brute force let user decide...
 
 	//let them choose from the top 10
 	for(i=0;i<10;i++){
-		s = find_max(results,40);
+		s = find_max(results,40); //if end eip = an api address we should move to top of list..
 		if(s == -1) break;
 		sorted[i] = results[s];
 		fulllookupAddress(results[s].final_eip, (char*)&buf255); 
@@ -2080,6 +2142,8 @@ int run_sc(void)
 
 	}
 
+	if( opts.sigScan || opts.report) sigChecks();
+
 	if( opts.findApi) doApiScan();
 
 	if(opts.mem_monitor){
@@ -2276,6 +2340,7 @@ void parse_opts(int argc, char* argv[] ){
 	opts.CreateFileOverride = false;
 	opts.findApi = false;
 	opts.baseAddress = 0x00401000;
+	opts.sigScan = false;
 
 	for(i=1; i < argc; i++){
 

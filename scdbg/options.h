@@ -41,6 +41,7 @@ struct run_time_options
 	bool  CreateFileOverride;
 	char* cmdline;
 	bool findApi;
+	bool sigScan;
 
 	struct
 	{
