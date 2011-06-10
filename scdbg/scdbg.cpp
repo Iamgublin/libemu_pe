@@ -943,7 +943,7 @@ void real_hexdump(unsigned char* str, int len, int offset, bool hexonly){
 		display_rows = csb.srWindow.Bottom - csb.srWindow.Top - 2;
 	}
 
-	printf("Display rows: %x\n", display_rows);
+	//printf("Display rows: %x\n", display_rows);
 
 	if(!hexonly) printf(nl);
 	
@@ -975,12 +975,14 @@ void real_hexdump(unsigned char* str, int len, int offset, bool hexonly){
 				displayed_lines++;
 				sprintf(tmp,"    %s\n", asc);
 				printf("%s",tmp);
-				if( display_rows > 0 && displayed_lines == display_rows){
-					displayed_lines = 0;
-					printf("-- More --");
-					char qq = getch();
-					if(qq == 'q') break;
-					printf("\n");
+				if(display_rows > 0 && displayed_lines == display_rows){
+					if(!opts.automationRun){ 
+						displayed_lines = 0;
+						printf("-- More --");
+						char qq = getch();
+						if(qq == 'q') break;
+						printf("\n");
+					}
 				}
 			}
 			if(offset >=0){
@@ -1272,6 +1274,8 @@ void interactive_command(struct emu *e){
 
 	printf("\n");
     
+	if( opts.automationRun ) return;
+
 	disable_mm_logging = true;
 
 	char *buf=0;
@@ -1874,6 +1878,12 @@ int find_sc(void){ //loose brute force let user decide...
 		return -1;
 	}
 
+	if( opts.automationRun ){
+		s = find_max(results,40);
+		if(s == -1) return -1;
+		return results[s].offset;
+	}
+	
 	//let them choose from the top 10
 	for(i=0;i<10;i++){
 		s = find_max(results,40); //if end eip = an api address we should move to top of list..
@@ -2256,6 +2266,7 @@ void show_help(void)
 	{
 		{"f", "fpath"    ,   "load shellcode from file specified."},
 		{"api", NULL  ,      "scan memory and try to find API table"},
+		{"auto", NULL  ,     "running as part of an automation run"},
 		{"ba", "hexnum"  ,   "break above - breaks if eip > hexnum"},
 		{"bp", "hexnum"  ,   "set breakpoint on addr or api name (same as -laa <hexaddr> -vvv)"},
 		{"bs", "int"     ,   "break on step (shortcut for -las <int> -vvv)"},
@@ -2378,6 +2389,7 @@ void parse_opts(int argc, char* argv[] ){
 	opts.findApi = false;
 	opts.baseAddress = 0x00401000;
 	opts.sigScan = false;
+	opts.automationRun = false;
 
 	for(i=1; i < argc; i++){
 
@@ -2398,6 +2410,7 @@ void parse_opts(int argc, char* argv[] ){
 		if(sl==2 && strstr(buf,"/u") > 0 ){opts.steps = -1;handled=true;}
 		if(sl==3 && strstr(argv[i],"/nc") > 0 ){   opts.no_color = true; handled=true;}
 		if(sl==5 && strstr(argv[i],"/sigs") > 0 ){ showSigs(); exit(0); }
+		if(sl==5 && strstr(argv[i],"/auto") > 0 ){ opts.automationRun = true; handled = true; }
 		if(sl==3 && strstr(argv[i],"/b0") > 0 ){   opts.break0  = true;handled=true;}
 		if(sl==4 && strstr(argv[i],"/hex") > 0 ) { opts.show_hexdumps = true;handled=true;}
 		if(sl==7 && strstr(argv[i],"/findsc") > 0 ){ opts.getpc_mode = true;handled=true;}
@@ -2707,6 +2720,12 @@ reinit:
 		goto reinit; //this gives us a full reinitilization of the whole envirnoment for the run..had a weird bug otherwise..
 	}
 
+	if( opts.automationRun ){
+		opts.show_hexdumps = false;
+		opts.no_color = true;
+		opts.verbose = 0;
+	}
+
 	if( opts.offset > opts.baseAddress ){
 		start_color(myellow);
 		printf("/foff looks like a VirtualAddress adjusting to file offset...\n");
@@ -2816,7 +2835,7 @@ reinit:
 	nl();
 	run_sc();
 
-	return 0;
+	return opts.cur_step;
 	 
 }
 
@@ -2894,6 +2913,7 @@ void HandleDirMode(char* folder){
 	HANDLE hSearch;
 	char cmdline[1000];
 	char shortname[500];
+	char longPath[500];
 	int i=0;
 
 	if(strlen(folder) > 300) return;
@@ -2909,16 +2929,36 @@ void HandleDirMode(char* folder){
 	printf("\n\n  Processing all sc files in %s\n\n", folder);
 
 	while(1){ 
-		printf("  %s\n", FileData.cFileName); 
+		printf("  %s", FileData.cFileName); 
 		sprintf(cmdline, "%s\\%s", folder, FileData.cFileName);
 		GetShortPathName(cmdline, (char*)&shortname, 500);
 		
 		if(opts.report)
-			sprintf(cmdline, "scdbg -f %s >> %s\\report.txt", shortname, folder);  //one long report
+			sprintf(cmdline, "scdbg -auto -f %s >> %s\\report.txt", shortname, folder);  //one long report
 		else
-			sprintf(cmdline, "scdbg -f %s > %s.txt", shortname, shortname);      //individual files
+			sprintf(cmdline, "scdbg -auto -f %s > %s.txt", shortname, shortname);      //individual files
 
-		system(cmdline);
+		int retval = system(cmdline);
+		printf("\tSteps: %-8x", retval);
+
+		if( retval < 200){
+			printf(" -findsc:");
+			if(opts.report){
+				sprintf(cmdline, "scdbg -auto -findsc -f %s >> %s\\report.txt", shortname, folder);  //one long report
+			}else{
+				sprintf(cmdline, "scdbg -auto -findsc -f %s >> %s.txt", shortname, shortname);      //individual files
+			}
+			retval = system(cmdline);
+			printf(" %x", retval);
+		}
+		
+		if( !opts.report ){
+			strcat(shortname, ".txt");
+			sprintf(longPath, "%s\\%s.txt", folder, FileData.cFileName);
+			retval = rename(shortname, longPath );
+		}
+		
+		nl();
 		i++;
 		if (!FindNextFile(hSearch, &FileData)) break;
 	}

@@ -42,6 +42,7 @@ struct run_time_options
 	char* cmdline;
 	bool findApi;
 	bool sigScan;
+	bool automationRun;
 
 	struct
 	{
