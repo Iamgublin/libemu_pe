@@ -234,9 +234,11 @@ struct signature signatures[] =
 	{"encoder.msf.countdown",			"\xFF\xC1\x5E\x30\x4C\x0E\x07\xE2\xFA", 9 },
 	{"encoder.msf.call4_dw",			"\xFF\xC0\x5E\x81\x76\x0E", 6 },
 	{"encoder.77efe4.xor",				"\x30\x45\x00\x45\x49\x75\xF9\xEB\x00", 9 },
-	{"hasher.ror7",					    "\x3A\xD6\x74\x08\xC1\xCB\x07\x03\xDA\x40", 10 },
+	{"hasher.ror7.ebx", 			    "\x3A\xD6\x74\x08\xC1\xCB\x07\x03\xDA\x40", 10 }, /*ror7.bycount contains this..*/
 	{"hasher.rorD.edx",                 "\xAC\x84\xC0\x74\x07\xC1\xCA\x0D\x01\xC2\xEB\xF4", 12},
 	{"hasher.rorD.edi.msf",             "\x33\xC0\xAC\x3A\xC4\x74\x07\xC1\xCF\x0D\x03\xF8\xEB\xF2", 14},
+	{"hasher.rorD.ebx.bycount",         "\x0F\xBE\x10\x3A\xD6\x74\x08\xC1\xCB\x0D\x03\xDA\x40\xEB\xF1", 15},
+	{"hasher.ror7.ebx.bycount",         "\x0F\xBE\x10\x3A\xD6\x74\x08\xC1\xCB\x07\x03\xDA\x40\xEB\xF1", 15},
 	{"hasher.rol3xor",					"\xC1\xC2\x03\x32\x10\x40\x80\x38\x00\x75\xF5", 11 },
 	{"hasher.ror12",                    "\xAC\x84\xC0\x74\x07\xC1\xCF\x12\x01\xC7\xEB\xF4", 12},
 	{"hasher.harmony",					"\x31\xFF\x31\xC0\xAC\x3C\x61\x7C\x02\x2C\x20\xC1\xCF\x0D\x01\xC7\xE2\xF0\x52\x57\x8B\x52\x10", 23 },
@@ -244,6 +246,7 @@ struct signature signatures[] =
 	{"template.hll.wishmaster",		    "\x57\x8B\x6C\x24\x18\x8B\x45\x3C\xFF\x74\x05\x78\xFF\x74\x05\x7C\x8B\x54\x05\x78\x03\xD5\x8B\x4A\x18\x8B\x5A\x20", 28 },
 	{"peb.k32Base.ru",                  "\x64\x8B\x71\x30\x8B\x76\x0C\x8B\x76\x1C\x8B\x5E\x08\x8B\x56\x20\x8B\x36\x66\x39\x4A\x18", 22 },
 	{"scanner.GetProcAddress",          "\x56\xAC\x3C\x8B\x75\xFB\x80\x3E\x7D\x75\xF6\x83\xC6\x03\xAD\x3D\xFF\xFF\x00\x00\x75\xEB\x83\xEE\x11", 25},
+	{"scanner.hookcheck",               "\x80\x38\xE8\x74\x0A\x80\x38\xE9\x74\x05\x80\x38\xEB\x75\x11", 15},
 	{NULL, NULL, 0},
 };
 
@@ -280,15 +283,24 @@ void sigChecks(void){
 
 	int i=0; 
 	int match_at = -1;
+	int matches = 0;
 	char* tmp = (char*)malloc(opts.size);
 	emu_memory_read_block(mem, opts.baseAddress, tmp, opts.size);
-	nl();
+	
+	printf("\nSignatures Found: ");
 
 	while( signatures[i].siglen > 0 ){
 		match_at = bInstr( tmp, signatures[i].sig, opts.size, signatures[i].siglen - 1);
-		if(match_at >= 0) printf("Signature %s found at %x\n", signatures[i].name, opts.baseAddress + match_at); 
+		if(match_at >= 0){
+			if(matches==0) nl();
+			matches++;
+			printf("\t%x \t %s \n", opts.baseAddress + match_at, signatures[i].name); 
+		}
 		i++;
 	}
+	
+	if(matches==0) printf(" None\n");
+
 }
 
 //enum Color { DARKBLUE = 1, DARKGREEN=2, DARKTEAL=3, DARKRED=4, 
@@ -1545,12 +1557,16 @@ void set_hooks(struct emu_env *env){
 	ADDHOOK(CreateProcessInternalA);
 	ADDHOOK(ExitProcess);
 	ADDHOOK(memset);
+	ADDHOOK(CryptAcquireContextA);
+	ADDHOOK(GetFileSize);
 
 	//these dont follow the macro pattern..mostly redirects/multitasks
 	emu_env_w32_export_new_hook(env, "LoadLibraryExA",  hook_LoadLibraryA, NULL);
 	emu_env_w32_export_new_hook(env, "URLDownloadToCacheFileW", hook_URLDownloadToCacheFileA, NULL);
 	emu_env_w32_export_new_hook(env, "CreateProcessInternalW", hook_CreateProcessInternalA, NULL);
 	emu_env_w32_export_new_hook(env, "ExitThread", hook_ExitProcess, NULL);
+	emu_env_w32_export_new_hook(env, "CryptAcquireContextW", hook_CryptAcquireContextA, NULL);
+	emu_env_w32_export_new_hook(env, "GetFileSizeEx", hook_GetFileSize, NULL);
 
 	//-----handled by the generic stub 2 string
 	emu_env_w32_export_new_hook(env, "InternetOpenA", hook_GenericStub2String, NULL);
@@ -1648,13 +1664,17 @@ void set_hooks(struct emu_env *env){
 	ADDHOOK(FindFirstFileA);
 	ADDHOOK(GetUrlCacheEntryInfoA);
 	ADDHOOK(CopyFileA);
-	ADDHOOK(GetFileSize);
 	ADDHOOK(EnumWindows);
 	ADDHOOK(GetClassNameA);
 	ADDHOOK(fread);
 	ADDHOOK(IsBadReadPtr);
 	ADDHOOK(GetCommandLineA);
 	ADDHOOK(SHGetFolderPathA);
+	ADDHOOK(CryptCreateHash);
+	ADDHOOK(CryptHashData);
+	ADDHOOK(CryptGetHashParam);
+	ADDHOOK(CryptDestroyHash);
+	ADDHOOK(CryptReleaseContext);
 
 }
 

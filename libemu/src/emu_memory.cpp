@@ -466,7 +466,6 @@ int32_t emu_memory_read_string(struct emu_memory *m, uint32_t addr, struct emu_s
 
 }
 
-
 int32_t emu_memory_write_byte(struct emu_memory *m, uint32_t addr, uint8_t byte)
 {
 	if ( m->read_only_access == true )

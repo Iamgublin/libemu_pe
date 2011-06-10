@@ -213,6 +213,64 @@ void GetSHFolderName(int id, char* buf255){
 
 }
 
+
+void GetAligIDName(int id, char* buf255){
+	// Wincrypt.h    http://msdn.microsoft.com/en-us/library/aa375549(v=VS.85).aspx
+	switch(id){
+			case CALG_3DES:					strcpy(buf255, "CALG_3DES"); break;
+			case CALG_3DES_112:				strcpy(buf255, "CALG_3DES_112"); break;
+			case CALG_AES:					strcpy(buf255, "CALG_AES"); break;
+			case CALG_AES_128:				strcpy(buf255, "CALG_AES_128"); break;
+			case CALG_AES_192:				strcpy(buf255, "CALG_AES_192"); break;
+			case CALG_AES_256:				strcpy(buf255, "CALG_AES_256"); break;
+			case CALG_AGREEDKEY_ANY:		strcpy(buf255, "CALG_AGREEDKEY_ANY"); break;
+			case CALG_CYLINK_MEK:			strcpy(buf255, "CALG_CYLINK_MEK"); break;
+			case CALG_DES:					strcpy(buf255, "CALG_DES"); break;
+			case CALG_DESX:					strcpy(buf255, "CALG_DESX"); break;
+			case CALG_DH_EPHEM:				strcpy(buf255, "CALG_DH_EPHEM"); break;
+			case CALG_DH_SF:				strcpy(buf255, "CALG_DH_SF"); break;
+			case CALG_DSS_SIGN:				strcpy(buf255, "CALG_DSS_SIGN"); break;
+			case CALG_ECDH:					strcpy(buf255, "CALG_ECDH"); break;
+			case CALG_ECDSA:				strcpy(buf255, "CALG_ECDSA"); break;
+			case CALG_ECMQV:				strcpy(buf255, "CALG_ECMQV"); break;
+			case CALG_HASH_REPLACE_OWF:      strcpy(buf255, "CALG_HASH_REPLACE_OWF"); break;
+			case CALG_HUGHES_MD5:			strcpy(buf255, "CALG_HUGHES_MD5"); break;
+			case CALG_HMAC:					strcpy(buf255, "CALG_HMAC"); break;
+			case CALG_KEA_KEYX:				strcpy(buf255, "CALG_KEA_KEYX"); break;
+			case CALG_MAC:					strcpy(buf255, "CALG_MAC"); break;
+			case CALG_MD2:					strcpy(buf255, "CALG_MD2"); break;
+			case CALG_MD4:					strcpy(buf255, "CALG_MD4"); break;
+			case CALG_MD5:					strcpy(buf255, "CALG_MD5"); break;
+			case CALG_NO_SIGN:				strcpy(buf255, "CALG_NO_SIGN"); break;
+			case CALG_OID_INFO_CNG_ONLY:      strcpy(buf255, "CALG_OID_INFO_CNG_ONLY"); break;
+			case CALG_OID_INFO_PARAMETERS:      strcpy(buf255, "CALG_OID_INFO_PARAMETERS"); break;
+			case CALG_PCT1_MASTER:			strcpy(buf255, "CALG_PCT1_MASTER"); break;
+			case CALG_RC2:					strcpy(buf255, "CALG_RC2"); break;
+			case CALG_RC4:					strcpy(buf255, "CALG_RC4"); break;
+			case CALG_RC5:					strcpy(buf255, "CALG_RC5"); break;
+			case CALG_RSA_KEYX:				strcpy(buf255, "CALG_RSA_KEYX"); break;
+			case CALG_RSA_SIGN:				strcpy(buf255, "CALG_RSA_SIGN"); break;
+			case CALG_SCHANNEL_ENC_KEY:     strcpy(buf255, "CALG_SCHANNEL_ENC_KEY"); break;
+			case CALG_SCHANNEL_MAC_KEY:     strcpy(buf255, "CALG_SCHANNEL_MAC_KEY"); break;
+			case CALG_SCHANNEL_MASTER_HASH: strcpy(buf255, "CALG_SCHANNEL_MASTER_HASH"); break;
+			case CALG_SEAL:					strcpy(buf255, "CALG_SEAL"); break;
+			case CALG_SHA:					strcpy(buf255, "CALG_SHA"); break;
+			//case CALG_SHA1:					strcpy(buf255, "CALG_SHA1"); break;
+			case CALG_SHA_256:				strcpy(buf255, "CALG_SHA_256"); break;
+			case CALG_SHA_384:				strcpy(buf255, "CALG_SHA_384"); break;
+			case CALG_SHA_512:				strcpy(buf255, "CALG_SHA_512"); break;
+			case CALG_SKIPJACK:				strcpy(buf255, "CALG_SKIPJACK"); break;
+			case CALG_SSL2_MASTER:			strcpy(buf255, "CALG_SSL2_MASTER"); break;
+			case CALG_SSL3_MASTER:			strcpy(buf255, "CALG_SSL3_MASTER"); break;
+			case CALG_SSL3_SHAMD5:			strcpy(buf255, "CALG_SSL3_SHAMD5"); break;
+			case CALG_TEK:					strcpy(buf255, "CALG_TEK"); break;
+			case CALG_TLS1_MASTER:			strcpy(buf255, "CALG_TLS1_MASTER"); break;
+			case CALG_TLS1PRF:				strcpy(buf255, "CALG_TLS1PRF"); break;
+			default:						sprintf(buf255,"Unknown ALGID: %x",id);
+			}
+}
+
+
 int32_t	__stdcall hook_GetModuleHandleA(struct emu_env_w32 *win, struct emu_env_w32_dll_export *ex)
 {   //HMODULE WINAPI GetModuleHandle( __in_opt  LPCTSTR lpModuleName);
 	uint32_t eip_save = popd();
@@ -2786,13 +2844,17 @@ int32_t	__stdcall hook_CopyFileA(struct emu_env_w32 *win, struct emu_env_w32_dll
 
 int32_t	__stdcall hook_GetFileSize(struct emu_env_w32 *win, struct emu_env_w32_dll_export *ex)
 {   
-	/*
-	BOOL WINAPI CopyFile(
-	  __in  LPCTSTR lpExistingFileName,
-	  __in  LPCTSTR lpNewFileName,
-	  __in  BOOL bFailIfExists
+/*
+	DWORD WINAPI GetFileSize(
+	  __in       HANDLE hFile,
+	  __out_opt  LPDWORD lpFileSizeHigh
 	);
-	*/
+
+	BOOL WINAPI GetFileSizeEx(
+	  __in   HANDLE hFile,
+	  __out  PLARGE_INTEGER lpFileSize
+	);
+*/
 
 	uint32_t eip_save = popd();
 	uint32_t hFile = popd();
@@ -2999,9 +3061,201 @@ int32_t	__stdcall hook_GetEnvironmentVariableA(struct emu_env_w32 *win, struct e
 	return 0;
 }
 
+int32_t	__stdcall hook_CryptAcquireContextA(struct emu_env_w32 *win, struct emu_env_w32_dll_export *ex)
+{
+	/*
+		BOOL WINAPI CryptAcquireContext(
+		  __out  HCRYPTPROV *phProv,
+		  __in   LPCTSTR pszContainer,
+		  __in   LPCTSTR pszProvider,
+		  __in   DWORD dwProvType,
+		  __in   DWORD dwFlags
+		);
 
+	*/
+	uint32_t eip_save = popd();
+	uint32_t phProv = popd();
 
+	//if(strcmp(func, "CryptAcquireContextW") ==0 ){
+		//handle unicode strings
+	//}else{
+		struct emu_string* szContainer = popstring();
+		struct emu_string* szProvider = popstring();
+	//}
 
+	uint32_t dwProvType = popd();
+	uint32_t dwFlags = popd();
+
+	char out[1000] = {0};
+	if( (dwFlags & CRYPT_VERIFYCONTEXT) > 0 ) strcat(out, "CRYPT_VERIFYCONTEXT");
+	if( (dwFlags & CRYPT_NEWKEYSET) > 0 ) strcat(out, ", CRYPT_NEWKEYSET");
+	if( (dwFlags & CRYPT_MACHINE_KEYSET) > 0  ) strcat(out, ", CRYPT_MACHINE_KEYSET ");
+	if( (dwFlags & CRYPT_DELETEKEYSET) > 0 ) strcat(out, ", CRYPT_DELETEKEYSET");
+	if( (dwFlags & CRYPT_SILENT) > 0 ) strcat(out, ", CRYPT_SILENT");
+	if( (dwFlags & CRYPT_DEFAULT_CONTAINER_OPTIONAL ) > 0 ) strcat(out, ", CRYPT_DEFAULT_CONTAINER_OPTIONAL");
+ 
+	HCRYPTPROV myProv = NULL; //typedef long
+	
+	uint32_t rv = (uint32_t)CryptAcquireContext(&myProv, szContainer->data, szProvider->data, dwProvType, dwFlags); 
+
+	emu_memory_write_dword(mem, phProv, (uint32_t)myProv);
+		
+	printf("%x\t%s(%x, %s, %s, %x, %x) = %x mProv=%x\n", eip_save, ex->fnname, phProv, szContainer->data, szProvider->data, dwProvType, dwFlags, rv, (uint32_t)myProv );
+	
+	if(strlen(out) > 0) printf("\t Flags: %s\n", out);
+
+	emu_string_free(szContainer);
+	emu_string_free(szProvider);
+	cpu->reg[eax] =  rv;	 
+	emu_cpu_eip_set(cpu, eip_save);
+	return 0;
+}
+
+int32_t	__stdcall hook_CryptCreateHash(struct emu_env_w32 *win, struct emu_env_w32_dll_export *ex)
+{
+	/*
+		BOOL WINAPI CryptCreateHash(
+		  __in   HCRYPTPROV hProv,
+		  __in   ALG_ID Algid,
+		  __in   HCRYPTKEY hKey,
+		  __in   DWORD dwFlags,
+		  __out  HCRYPTHASH *phHash
+		);
+	*/
+	uint32_t eip_save = popd();
+	uint32_t hProv = popd();
+	uint32_t algid = popd();
+	uint32_t hkey = popd();
+	uint32_t flags = popd();
+	uint32_t hHash = popd();
+
+	HCRYPTHASH mHash;
+	char sAlgid[256];
+	GetAligIDName(algid, &sAlgid[0]);
+
+	uint32_t rv = (uint32_t)CryptCreateHash(hProv,algid,hkey,flags,&mHash); 
+
+	emu_memory_write_dword(mem, hHash, (uint32_t)mHash);
+		
+	printf("%x\tCryptCreateHash(%x, %s, %x, %x, %x) = %x mHash=%x\n", eip_save, hProv, sAlgid, hkey, flags, hHash, rv, (uint32_t)mHash );
+	
+	cpu->reg[eax] =  rv;	 
+	emu_cpu_eip_set(cpu, eip_save);
+	return 0;
+}
+
+int32_t	__stdcall hook_CryptHashData(struct emu_env_w32 *win, struct emu_env_w32_dll_export *ex)
+{
+	/*
+		BOOL WINAPI CryptHashData(
+		  __in  HCRYPTHASH hHash,
+		  __in  BYTE *pbData,
+		  __in  DWORD dwDataLen,
+		  __in  DWORD dwFlags
+		);
+	*/
+	uint32_t eip_save = popd();
+	uint32_t hHash = popd();
+	uint32_t pbData = popd();
+	uint32_t dwDataLen = popd();
+	uint32_t dwFlags = popd();
+
+	uint32_t myDataLen = 1;
+	if( dwDataLen < MAX_ALLOC) myDataLen = dwDataLen;
+
+	unsigned char* data = (unsigned char*)malloc(myDataLen+1);
+	emu_memory_read_block(mem, pbData, data, myDataLen);
+
+	uint32_t rv = (uint32_t)CryptHashData(hHash,data,myDataLen,dwFlags); 
+		
+	printf("%x\tCryptHashData(%x, %x, %x, %x) = %x\n", eip_save, hHash, pbData, dwDataLen, dwFlags,rv);
+	if(myDataLen == 1) printf("\tSize excedded max alloc, was ignored...\n");
+
+	free(data);
+	cpu->reg[eax] =  rv;	 
+	emu_cpu_eip_set(cpu, eip_save);
+	return 0;
+}
+
+int32_t	__stdcall hook_CryptGetHashParam(struct emu_env_w32 *win, struct emu_env_w32_dll_export *ex)
+{
+	/*
+		BOOL WINAPI CryptGetHashParam(
+		  __in     HCRYPTHASH hHash,
+		  __in     DWORD dwParam,
+		  __out    BYTE *pbData,
+		  __inout  DWORD *pdwDataLen,
+		  __in     DWORD dwFlags
+		);
+	*/
+	uint32_t eip_save = popd();
+	uint32_t hHash = popd();
+	uint32_t dwParam = popd();
+	uint32_t pbData = popd();
+	uint32_t pdwDataLen = popd();
+	uint32_t dwFlags = popd();
+
+	uint32_t dwDataLen = 0;
+	uint32_t myDataLen = 0;
+
+	emu_memory_read_dword(mem, pdwDataLen, &dwDataLen);
+
+	if( dwDataLen < MAX_ALLOC) myDataLen = dwDataLen;
+	unsigned char* myData = (unsigned char*)malloc(myDataLen+1);
+
+	uint32_t rv = (uint32_t)CryptGetHashParam(hHash,dwParam,myData, &myDataLen,dwFlags); 
+		
+	printf("%x\tCryptGetHashParam(%x, %x, %x, %x, %x) = %x\n", eip_save, hHash, dwParam, pbData, pdwDataLen, dwFlags,rv);
+	if(myDataLen == 0) printf("\tSize %x excedded max alloc, was ignored...\n", dwDataLen);
+
+	emu_memory_write_block(mem, pbData, myData, myDataLen);
+	emu_memory_write_dword(mem, dwDataLen, myDataLen);
+
+	free(myData);
+	cpu->reg[eax] =  rv;	 
+	emu_cpu_eip_set(cpu, eip_save);
+	return 0;
+}
+
+int32_t	__stdcall hook_CryptDestroyHash(struct emu_env_w32 *win, struct emu_env_w32_dll_export *ex)
+{
+	/*
+		BOOL WINAPI CryptDestroyHash(
+		  __in  HCRYPTHASH hHash
+		);
+	*/
+	uint32_t eip_save = popd();
+	uint32_t hHash = popd();
+	
+	uint32_t rv = (uint32_t)CryptDestroyHash(hHash); 
+		
+	printf("%x\tCryptDestroyHash(%x)\n", eip_save, hHash);
+	
+	cpu->reg[eax] =  rv;	 
+	emu_cpu_eip_set(cpu, eip_save);
+	return 0;
+}
+
+int32_t	__stdcall hook_CryptReleaseContext(struct emu_env_w32 *win, struct emu_env_w32_dll_export *ex)
+{
+	/*
+		BOOL WINAPI CryptReleaseContext(
+		  __in  HCRYPTPROV hProv,
+		  __in  DWORD dwFlags
+		);
+	*/
+	uint32_t eip_save = popd();
+	uint32_t hProv = popd();
+	uint32_t dwFlags = popd();
+	
+	uint32_t rv = (uint32_t)CryptReleaseContext(hProv,dwFlags); 
+		
+	printf("%x\tCryptReleaseContext(%x, %x)\n", eip_save, hProv,dwFlags);
+	
+	cpu->reg[eax] =  rv;	 
+	emu_cpu_eip_set(cpu, eip_save);
+	return 0;
+}
 
 	
 
