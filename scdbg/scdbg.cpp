@@ -207,7 +207,7 @@ struct mmm_range mm_ranges[] =
 	{5, "urlmon",   0x78130000+0x1d8c+0x10cd+0x1, 0x78130000+0x128000},
 	
 	{6, "wininet",  0x3d930300, 0x3d93183f},
-	{6, "wininet",  0x3d930000+0x1844+0x1D4A+0x1, 0x3d930000+0xD0750},
+	{6, "wininet",  0x3d930000+0x1844+0x1D4A+0x1, 0x3d930000+0xD074f},
 
 	{7, "ntdll",    0x7c900300, 0x7c9033ff},
 	{7, "ntdll",    0x7C900000+0x3400+0x9A5F+1, 0x7c900000+0xB1EB8},  
@@ -250,6 +250,38 @@ struct signature signatures[] =
 	{NULL, NULL, 0},
 };
 
+bool isInteractive(char* api){
+	char* iApi[] = {"MapViewOfFile","SetFilePointer","ReadFile","fclose","fopen","fwrite","_lcreat",
+				    "_lclose","_lwrite","_hwrite","CloseHandle","CreateFileA","WaitForSingleObject",
+					"WriteFile","accept","bind","closesocket","connect","listen","recv","send",
+					"sendto","socket","WSASocketA","CreateFileMappingA","FindFirstFileA",
+					"fread", NULL };
+
+	int i=0;
+	while( iApi[i] != NULL ){
+		if(strcmp(api, iApi[i])==0 ){
+			return true;
+		}
+		i++;
+	}
+	return false;
+}
+
+bool isProxied(char* api){
+	char* iApi[] = {"CryptReleaseContext","CryptDestroyHash","CryptGetHashParam","CryptHashData",
+					"CryptCreateHash","CryptAcquireContextA","CryptAcquireContextW","GetCommandLineA","GetSystemTime",
+					"GetTempPath","GetTempFileName","strstr","GetSHFolderName", NULL };
+
+	int i=0;
+	while( iApi[i] != NULL ){
+		if(strcmp(api, iApi[i])==0 ){
+			return true;
+		}
+		i++;
+	}
+	return false;
+}
+
 int bInstr(char *buf, char *match, int bufLen, int matchLen){
 
 	int i, j;
@@ -277,30 +309,39 @@ void showSigs(void){
 		i++;
 	}
 	printf("\n Total %d\n", i);
-}
-
-void sigChecks(void){
+}	
+	
+int sigScan(uint32_t baseAddress, uint32_t size){
 
 	int i=0; 
 	int match_at = -1;
 	int matches = 0;
-	char* tmp = (char*)malloc(opts.size);
-	emu_memory_read_block(mem, opts.baseAddress, tmp, opts.size);
+	char* tmp = (char*)malloc(size);
+	emu_memory_read_block(mem, baseAddress, tmp, size);
 	
-	printf("\nSignatures Found: ");
-
 	while( signatures[i].siglen > 0 ){
-		match_at = bInstr( tmp, signatures[i].sig, opts.size, signatures[i].siglen - 1);
+		match_at = bInstr( tmp, signatures[i].sig, size, signatures[i].siglen - 1);
 		if(match_at >= 0){
 			if(matches==0) nl();
 			matches++;
-			printf("\t%x \t %s \n", opts.baseAddress + match_at, signatures[i].name); 
+			printf("\t%x \t %s \n", baseAddress + match_at, signatures[i].name); 
 		}
 		i++;
 	}
-	
-	if(matches==0) printf(" None\n");
 
+	free(tmp);
+	return matches;
+}
+
+void sigChecks(void){
+	printf("\nSignatures Found: ");
+	int x = sigScan( opts.baseAddress, opts.size);
+	if( malloc_cnt > 0 ){ //then there were allocs made..		
+		for(int i=0; i < malloc_cnt; i++){
+			x += sigScan( mallocs[i].base, mallocs[i].size);
+		}
+	}
+	if(x==0) printf(" None\n");
 }
 
 //enum Color { DARKBLUE = 1, DARKGREEN=2, DARKTEAL=3, DARKRED=4, 
@@ -805,7 +846,7 @@ void do_memdump(void){
 			}else{
 				fwrite(tmp, 1, opts.size, fp);
 				fclose(fp);
-				printf("Data dumped successfully to disk");
+				printf("Data dumped successfully to disk\n");
 			}
 			end_color();
 		}else{
@@ -1582,7 +1623,6 @@ void set_hooks(struct emu_env *env){
 	emu_env_w32_export_new_hook_ordinal(env, "msvcrt", 0x02E1, hook_memset); //have to hook this one by ordinal cause it finds ntdll.memset first
 
 	//-----handled by the generic stub
-	GENERICHOOK(InternetReadFile);
 	GENERICHOOK(ZwTerminateProcess);
 	GENERICHOOK(ZwTerminateThread);
 	GENERICHOOK(TerminateThread);
@@ -1598,6 +1638,8 @@ void set_hooks(struct emu_env *env){
 	GENERICHOOK(FlushViewOfFile);
     GENERICHOOK(UnmapViewOfFile);
 	GENERICHOOK(FindClose);
+	GENERICHOOK(InternetCloseHandle);
+	GENERICHOOK(GetCurrentThread);
 
 	ADDHOOK(GetModuleHandleA);
 	ADDHOOK(GlobalAlloc);
@@ -1679,6 +1721,10 @@ void set_hooks(struct emu_env *env){
 	ADDHOOK(CryptGetHashParam);
 	ADDHOOK(CryptDestroyHash);
 	ADDHOOK(CryptReleaseContext);
+	ADDHOOK(InternetConnectA);
+	ADDHOOK(HttpOpenRequestA);
+	ADDHOOK(HttpSendRequestA);
+	ADDHOOK(InternetReadFile);
 
 }
 
@@ -2274,7 +2320,7 @@ void show_help(void)
 		{"cmd", "\"string data\"","data to use for GetCommandLineA (use \\\" to embed quotes)"},
 		{"cfo", NULL ,       "CreateFileOverRide - if /fopen use handle else open real arg"},
 		{"d",  NULL	     ,   "dump unpacked shellcode"},
-		{"dir", " folder",   "process all .sc files in <folder> (can be used with -r)"},
+		{"dir", " folder",   "process all .sc files in <folder> (can be used with -r and -v)"},
 		{"disasm", "int" ,   "Disasm int lines (can be used with /foff)"},
 		{"dump", NULL,       "view hexdump (can be used with /foff)"},
 		{"e", "int"	     ,   "verbosity on error (3 = debug shell)"},
@@ -2335,6 +2381,8 @@ void show_supported_hooks(void){
 	uint32_t i=0;
 	uint32_t j=0;
 	uint32_t tot=0;
+	uint32_t iHooks=0;
+	uint32_t proxied=0;
 
 	set_hooks(env);
 
@@ -2344,10 +2392,21 @@ void show_supported_hooks(void){
 		emu_env_w32_dll_export e = dll->exportx[0];
 		while( e.fnname != NULL ){
 			if( e.fnhook != 0 ){
-				if( strlen(e.fnname) == 0)
-					printf("\t@%x\r\n", e.ordinal);
-				else
-					printf("\t%s\r\n", e.fnname);
+				if( strlen(e.fnname) == 0){
+					printf("\t  @%x\r\n", e.ordinal);
+				}else if( isInteractive(e.fnname) ){
+					start_color(myellow);
+					printf("\t  %s\r\n", e.fnname);
+					end_color();
+					iHooks++;
+				}else if( isProxied(e.fnname) ){
+					start_color(myellow);
+					printf("\t* %s\r\n", e.fnname);
+					end_color();
+					proxied++;
+				}else{
+					printf("\t  %s\r\n", e.fnname);
+				}				
 				tot++;
 			}
 			j++;
@@ -2358,7 +2417,7 @@ void show_supported_hooks(void){
 		j=0;
 	}
 	//libemu 2.0 is 5/51
-	printf("\r\n  Dlls: %d\r\n Hooks: %d\r\n", i, tot);
+	printf("\r\n  Dlls: %d\r\n  Hooks: %d\r\n  Interactive: %d (yellow)\r\n *Proxied: %d\r\n", i, tot, iHooks, proxied);
 	exit(0);
 }
 
@@ -2914,6 +2973,7 @@ void HandleDirMode(char* folder){
 	char cmdline[1000];
 	char shortname[500];
 	char longPath[500];
+	char* divider = "\n----------------------------------------------------------\n";
 	int i=0;
 
 	if(strlen(folder) > 300) return;
@@ -2933,26 +2993,31 @@ void HandleDirMode(char* folder){
 		sprintf(cmdline, "%s\\%s", folder, FileData.cFileName);
 		GetShortPathName(cmdline, (char*)&shortname, 500);
 		
-		if(opts.report)
-			sprintf(cmdline, "scdbg -auto -f %s >> %s\\report.txt", shortname, folder);  //one long report
+		sprintf(cmdline, "scdbg -auto -f %s ", shortname);
+		if(opts.verbose > 0) strcat(cmdline, "-r");
+		if(opts.report) 
+			sprintf(cmdline+strlen(cmdline), " >> %s\\report.txt", folder);
 		else
-			sprintf(cmdline, "scdbg -auto -f %s > %s.txt", shortname, shortname);      //individual files
+			sprintf(cmdline+strlen(cmdline), " > %s.txt", shortname);
 
 		int retval = system(cmdline);
 		printf("\tSteps: %-8x", retval);
 
 		if( retval < 200){
 			printf(" -findsc:");
-			if(opts.report){
-				sprintf(cmdline, "scdbg -auto -findsc -f %s >> %s\\report.txt", shortname, folder);  //one long report
-			}else{
-				sprintf(cmdline, "scdbg -auto -findsc -f %s >> %s.txt", shortname, shortname);      //individual files
-			}
+
+			sprintf(cmdline, "scdbg -auto -f %s ", shortname);
+			if(opts.verbose > 0) strcat(cmdline, "-r");
+			if(opts.report) 
+				sprintf(cmdline+strlen(cmdline), " >> %s\\report.txt", folder);
+			else
+				sprintf(cmdline+strlen(cmdline), " > %s.txt", shortname);
+
 			retval = system(cmdline);
 			printf(" %x", retval);
 		}
 		
-		if( !opts.report ){
+		if( !opts.report ){ //restore the file name from shortpath 
 			strcat(shortname, ".txt");
 			sprintf(longPath, "%s\\%s.txt", folder, FileData.cFileName);
 			retval = rename(shortname, longPath );

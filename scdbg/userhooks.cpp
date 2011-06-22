@@ -421,18 +421,11 @@ int32_t	__stdcall hook_GenericStub(struct emu_env_w32 *win, struct emu_env_w32_d
 
 	uint32_t eip_save = popd();
 /*
-	BOOL InternetReadFile(
-	  __in   HINTERNET hFile,
-	  __out  LPVOID lpBuffer,
-	  __in   DWORD dwNumberOfBytesToRead,
-	  __out  LPDWORD lpdwNumberOfBytesRead
-	);
-
     ZwTerminateProcess, ZwTerminateThread, each 2 args
     BOOL WINAPI TerminateThread(inout HANDLE hThread, DWORD dwExitCode)
 	FreeLibrary(hMod)
 	handle GetCurrentProcess(void)
-
+	
     HANDLE WINAPI CreateThread(
 	  __in_opt   LPSECURITY_ATTRIBUTES lpThreadAttributes,
 	  __in       SIZE_T dwStackSize,
@@ -453,8 +446,8 @@ int32_t	__stdcall hook_GenericStub(struct emu_env_w32 *win, struct emu_env_w32_d
 
   BOOL WINAPI UnmapViewOfFile(  __in  LPCVOID lpBaseAddress );
   BOOL WINAPI FindClose(  __inout  HANDLE hFindFile );
-
-
+  BOOL InternetCloseHandle( __in  HINTERNET hInternet );
+  HANDLE WINAPI GetCurrentThread(void);
 
 
 );
@@ -470,16 +463,16 @@ int32_t	__stdcall hook_GenericStub(struct emu_env_w32 *win, struct emu_env_w32_d
 
 	char* func = ex->fnname;
 
-	if(strcmp(func, "GetCurrentProcess") ==0 ){
-		arg_count = 0;
-	}
+	if(strcmp(func, "GetCurrentProcess") ==0 ) arg_count = 0;
+	if(strcmp(func, "GetCurrentThread") ==0 )  arg_count = 0;
+	if(strcmp(func, "RevertToSelf") ==0 )      arg_count = 0;
 
-	if(strcmp(func, "RtlDestroywinironment") ==0 ){
+	if(strcmp(func, "RtlDestroywinironment") ==0 ) arg_count = 1;
+	if(strcmp(func, "FindClose") == 0 )    	       arg_count = 1;
+	
+	if(strcmp(func, "InternetCloseHandle") ==0 ){
 		arg_count = 1;
-	}
-
-	if(strcmp(func, "FindClose") == 0 ){
-		arg_count = 1;
+		log_val = get_arg(0);
 	}
 
 	if(strcmp(func, "FlushViewOfFile") ==0 ){
@@ -495,12 +488,11 @@ int32_t	__stdcall hook_GenericStub(struct emu_env_w32 *win, struct emu_env_w32_d
 	
 
 	if(strcmp(func, "GetSystemTime") ==0 ){
-		arg_count = 0;
+		arg_count = 1;
 		log_val = get_arg(0);  //lpSystime
-		//struct SYSTEMTIME st;
-		//memset(&st,7, 16);
-		//st.wYear = 2011;
-		//emu_memory_write_block( mem, log_val, &st, 16);
+		SYSTEMTIME st;
+		GetSystemTime(&st);
+		emu_memory_write_block( mem, log_val, &st, sizeof(SYSTEMTIME));
 	}
 
 	if(strcmp(func, "FreeLibrary") ==0 ){
@@ -522,10 +514,6 @@ int32_t	__stdcall hook_GenericStub(struct emu_env_w32 *win, struct emu_env_w32_d
 		arg_count = 1;
 	}
 
-	if(strcmp(func, "RevertToSelf") ==0 ){
-		arg_count = 0;
-	}
-
 	if(strcmp(func, "RtlExitUserThread") ==0 ){
 		arg_count = 1;
 		log_val = get_arg(0); //handle
@@ -540,12 +528,6 @@ int32_t	__stdcall hook_GenericStub(struct emu_env_w32 *win, struct emu_env_w32_d
 		log_val = get_arg(0); //handle
 		arg_count = 2;
 		opts.steps =0;
-	}
-
-	if(strcmp(func, "InternetReadFile") == 0){
-		log_val = get_arg(4); //lpBuffer
-		ret_val = get_arg(12);
-		arg_count = 4;
 	}
 
 	if(arg_count == -1 ){
@@ -3257,9 +3239,140 @@ int32_t	__stdcall hook_CryptReleaseContext(struct emu_env_w32 *win, struct emu_e
 	return 0;
 }
 
+int32_t	__stdcall hook_InternetConnectA(struct emu_env_w32 *win, struct emu_env_w32_dll_export *ex)
+{
+	/*
+		HINTERNET InternetConnect(
+		  __in  HINTERNET hInternet,
+		  __in  LPCTSTR lpszServerName,
+		  __in  INTERNET_PORT nServerPort,
+		  __in  LPCTSTR lpszUsername,
+		  __in  LPCTSTR lpszPassword,
+		  __in  DWORD dwService,
+		  __in  DWORD dwFlags,
+		  __in  DWORD_PTR dwContext
+		);
+	*/
+	uint32_t eip_save = popd();
+	uint32_t hInternet = popd();
+	struct emu_string* server = popstring();
+	uint32_t port = popd();
+	struct emu_string* user = popstring();
+	struct emu_string* pass = popstring();
+	uint32_t service = popd();
+	uint32_t flags = popd();
+	uint32_t context = popd();
+
+	printf("%x\tInternetConnectA(server: %s, port: %d, ", eip_save, server->data , port);
+	if( user->size > 0) printf("user: %s, ", user->data);
+	if( pass->size > 0) printf("pass: %s ", pass->data);
+	printf(")\n");
+
+	emu_string_free(server);
+	emu_string_free(user);
+	emu_string_free(pass);
+	cpu->reg[eax] =  0x4892;	 
+	emu_cpu_eip_set(cpu, eip_save);
+	return 0;
+}
 	
+int32_t	__stdcall hook_HttpOpenRequestA(struct emu_env_w32 *win, struct emu_env_w32_dll_export *ex)
+{
+	/*
+		HINTERNET HttpOpenRequest(
+		  __in  HINTERNET hConnect,
+		  __in  LPCTSTR lpszVerb,
+		  __in  LPCTSTR lpszObjectName,
+		  __in  LPCTSTR lpszVersion,
+		  __in  LPCTSTR lpszReferer,
+		  __in  LPCTSTR *lplpszAcceptTypes,
+		  __in  DWORD dwFlags,
+		  __in  DWORD_PTR dwContext
+		);
+	*/
+	uint32_t eip_save = popd();
+	uint32_t hInternet = popd();
+	struct emu_string* verb = popstring();
+	struct emu_string* objname = popstring();
+	struct emu_string* version = popstring();
+	struct emu_string* refer = popstring();
+	uint32_t accept = popd();
+	uint32_t flags = popd();
+	uint32_t context = popd();
 
+	printf("%x\tHttpOpenRequestA(", eip_save);
+	if(verb->size > 0) printf("verb: %s, ", verb->data);
+	if(objname->size > 0) printf("path: %s, ", objname->data);
+	if(version->size > 0) printf("version: %s, ", version->data);
+	if(refer->size > 0) printf("referrer: %s", refer->data);
+	printf(")\n");
 
+	emu_string_free(verb);
+	emu_string_free(objname);
+	emu_string_free(version);
+	emu_string_free(refer);
+
+	cpu->reg[eax] =  0x4893;	 
+	emu_cpu_eip_set(cpu, eip_save);
+	return 0;
+}
+
+int32_t	__stdcall hook_HttpSendRequestA(struct emu_env_w32 *win, struct emu_env_w32_dll_export *ex)
+{
+	/*
+		BOOL HttpSendRequest(
+		  __in  HINTERNET hRequest,
+		  __in  LPCTSTR lpszHeaders,
+		  __in  DWORD dwHeadersLength,
+		  __in  LPVOID lpOptional,
+		  __in  DWORD dwOptionalLength
+		);
+	*/
+	uint32_t eip_save = popd();
+	uint32_t hInternet = popd();
+	struct emu_string* headers = popstring();
+	uint32_t hLen = popd();
+	struct emu_string* opt = popstring();
+	uint32_t optLen = popd();
+
+	printf("%x\tHttpSendRequestA(", eip_save);
+	if(headers->size != 0) printf("%s, ", headers->data);
+	if(optLen != 0) printf("opt: %s", opt->data);
+	printf(")\n");
+
+	emu_string_free(headers);
+	emu_string_free(opt);
+	
+	cpu->reg[eax] =  0x4893;	 
+	emu_cpu_eip_set(cpu, eip_save);
+	return 0;
+}
+
+int32_t	__stdcall hook_InternetReadFile(struct emu_env_w32 *win, struct emu_env_w32_dll_export *ex)
+{
+	/*
+		BOOL InternetReadFile(
+		  __in   HINTERNET hFile,
+		  __out  LPVOID lpBuffer,
+		  __in   DWORD dwNumberOfBytesToRead,
+		  __out  LPDWORD lpdwNumberOfBytesRead
+		);
+	*/
+	uint32_t eip_save = popd();
+	uint32_t hInternet = popd();
+	uint32_t buf = popd();
+	uint32_t readSize = popd();
+	uint32_t bytesRead = popd();
+
+	bool isSpam = strcmp(win->lastApiCalled, "InternetReadFile") == 0 ? true : false;
+	
+	if(!isSpam) printf("%x\tInternetReadFile(%x, buf: %x, size: %x)\n", eip_save, hInternet, buf, readSize);
+	//emu_memory_write_dword(mem, bytesRead, readSize);
+	
+	cpu->reg[eax] = TRUE;	 
+	emu_cpu_eip_set(cpu, eip_save);
+	return 0;
+}
 	
 	
 
