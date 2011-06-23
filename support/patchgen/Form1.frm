@@ -2,20 +2,28 @@ VERSION 5.00
 Object = "{831FDD16-0C5C-11D2-A9FC-0000F8754DA1}#2.0#0"; "mscomctl.ocx"
 Begin VB.Form Form1 
    Caption         =   "scdbg Patch Viewer/Generator"
-   ClientHeight    =   4860
+   ClientHeight    =   5460
    ClientLeft      =   60
    ClientTop       =   345
-   ClientWidth     =   10020
+   ClientWidth     =   10995
    LinkTopic       =   "Form1"
-   ScaleHeight     =   4860
-   ScaleWidth      =   10020
+   ScaleHeight     =   5460
+   ScaleWidth      =   10995
    StartUpPosition =   3  'Windows Default
+   Begin VB.TextBox txtComment 
+      Height          =   285
+      Left            =   4230
+      MaxLength       =   16
+      TabIndex        =   36
+      Top             =   990
+      Width           =   4830
+   End
    Begin VB.Frame Frame1 
       Caption         =   " Registers "
       Height          =   4695
-      Left            =   8280
+      Left            =   9225
       TabIndex        =   17
-      Top             =   120
+      Top             =   90
       Width           =   1680
       Begin VB.TextBox txtReg 
          Height          =   285
@@ -165,17 +173,17 @@ Begin VB.Form Form1
    Begin VB.CommandButton Command2 
       Caption         =   "New"
       Height          =   285
-      Left            =   6705
+      Left            =   7695
       TabIndex        =   16
-      Top             =   540
+      Top             =   585
       Width           =   1410
    End
    Begin VB.CommandButton Command1 
       Caption         =   "..."
       Height          =   285
-      Left            =   5805
+      Left            =   6795
       TabIndex        =   15
-      Top             =   135
+      Top             =   180
       Width           =   780
    End
    Begin MSComctlLib.ListView lv 
@@ -183,8 +191,8 @@ Begin VB.Form Form1
       Left            =   90
       TabIndex        =   13
       Top             =   540
-      Width           =   1860
-      _ExtentX        =   3281
+      Width           =   2760
+      _ExtentX        =   4868
       _ExtentY        =   6773
       View            =   3
       LabelEdit       =   1
@@ -197,86 +205,99 @@ Begin VB.Form Form1
       BackColor       =   -2147483643
       BorderStyle     =   1
       Appearance      =   1
-      NumItems        =   1
+      NumItems        =   2
       BeginProperty ColumnHeader(1) {BDD1F052-858B-11D1-B16A-00C0F0283628} 
          Text            =   "Patches"
+         Object.Width           =   2540
+      EndProperty
+      BeginProperty ColumnHeader(2) {BDD1F052-858B-11D1-B16A-00C0F0283628} 
+         SubItemIndex    =   1
+         Text            =   "Comment"
          Object.Width           =   2540
       EndProperty
    End
    Begin VB.CommandButton cmdRemove 
       Caption         =   "Remove"
       Height          =   375
-      Left            =   4365
+      Left            =   5265
       TabIndex        =   12
-      Top             =   3960
+      Top             =   4455
       Width           =   1365
    End
    Begin VB.CommandButton cmdUpdate 
       Caption         =   "Update"
       Enabled         =   0   'False
       Height          =   375
-      Left            =   6885
+      Left            =   7785
       TabIndex        =   11
-      Top             =   3960
+      Top             =   4455
       Width           =   1275
    End
    Begin VB.CommandButton cmdSaveAs 
       Caption         =   "Save As"
       Height          =   330
-      Left            =   6885
+      Left            =   9540
       TabIndex        =   10
-      Top             =   4455
+      Top             =   4995
       Width           =   1275
    End
    Begin VB.TextBox txtSave 
       Height          =   315
       Left            =   570
       TabIndex        =   9
-      Top             =   4455
-      Width           =   6150
+      Top             =   4995
+      Width           =   8805
    End
    Begin VB.CommandButton cmdAdd 
       Caption         =   "Insert"
       Height          =   375
-      Left            =   2160
+      Left            =   3015
       TabIndex        =   7
-      Top             =   3960
+      Top             =   4455
       Width           =   1275
    End
    Begin VB.TextBox txtHexData 
       Height          =   2490
-      Left            =   2025
+      Left            =   3015
       MultiLine       =   -1  'True
       OLEDropMode     =   1  'Manual
       ScrollBars      =   2  'Vertical
       TabIndex        =   6
-      Top             =   1350
+      Top             =   1845
       Width           =   6045
    End
    Begin VB.TextBox txtMemAddress 
       Height          =   330
-      Left            =   3240
+      Left            =   4230
       MaxLength       =   8
       TabIndex        =   4
-      Top             =   585
+      Top             =   540
       Width           =   1455
    End
    Begin VB.CommandButton cmdLoad 
       Caption         =   "Load Existing"
       Height          =   330
-      Left            =   6705
+      Left            =   7695
       TabIndex        =   2
-      Top             =   135
+      Top             =   180
       Width           =   1410
    End
    Begin VB.TextBox txtLoad 
       Height          =   315
-      Left            =   480
+      Left            =   615
       OLEDropMode     =   1  'Manual
       TabIndex        =   1
       Text            =   "Drag and Drop file here"
-      Top             =   120
-      Width           =   5295
+      Top             =   135
+      Width           =   6150
+   End
+   Begin VB.Label Label7 
+      Caption         =   "Comment"
+      Height          =   330
+      Left            =   3060
+      TabIndex        =   35
+      Top             =   1035
+      Width           =   1050
    End
    Begin VB.Label Label5 
       Caption         =   "load file"
@@ -291,9 +312,9 @@ Begin VB.Form Form1
       EndProperty
       ForeColor       =   &H00FF0000&
       Height          =   240
-      Left            =   7380
+      Left            =   8370
       TabIndex        =   14
-      Top             =   1080
+      Top             =   1575
       Width           =   690
    End
    Begin VB.Label Label4 
@@ -301,23 +322,23 @@ Begin VB.Form Form1
       Height          =   255
       Left            =   90
       TabIndex        =   8
-      Top             =   4500
+      Top             =   5040
       Width           =   735
    End
    Begin VB.Label Label3 
       Caption         =   "HexData  (can also drop file to load)"
       Height          =   285
-      Left            =   2070
+      Left            =   3060
       TabIndex        =   5
-      Top             =   1035
+      Top             =   1530
       Width           =   4020
    End
    Begin VB.Label Label2 
       Caption         =   "Hex MemAddr"
       Height          =   240
-      Left            =   2070
+      Left            =   3060
       TabIndex        =   3
-      Top             =   630
+      Top             =   585
       Width           =   1590
    End
    Begin VB.Label Label1 
@@ -341,6 +362,7 @@ Private Type patch '16 bytes 1 line in hexeditor
     Memaddress As String * 8
     Datasize As Long
     foffset As Long
+    Comment As String * 16
 End Type
 
  
@@ -405,6 +427,7 @@ Sub reloadLV()
     
     For Each p In patches
         Set li = lv.ListItems.Add(, , p.Memaddress)
+        li.SubItems(1) = Replace(p.Comment, Chr(0), "")
         Set li.Tag = p
     Next
     
@@ -419,6 +442,7 @@ Private Sub cmdAdd_Click()
     
     p.Memaddress = GetMemAddr()
     p.Data = txtHexData
+    p.Comment = txtComment
     
     tmp = p.HexStringToBytes(txtHexData)  'throw error if not valid hex and get size
     
@@ -482,6 +506,7 @@ Private Sub cmdLoad_Click()
         pp.Datasize = p.Datasize
         pp.Memaddress = p.Memaddress
         pp.dataOffset = p.foffset
+        pp.Comment = p.Comment
         patches.Add pp
     Loop
     
@@ -530,9 +555,9 @@ Private Sub cmdRemove_Click()
     
 End Sub
 
-Sub Align16(ByRef X As Long)
-    While X Mod 16 <> 0
-        X = X + 1
+Sub Align16(ByRef x As Long)
+    While x Mod 16 <> 0
+        x = x + 1
     Wend
 End Sub
 
@@ -565,6 +590,7 @@ Private Sub cmdSaveAs_Click()
             .foffset = p.dataOffset
             .Datasize = p.Datasize
             .Memaddress = p.Memaddress
+            .Comment = p.Comment
         End With
         
     Next
@@ -623,6 +649,7 @@ Private Sub cmdUpdate_Click()
     p.Memaddress = GetMemAddr()
     
     p.Data = txtHexData
+    p.Comment = txtComment
     
     tmp = p.HexStringToBytes(txtHexData)  'throw error if not valid hex and get size
     
@@ -644,19 +671,19 @@ End Sub
 
 Function GetMemAddr() As String
     
-    X = txtMemAddress
-    X = Replace(X, "0x", "", , , vbTextCompare)
+    x = txtMemAddress
+    x = Replace(x, "0x", "", , , vbTextCompare)
     
-    If Len(X) > 8 Then
-        X = Mid(X, 1, 8)
+    If Len(x) > 8 Then
+        x = Mid(x, 1, 8)
     End If
     
-    While Len(X) < 8
-        X = "0" & X
+    While Len(x) < 8
+        x = "0" & x
     Wend
     
-    X = X & Chr(0)
-    GetMemAddr = X
+    x = x & Chr(0)
+    GetMemAddr = x
     
 End Function
  
@@ -669,6 +696,9 @@ End Sub
 Private Sub Command2_Click()
     lv.ListItems.Clear
     Set patches = New Collection
+    txtComment = Empty
+    txtHexData = Empty
+    txtMemAddress = Empty
 End Sub
 
 Private Sub Form_Load()
@@ -704,11 +734,12 @@ Private Sub lv_ItemClick(ByVal Item As MSComctlLib.ListItem)
     Set p = Item.Tag
     txtMemAddress = p.Memaddress
     txtHexData = p.Data
+    txtComment = Replace(p.Comment, Chr(0), "")
     cmdUpdate.Enabled = True
     cmdRemove.Enabled = True
 End Sub
 
-Private Sub txtHexData_OLEDragDrop(Data As DataObject, Effect As Long, Button As Integer, Shift As Integer, X As Single, Y As Single)
+Private Sub txtHexData_OLEDragDrop(Data As DataObject, Effect As Long, Button As Integer, Shift As Integer, x As Single, Y As Single)
     On Error Resume Next
     Dim p As String
     Dim f As Long
@@ -726,7 +757,7 @@ Private Sub txtHexData_OLEDragDrop(Data As DataObject, Effect As Long, Button As
     
 End Sub
 
-Private Sub txtLoad_OLEDragDrop(Data As DataObject, Effect As Long, Button As Integer, Shift As Integer, X As Single, Y As Single)
+Private Sub txtLoad_OLEDragDrop(Data As DataObject, Effect As Long, Button As Integer, Shift As Integer, x As Single, Y As Single)
     On Error Resume Next
     txtLoad = Data.Files(1)
     txtSave = txtLoad

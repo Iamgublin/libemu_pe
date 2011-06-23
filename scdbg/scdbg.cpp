@@ -2927,21 +2927,23 @@ void LoadPatch(char* fpath){
 		if( i==3 || i==7) nl();
 	}
 	end_color();
-
-	r = fread(&p, 16,1,f);
+	
+	i=0;
+	r = fread(&p, sizeof(struct patch),1,f);
 
 	while( p.dataOffset > 0 ){
 		curpos = ftell(f);
+		p.comment[15] = 0; 
 
 		if( fseek(f, p.dataOffset, SEEK_SET) != 0 ){
-			printf("Patch: %d  - Error seeking data offset %x\n", i, p.dataOffset);
+			printf("Patch: %d  - Error seeking data offset %x cmt=%s\n", i, p.dataOffset, p.comment );
 			break;
 		}
 
 		buf = (char*)malloc(p.dataSize); 
 		r = fread(buf, 1, p.dataSize, f);
 		if( r != p.dataSize ){
-			printf("patch %d - failed to read full size %x readsz=%x\n", i, p.dataSize, r);
+			printf("patch %d - failed to read full size %x readsz=%x cmt=%s\n", i, p.dataSize, r, p.comment);
 			break;
 		}
 
@@ -2950,11 +2952,11 @@ void LoadPatch(char* fpath){
 		memAddress = strtol(addr, NULL, 16);	
 
 		emu_memory_write_block(mem, memAddress, buf, p.dataSize);
-		printf("Applied patch %d va=%x sz=%x\n", i, memAddress, p.dataSize); 
+		printf("Applied patch %d va=%x sz=%x cmt=%s\n", i, memAddress, p.dataSize, p.comment ); 
 		free(buf);
 
 		fseek(f, curpos, SEEK_SET);
-		r = fread(&p, sizeof(patch),1,f); //load next patch
+		r = fread(&p, sizeof(struct patch),1,f); //load next patch
 		i++;
 	}
 

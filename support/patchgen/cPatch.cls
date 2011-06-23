@@ -15,17 +15,30 @@ Public dataOffset As Long
 Public Datasize As Long
 Public Data As String
 Public Memaddress As String
+Private mComment As String
 
-Function HexStringToBytes(X) As String
+Property Get Comment() As String
+    Comment = mComment
+End Property
+
+Property Let Comment(ByVal x As String)
+    If Len(x) > 15 Then x = Mid(x, 1, 15)
+    While Len(x) < 16
+        x = x & Chr(0)
+    Wend
+    mComment = x
+End Property
+
+Function HexStringToBytes(x) As String
 '    On Error Resume Next
     Dim ret As String
     
-    X = Replace(X, " ", "")
-    X = Replace(X, vbCr, "")
-    X = Replace(X, vbLf, "")
+    x = Replace(x, " ", "")
+    x = Replace(x, vbCr, "")
+    x = Replace(x, vbLf, "")
     
-    For i = 1 To Len(X) Step 2
-        t = Mid(X, i, 2)
+    For i = 1 To Len(x) Step 2
+        t = Mid(x, i, 2)
         ret = ret & Chr("&h" & t)
     Next
     

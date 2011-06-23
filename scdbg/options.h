@@ -69,6 +69,7 @@ struct patch{
 	char memAddress[8];
 	uint32_t dataSize;
 	uint32_t dataOffset;
+	char comment[16];
 };
 
 extern struct mmm_point mm_points[];
