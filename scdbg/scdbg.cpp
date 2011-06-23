@@ -2698,22 +2698,26 @@ void loadsc(void){
 
 	FILE *fp;
 
-	if ( opts.file_mode  ){
-	
-		fp = fopen(opts.sc_file, "rb");
-		if(fp==0){
-			start_color(myellow);
-			printf("Failed to open file %s\n",opts.sc_file);
-			end_color();
-			exit(0);
-		}
-		opts.size = file_length(fp);
-		opts.scode = (unsigned char*)malloc(opts.size); 
-		fread(opts.scode, 1, opts.size, fp);
-		fclose(fp);
-		printf("Loaded %x bytes from file %s\n", opts.size, opts.sc_file);
+	if (opts.patch_file != NULL && opts.file_mode == false ){ 
+		//create a default allocation to cover any assumptions
+		opts.scode = (unsigned char*) malloc(0x1000);
+		opts.size = 0x1000;
+		return;
 	}
 	
+	fp = fopen(opts.sc_file, "rb");
+	if(fp==0){
+		start_color(myellow);
+		printf("Failed to open file %s\n",opts.sc_file);
+		end_color();
+		exit(0);
+	}
+	opts.size = file_length(fp);
+	opts.scode = (unsigned char*)malloc(opts.size); 
+	fread(opts.scode, 1, opts.size, fp);
+	fclose(fp);
+	printf("Loaded %x bytes from file %s\n", opts.size, opts.sc_file);
+	 
 	if(opts.size==0){
 		printf("No shellcode loaded must use either /f or /S options\n");
 		show_help();
@@ -2845,9 +2849,7 @@ reinit:
 
 	
 	if(opts.offset > 0){
-		printf("Execution starts at file offset %x Opcodes: ", opts.offset);
-		real_hexdump(opts.scode + opts.offset, 10,-1,true);
-		nl();
+		printf("Execution starts at file offset %x\n", opts.offset);
 		start_color(mgreen);
 		disasm_block(opts.baseAddress+opts.offset, 5);
 		end_color();
@@ -2876,8 +2878,16 @@ reinit:
 
 	}
 
-	if(opts.file_mode == false)	show_help();
-	if(opts.dump_mode) printf("Dump mode Active...\n");
+	if(opts.file_mode == false && opts.patch_file == NULL)	show_help();
+
+	if(opts.dump_mode){
+		if(opts.file_mode == false){
+			printf("Dump mode can not run when only using a patch file.\n");
+			opts.dump_mode = false;
+		}else{
+			printf("Dump mode Active...\n");
+		}
+	}
 		
 	if(opts.interactive_hooks){
 		start_color(myellow);
