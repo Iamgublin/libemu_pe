@@ -116,9 +116,10 @@ struct emu_memory *mem = 0;
 struct emu_env *env = 0;
 	
 void debugCPU(struct emu *e, bool showdisasm);
+void disasm_block(int offset, int size);
 int fulllookupAddress(int eip, char* buf255);
 void init_emu(void);
-void disasm_addr_simple(int);
+int disasm_addr_simple(int);
 void LoadPatch(char* fpath);
 void HandleDirMode(char* folder);
 void nl(void);
@@ -304,11 +305,28 @@ int bInstr(char *buf, char *match, int bufLen, int matchLen){
 
 void showSigs(void){
 	int i=0; 
+	int size=0;
+	bool doDisasm = false;
+
+	char* tmp = GetCommandLineA(); //this is called in parse_opts before all switches processed...
+	if(strstr(tmp,"disasm") > 0){
+		init_emu();
+		doDisasm = true;
+	}
+
 	printf("\n Signatures: \n");
 	while( signatures[i].siglen > 0 ){
 		printf("\t%s\n",signatures[i].name);
-		//add disassembly of them here too?
+		if(doDisasm){
+			emu_memory_write_block(mem,0x401000, signatures[i].sig, signatures[i].siglen);
+			while(size < signatures[i].siglen){
+				printf("\t\t");
+				size += disasm_addr_simple( 0x401000+size );
+			}
+			nl();
+		}
 		i++;
+		size=0;
 	}
 	printf("\n Total %d\n", i);
 }	
@@ -1081,12 +1099,14 @@ uint32_t get_instr_length(uint32_t va){
 	return emu_disasm_addr(cpu, va, disasm);  
 }
 
-void disasm_addr_simple(int va){
+int disasm_addr_simple(int va){
 	char disasm[200];
-	emu_disasm_addr(cpu, va, disasm);
+	int len=0;
+	len = emu_disasm_addr(cpu, va, disasm);
 	start_color(mgreen);
 	printf("%x   %s\n", va, disasm);
 	end_color();
+	return len;
 }
 	
 int disasm_addr(struct emu *e, int va){  //arbitrary offset
@@ -2324,7 +2344,7 @@ void show_help(void)
 		{"e", "int"	     ,   "verbosity on error (3 = debug shell)"},
 		{"findsc", NULL ,    "detect possible shellcode buffers (brute force)"},
 		{"fopen", "file" ,   "Opens a handle to <file> for use with GetFileSize() scanners"},		
-		{"foff", "hexnum" ,  "starts execution at file offset"},
+		{"foff", "hexnum" ,  "starts execution at file offset (also supports virtual addresses)"},
 		{"h",  NULL		 ,   "show this help"},
 		{"hex", NULL,        "show hex dumps for hook reads/writes (paged)"},
 		{"hooks", NULL ,     "dumps a list all implemented api hooks"},
@@ -2340,7 +2360,7 @@ void show_help(void)
 		{"r", NULL ,         "show analysis report at end of run (includes -mm)"},
 		{"redir", "ip:port", "redirect connect to ip (port optional)"},
 		{"s", "int"	     ,   "max number of steps to run (def=2000000, -1 unlimited)"},	
-		{"sigs", NULL	 ,   "show signatures"},	
+		{"sigs", NULL	 ,   "show signatures (can be used with -disasm)"},	
 		{"t", "int"	     ,   "time to delay (ms) between steps when v=1 or 2"},
 		{"u", NULL ,         "unlimited steps (same as -s -1)"},
 		{"v",  NULL		 ,   "verbosity, can be used up to 4 times, ex. /v /v /vv"},
