@@ -151,6 +151,8 @@ uint32_t ov_decode_self_addr[11] = {0,0,0,0,0,0,0,0,0,0,0};
 
 extern uint32_t next_alloc;
 
+//            0      1      2      3      4      5         6      7  
+int regs[] = {0,    0,      0,     0,  0x12fe00,0x12fff0  ,0,    0};
 char *regm[] = {"eax", "ecx", "edx", "ebx", "esp", "ebp", "esi", "edi"};
 
 //http://en.wikipedia.org/wiki/FLAGS_register_(computing)
@@ -1964,12 +1966,8 @@ void init_emu(void){
 	int i =  0;
 	void* stack;
 	int stacksz;
-	
-	int regs[] = {0,    0,      0,     0,  0x12fe00,0x12fff0  ,0,    0};
-	//            0      1      2      3      4      5         6      7    
-	//*regm[] = {"eax", "ecx", "edx", "ebx", "esp", "ebp", "esi", "edi"};
 
-	for (i=0;i<8;i++) cpu->reg[(emu_reg32)i] = regs[i];
+	for (i=0;i<8;i++) cpu->reg[i] = regs[i];
 
 	stacksz = regs[ebp] - regs[esp] + 500;
 	stack = malloc(stacksz);
@@ -2904,12 +2902,13 @@ void LoadPatch(char* fpath){
 	size_t r = sizeof(patch);
 	long curpos=0;
 	int i = 0;
+	uint32_t regx;
 	char *buf = 0;
 	char addr[12];
 	uint32_t memAddress=0;
 
-	//patch file format is an array of patch structures at beginning 
-	//of file terminated by empty struct at end. field dataOffset points
+	//patch file format is 8 longs (registers) followed by an array of patch structs 
+	//terminated by empty struct at end. field dataOffset points
 	//to the raw start file offset of the patch file for the data to load.
 
 	FILE *f = fopen(fpath, "rb");
@@ -2919,6 +2918,15 @@ void LoadPatch(char* fpath){
 	}
 
 	printf("Loading patch file %s\n", fpath);
+
+	start_color(mgreen);
+	for(i=0;i<8;i++){
+		fread(&regs[i],4,1,f); //load registers
+		if(cpu!=0) cpu->reg[i] = regs[i];
+		printf("%s=%-8x  ", regm[i], regs[i]);
+		if( i==3 || i==7) nl();
+	}
+	end_color();
 
 	r = fread(&p, 16,1,f);
 

@@ -5,11 +5,163 @@ Begin VB.Form Form1
    ClientHeight    =   4860
    ClientLeft      =   60
    ClientTop       =   345
-   ClientWidth     =   8205
+   ClientWidth     =   10020
    LinkTopic       =   "Form1"
    ScaleHeight     =   4860
-   ScaleWidth      =   8205
+   ScaleWidth      =   10020
    StartUpPosition =   3  'Windows Default
+   Begin VB.Frame Frame1 
+      Caption         =   " Registers "
+      Height          =   4695
+      Left            =   8280
+      TabIndex        =   17
+      Top             =   120
+      Width           =   1680
+      Begin VB.TextBox txtReg 
+         Height          =   285
+         Index           =   7
+         Left            =   675
+         TabIndex        =   33
+         Top             =   2745
+         Width           =   850
+      End
+      Begin VB.TextBox txtReg 
+         Height          =   285
+         Index           =   6
+         Left            =   675
+         TabIndex        =   31
+         Top             =   2385
+         Width           =   850
+      End
+      Begin VB.TextBox txtReg 
+         Height          =   285
+         Index           =   5
+         Left            =   675
+         TabIndex        =   29
+         Top             =   2040
+         Width           =   850
+      End
+      Begin VB.TextBox txtReg 
+         Height          =   285
+         Index           =   4
+         Left            =   675
+         TabIndex        =   27
+         Top             =   1710
+         Width           =   850
+      End
+      Begin VB.TextBox txtReg 
+         Height          =   285
+         Index           =   3
+         Left            =   675
+         TabIndex        =   25
+         Top             =   1350
+         Width           =   850
+      End
+      Begin VB.TextBox txtReg 
+         Height          =   285
+         Index           =   2
+         Left            =   675
+         TabIndex        =   23
+         Top             =   990
+         Width           =   850
+      End
+      Begin VB.TextBox txtReg 
+         Height          =   285
+         Index           =   1
+         Left            =   675
+         TabIndex        =   21
+         Top             =   645
+         Width           =   850
+      End
+      Begin VB.TextBox txtReg 
+         Height          =   285
+         Index           =   0
+         Left            =   660
+         TabIndex        =   19
+         Top             =   315
+         Width           =   850
+      End
+      Begin VB.Label Label6 
+         Caption         =   "EIP is set using /foff  setting Flags not impl"
+         Height          =   1275
+         Left            =   90
+         TabIndex        =   34
+         Top             =   3285
+         Width           =   1635
+      End
+      Begin VB.Label lblReg 
+         Caption         =   "Label6"
+         Height          =   255
+         Index           =   7
+         Left            =   135
+         TabIndex        =   32
+         Top             =   2790
+         Width           =   615
+      End
+      Begin VB.Label lblReg 
+         Caption         =   "Label6"
+         Height          =   255
+         Index           =   6
+         Left            =   135
+         TabIndex        =   30
+         Top             =   2430
+         Width           =   615
+      End
+      Begin VB.Label lblReg 
+         Caption         =   "Label6"
+         Height          =   255
+         Index           =   5
+         Left            =   135
+         TabIndex        =   28
+         Top             =   2085
+         Width           =   615
+      End
+      Begin VB.Label lblReg 
+         Caption         =   "Label6"
+         Height          =   255
+         Index           =   4
+         Left            =   135
+         TabIndex        =   26
+         Top             =   1755
+         Width           =   615
+      End
+      Begin VB.Label lblReg 
+         Caption         =   "Label6"
+         Height          =   255
+         Index           =   3
+         Left            =   135
+         TabIndex        =   24
+         Top             =   1395
+         Width           =   615
+      End
+      Begin VB.Label lblReg 
+         Caption         =   "Label6"
+         Height          =   255
+         Index           =   2
+         Left            =   135
+         TabIndex        =   22
+         Top             =   1035
+         Width           =   615
+      End
+      Begin VB.Label lblReg 
+         Caption         =   "Label6"
+         Height          =   255
+         Index           =   1
+         Left            =   135
+         TabIndex        =   20
+         Top             =   690
+         Width           =   615
+      End
+      Begin VB.Label lblReg 
+         Caption         =   "Label6"
+         Height          =   255
+         Index           =   0
+         Left            =   120
+         TabIndex        =   18
+         Top             =   360
+         Width           =   615
+      End
+   End
    Begin VB.CommandButton Command2 
       Caption         =   "New"
       Height          =   285
@@ -88,7 +240,7 @@ Begin VB.Form Form1
       Height          =   375
       Left            =   2160
       TabIndex        =   7
-      Top             =   4005
+      Top             =   3960
       Width           =   1275
    End
    Begin VB.TextBox txtHexData 
@@ -225,7 +377,7 @@ Function OpenFileDialog()
          OpenFile.lStructSize = Len(OpenFile)
          OpenFile.hwndOwner = Form1.hWnd
          OpenFile.hInstance = App.hInstance
-         sFilter = "Batch Files (*.bat)" & Chr(0) & "*.BAT" & Chr(0)
+         sFilter = "All Files (*.*)" & Chr(0) & "*.*" & Chr(0)
          OpenFile.lpstrFilter = sFilter
          OpenFile.nFilterIndex = 1
          OpenFile.lpstrFile = String(257, 0)
@@ -315,6 +467,14 @@ Private Sub cmdLoad_Click()
     Set patches = New Collection
     
     Open txtLoad For Binary As f
+    
+    Dim r As Long
+    For i = 0 To 7
+        Get f, , r
+        txtReg(i) = Hex(r)
+    Next
+    
+    
     Do While 1
         Get f, , p
         If p.Datasize = 0 Then Exit Do
@@ -383,10 +543,15 @@ Private Sub cmdSaveAs_Click()
     Dim pp() As patch
     Dim p As cPatch
     
+    If lv.ListItems.Count = 0 Then
+        MsgBox "No patches have been added.", vbInformation
+        Exit Sub
+    End If
+    
     ReDim pp(1 To lv.ListItems.Count + 1)
     
     Dim f_offset As Long
-    f_offset = LenB(pp(i)) * UBound(pp)
+    f_offset = LenB(pp(i)) * UBound(pp) + 32 '+ for registers
     Align16 f_offset
     
     For i = 1 To lv.ListItems.Count
@@ -412,7 +577,13 @@ Private Sub cmdSaveAs_Click()
     
     Open txtSave For Binary As f
     Put f, 1, init() 'write out initial file size as all 0's
-    Put f, 1, pp()   'embed all of the header structures
+    
+    Seek f, 1
+    For i = 0 To 7 'embed the register values
+1       Put f, , CLng("&h" & txtReg(i).Text)
+    Next
+    
+    Put f, , pp()   'embed all of the header structures
     
     Dim b() As Byte
     Const LANG_US = &H409
@@ -429,7 +600,11 @@ Private Sub cmdSaveAs_Click()
      
     Exit Sub
 hell:
-    MsgBox "Error: " & Err.Description, vbExclamation
+    If Erl = 1 Then
+        MsgBox "Error register " & (i + 1) & " is not a valid hex number", vbInformation
+    Else
+        MsgBox "Error: " & Err.Description, vbExclamation
+    End If
     
 End Sub
 
@@ -496,6 +671,16 @@ Private Sub Command2_Click()
     Set patches = New Collection
 End Sub
 
+Private Sub Form_Load()
+     r = Array("eax", "ecx", "edx", "ebx", "esp", "ebp", "esi", "edi")
+     v = Array(0, 0, 0, 0, &H12FE00, &H12FFF0, 0, 0)
+     For i = 0 To UBound(r)
+        lblReg(i).Caption = UCase(r(i))
+        txtReg(i).Text = Hex(v(i))
+     Next
+        
+End Sub
+
 Private Sub Label5_Click()
     Dim p As String
     p = OpenFileDialog()
@@ -546,4 +731,10 @@ Private Sub txtLoad_OLEDragDrop(Data As DataObject, Effect As Long, Button As In
     txtLoad = Data.Files(1)
     txtSave = txtLoad
     cmdLoad_Click
+End Sub
+
+Private Sub txtReg_GotFocus(Index As Integer)
+    On Error Resume Next
+    txtReg(Index).SelStart = 0
+    txtReg(Index).SelLength = Len(txtReg(Index).Text)
 End Sub
