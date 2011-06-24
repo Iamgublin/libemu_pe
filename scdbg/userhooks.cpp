@@ -103,6 +103,11 @@ uint32_t popd(void){
 	return x;
 }
 
+bool isWapi(char*fxName){
+	int x = strlen(fxName)-1;
+	return fxName[x] == 'W' ? true : false;
+}
+
 struct emu_string* popstring(void){
 	uint32_t addr = popd();
 	struct emu_string *str = emu_string_new();
@@ -110,6 +115,12 @@ struct emu_string* popstring(void){
 	return str;
 }
 
+struct emu_string* popwstring(void){
+	uint32_t addr = popd();
+	struct emu_string *str = emu_string_new();
+	emu_memory_read_wide_string(mem, addr, str, 1256);
+	return str;
+}
 
 void loadargs(int count, uint32_t ary[]){
 	for(int i=0;i<count;i++){
@@ -173,6 +184,23 @@ void set_next_alloc(int size){  //space allocs at 0x1000 bytes for easy offset r
 	next_alloc += size;
 	//printf("next_alloc=%x\n", next_alloc);
 }
+
+char* getHive(int hive){
+	switch((int)hive){
+		case 0x80000000: return strdup("HKCR\\");
+		case 0x80000001: return strdup("HKCU\\");
+		case 0x80000002: return strdup("HKLM\\");
+		case 0x80000003: return strdup("HKU\\");
+		case 0x80000004: return strdup("HKPD\\");
+		case 0x80000005: return strdup("HKPD\\");
+		case 0x80000006: return strdup("HKCC\\");
+		default:
+			char* tmp = (char*)malloc(255);				
+			sprintf(tmp, "Unknown hKey: %x", hive);
+			return tmp;
+	};
+}
+
 
 void GetSHFolderName(int id, char* buf255){
 	// Shlobj.h   http://msdn.microsoft.com/en-us/library/bb762494(v=vs.85).aspx
@@ -448,6 +476,7 @@ int32_t	__stdcall hook_GenericStub(struct emu_env_w32 *win, struct emu_env_w32_d
   BOOL WINAPI FindClose(  __inout  HANDLE hFindFile );
   BOOL InternetCloseHandle( __in  HINTERNET hInternet );
   HANDLE WINAPI GetCurrentThread(void);
+  bool CloseServiceHandle(HANDLE)
 
 
 );
@@ -466,7 +495,8 @@ int32_t	__stdcall hook_GenericStub(struct emu_env_w32 *win, struct emu_env_w32_d
 	if(strcmp(func, "GetCurrentProcess") ==0 ) arg_count = 0;
 	if(strcmp(func, "GetCurrentThread") ==0 )  arg_count = 0;
 	if(strcmp(func, "RevertToSelf") ==0 )      arg_count = 0;
-
+	if(strcmp(func, "CloseServiceHandle") ==0 )    arg_count = 1;
+	if(strcmp(func, "DeleteService") ==0 )    arg_count = 1;
 	if(strcmp(func, "RtlDestroywinironment") ==0 ) arg_count = 1;
 	if(strcmp(func, "FindClose") == 0 )    	       arg_count = 1;
 	
@@ -3373,8 +3403,100 @@ int32_t	__stdcall hook_InternetReadFile(struct emu_env_w32 *win, struct emu_env_
 	emu_cpu_eip_set(cpu, eip_save);
 	return 0;
 }
-	
-	
 
+int32_t	__stdcall hook_RegOpenKeyExA(struct emu_env_w32 *win, struct emu_env_w32_dll_export *ex)
+{
+	/*
+		LONG WINAPI RegOpenKeyEx(
+		  __in        HKEY hKey,
+		  __in_opt    LPCTSTR lpSubKey,
+		  __reserved  DWORD ulOptions,
+		  __in        REGSAM samDesired,
+		  __out       PHKEY phkResult
+		);
+	*/
+	uint32_t eip_save = popd();
+	char* hKey = getHive( popd() );
+	struct emu_string* subKey = isWapi(ex->fnname) ? popwstring() : popstring();
+	uint32_t opt = popd();
+	uint32_t sam = popd();
+	uint32_t result = popd();
+	
+	printf("%x\t%s(%s, %s)\n", eip_save, ex->fnname , hKey, subKey->data );
+	emu_memory_write_dword(mem, result, 0);
+	
+	emu_string_free(subKey);
+	cpu->reg[eax] = -1;//ERROR_SUCCESS;	 
+	emu_cpu_eip_set(cpu, eip_save);
+	return 0;
+}
 
+int32_t	__stdcall hook_OpenSCManagerW(struct emu_env_w32 *win, struct emu_env_w32_dll_export *ex)
+{
+	/*
+		SC_HANDLE WINAPI OpenSCManager(
+		  __in_opt  LPCTSTR lpMachineName,
+		  __in_opt  LPCTSTR lpDatabaseName,
+		  __in      DWORD dwDesiredAccess
+		);
+	*/
+
+	uint32_t eip_save = popd();
+	struct emu_string* machine = isWapi(ex->fnname) ? popwstring() : popstring();
+	struct emu_string* db = isWapi(ex->fnname) ? popwstring() : popstring();
+	uint32_t access = popd();
+	
+	printf("%x\t%s(%s, %s, %x)\n", eip_save, ex->fnname, machine->data, db->data, access );
+	
+	emu_string_free(machine);
+	emu_string_free(db);
+	cpu->reg[eax] = 0x123456; 	 
+	emu_cpu_eip_set(cpu, eip_save);
+	return 0;
+}
+
+int32_t	__stdcall hook_OpenServiceW(struct emu_env_w32 *win, struct emu_env_w32_dll_export *ex)
+{
+	/*
+		SC_HANDLE WINAPI OpenService(
+		  __in  SC_HANDLE hSCManager,
+		  __in  LPCTSTR lpServiceName,
+		  __in  DWORD dwDesiredAccess
+		);
+	*/
+
+	uint32_t eip_save = popd();
+	uint32_t hSc = popd();
+	struct emu_string* name = isWapi(ex->fnname) ?  popwstring() : popstring();
+	uint32_t access = popd();
+	
+	printf("%x\t%s(%s)\n", eip_save, ex->fnname, name->data);
+	
+	emu_string_free(name);
+	cpu->reg[eax] = -1; 	 
+	emu_cpu_eip_set(cpu, eip_save);
+	return 0;
+}
+
+int32_t	__stdcall hook_ControlService(struct emu_env_w32 *win, struct emu_env_w32_dll_export *ex)
+{
+	/*
+		BOOL WINAPI ControlService(
+		  __in   SC_HANDLE hService,
+		  __in   DWORD dwControl,
+		  __out  LPSERVICE_STATUS lpServiceStatus
+		);
+	*/
+
+	uint32_t eip_save = popd();
+	uint32_t hSc = popd();
+	uint32_t control = popd();
+	uint32_t status = popd();
+	
+	printf("%x\t%s(%x)\n", eip_save, ex->fnname, control);
+	
+	cpu->reg[eax] = 0; 	 
+	emu_cpu_eip_set(cpu, eip_save);
+	return 0;
+}
 	

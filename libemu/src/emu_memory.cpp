@@ -466,6 +466,48 @@ int32_t emu_memory_read_string(struct emu_memory *m, uint32_t addr, struct emu_s
 
 }
 
+int32_t emu_memory_read_wide_string(struct emu_memory *m, uint32_t addr, struct emu_string *s, uint32_t maxsize)
+{
+	uint32_t i = 0;
+	int outSize = 0;
+	uint32_t read = 0;
+	uint32_t j=0;
+
+	s->emu_offset = addr;
+	s->invalidAddress = 0;
+	if( s->data != NULL ) free(s->data); //allow object reuse without memleak..
+	
+	char* tmp = (char*)malloc(maxsize);
+	read = emu_memory_read_block(m,addr, tmp, maxsize);
+
+	if( read != -1){
+		for(i=0; i < maxsize;i++){
+			if(tmp[i]==0 && tmp[i+1]==0) break;
+			if(tmp[i]!=0) outSize++;
+		}
+	}
+
+	if( read == -1 || outSize==0){
+		s->data = (char*)malloc(4);
+		strcpy((char*)s->data, "");
+		s->size = 0;
+		s->invalidAddress = 1;
+		free(tmp);
+		return 0;
+	}else{
+		s->data = (char*)malloc(maxsize+2);
+		memset(s->data, 0, maxsize+2); //always null terminated..
+		s->size = outSize;
+		for(i=0; i < maxsize;i++){
+			if(tmp[i]==0 && tmp[i+1]==0) break;
+			if(tmp[i]!=0) s->data[j++] = tmp[i];
+		}
+		return 1;
+	}
+
+}
+
+
 int32_t emu_memory_write_byte(struct emu_memory *m, uint32_t addr, uint8_t byte)
 {
 	if ( m->read_only_access == true )

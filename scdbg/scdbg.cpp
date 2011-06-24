@@ -273,7 +273,7 @@ bool isInteractive(char* api){
 bool isProxied(char* api){
 	char* iApi[] = {"CryptReleaseContext","CryptDestroyHash","CryptGetHashParam","CryptHashData",
 					"CryptCreateHash","CryptAcquireContextA","CryptAcquireContextW","GetCommandLineA","GetSystemTime",
-					"GetTempPath","GetTempFileName","strstr","GetSHFolderName", NULL };
+					"GetTempPathA","GetTempFileNameA","strstr","SHGetFolderPathA", NULL };
 
 	int i=0;
 	while( iApi[i] != NULL ){
@@ -1626,6 +1626,9 @@ void set_hooks(struct emu_env *env){
 	ADDHOOK(memset);
 	ADDHOOK(CryptAcquireContextA);
 	ADDHOOK(GetFileSize);
+	ADDHOOK(OpenServiceW);
+	ADDHOOK(RegOpenKeyExA);
+	ADDHOOK(OpenSCManagerW);
 
 	//these dont follow the macro pattern..mostly redirects/multitasks
 	emu_env_w32_export_new_hook(env, "LoadLibraryExA",  hook_LoadLibraryA, NULL);
@@ -1634,6 +1637,9 @@ void set_hooks(struct emu_env *env){
 	emu_env_w32_export_new_hook(env, "ExitThread", hook_ExitProcess, NULL);
 	emu_env_w32_export_new_hook(env, "CryptAcquireContextW", hook_CryptAcquireContextA, NULL);
 	emu_env_w32_export_new_hook(env, "GetFileSizeEx", hook_GetFileSize, NULL);
+	emu_env_w32_export_new_hook(env, "OpenServiceA", hook_OpenServiceW, NULL);
+	emu_env_w32_export_new_hook(env, "RegOpenKeyExW", hook_RegOpenKeyExA, NULL);
+	emu_env_w32_export_new_hook(env, "OpenSCManagerA", hook_OpenSCManagerW, NULL);
 
 	//-----handled by the generic stub 2 string
 	emu_env_w32_export_new_hook(env, "InternetOpenA", hook_GenericStub2String, NULL);
@@ -1662,6 +1668,8 @@ void set_hooks(struct emu_env *env){
 	GENERICHOOK(FindClose);
 	GENERICHOOK(InternetCloseHandle);
 	GENERICHOOK(GetCurrentThread);
+	GENERICHOOK(CloseServiceHandle);
+	GENERICHOOK(DeleteService);
 
 	ADDHOOK(GetModuleHandleA);
 	ADDHOOK(GlobalAlloc);
@@ -1747,6 +1755,7 @@ void set_hooks(struct emu_env *env){
 	ADDHOOK(HttpOpenRequestA);
 	ADDHOOK(HttpSendRequestA);
 	ADDHOOK(InternetReadFile);
+	ADDHOOK(ControlService);
 
 }
 
