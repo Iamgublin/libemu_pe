@@ -1,0 +1,3 @@
+h401291  LoadLibraryA(kernel32.dll)
+4012a1  LoadLibraryA(user32.dll)
+4012b1  LoadLibraryA(urlmon.dll)
