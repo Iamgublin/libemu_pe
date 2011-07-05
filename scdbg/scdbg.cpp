@@ -123,6 +123,7 @@ int disasm_addr_simple(int);
 void LoadPatch(char* fpath);
 void HandleDirMode(char* folder);
 void nl(void);
+bool isDllMemAddress(uint32_t eip);
 
 uint32_t FS_SEGMENT_DEFAULT_OFFSET = 0x7ffdf000;
 
@@ -246,6 +247,7 @@ struct signature signatures[] =
 	{"hasher.ror12",                    "\xAC\x84\xC0\x74\x07\xC1\xCF\x12\x01\xC7\xEB\xF4", 12},
 	{"hasher.harmony",					"\x31\xFF\x31\xC0\xAC\x3C\x61\x7C\x02\x2C\x20\xC1\xCF\x0D\x01\xC7\xE2\xF0\x52\x57\x8B\x52\x10", 23 },
 	{"template.hll.didier",				"\x89\x45\xF8\x68\xFA\x8B\x34\x00\x68\x88\x4E\x0D\x00\xE8\x08\x00\x00\x00\x89\x45\xFC", 21 },
+	{"template.hll.didier.orshl.hasher","\x8A\x10\x80\xCA\x60\x03\xDA\xD1\xE3\x03\x45\x10\x8A\x08\x84\xC9\xE0\xEE", 18 },
 	{"template.hll.wishmaster",		    "\x57\x8B\x6C\x24\x18\x8B\x45\x3C\xFF\x74\x05\x78\xFF\x74\x05\x7C\x8B\x54\x05\x78\x03\xD5\x8B\x4A\x18\x8B\x5A\x20", 28 },
 	{"peb.k32Base.ru",                  "\x64\x8B\x71\x30\x8B\x76\x0C\x8B\x76\x1C\x8B\x5E\x08\x8B\x56\x20\x8B\x36\x66\x39\x4A\x18", 22 },
 	{"scanner.GetProcAddress",          "\x56\xAC\x3C\x8B\x75\xFB\x80\x3E\x7D\x75\xF6\x83\xC6\x03\xAD\x3D\xFF\xFF\x00\x00\x75\xEB\x83\xEE\x11", 25},
@@ -444,6 +446,8 @@ void mm_range_callback(char id, char mode, uint32_t address){
 
 	//some opcodes send us a read and a write ignore these.. 
 	if(mdll_last_read_eip == last_good_eip && mdll_last_read_addr==address && mode =='w') return;
+
+	if( isDllMemAddress(last_good_eip) ) return;
 
 	if(cpu->eip == address) return;
 	if(last_good_eip == address) return;
@@ -2201,16 +2205,18 @@ int run_sc(void)
 
 
 //SEH HANDLER CODE
-			if ( ret == -1 && firstchance && parse_ok) 
-			{				
-				firstchance = false;
-				disable_mm_logging = true;
-				ret = handle_seh(e, last_good_eip);
-				if(ret == -1) { //not handled by seh
-					ret = handle_UnhandledExceptionFilter();
-				}
-				disable_mm_logging = false;
-			} 
+			if( opts.noseh == false){
+				if ( ret == -1 && firstchance && parse_ok) 
+				{				
+					firstchance = false;
+					disable_mm_logging = true;
+					ret = handle_seh(e, last_good_eip);
+					if(ret == -1) { //not handled by seh
+						ret = handle_UnhandledExceptionFilter();
+					}
+					disable_mm_logging = false;
+				} 
+			}
 
 
 			if ( ret == -1 )  //unhandled error time to bail
@@ -2364,6 +2370,7 @@ void show_help(void)
 		{"mm", NULL,         "enabled Memory Monitor (logs access to key addresses)"},
 		{"mdll", NULL,       "Monitor Dll - log direct access to dll memory (hook detection/patches)"},
 		{"nc", NULL,         "no color (if using sending output to other apps)"},
+		{"noseh", NULL,      "Disables support for seh and UnhandledExceptionFilter"},
 		{"o", "hexnum"   ,   "base offset to use (default: 0x401000)"},
 		{"patch", "fpath",   "load patch file <fpath> into libemu memory"},
 		{"r", NULL ,         "show analysis report at end of run (includes -mm)"},
@@ -2476,6 +2483,7 @@ void parse_opts(int argc, char* argv[] ){
 	opts.baseAddress = 0x00401000;
 	opts.sigScan = false;
 	opts.automationRun = false;
+	opts.noseh = false;
 
 	for(i=1; i < argc; i++){
 
@@ -2494,6 +2502,7 @@ void parse_opts(int argc, char* argv[] ){
 		if(strstr(buf,"/v") > 0 ){opts.verbose++; handled=true;}
 		if(sl==2 && strstr(buf,"/r") > 0 ){ opts.report = true; opts.mem_monitor = true;handled=true;}
 		if(sl==2 && strstr(buf,"/u") > 0 ){opts.steps = -1;handled=true;}
+		if(sl==6 && strstr(argv[i],"/noseh") > 0 ){   opts.noseh = true; handled=true;}
 		if(sl==3 && strstr(argv[i],"/nc") > 0 ){   opts.no_color = true; handled=true;}
 		if(sl==5 && strstr(argv[i],"/sigs") > 0 ){ showSigs(); exit(0); }
 		if(sl==5 && strstr(argv[i],"/auto") > 0 ){ opts.automationRun = true; handled = true; }

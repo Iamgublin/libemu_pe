@@ -43,6 +43,7 @@ struct run_time_options
 	bool findApi;
 	bool sigScan;
 	bool automationRun;
+	bool noseh;
 
 	struct
 	{
