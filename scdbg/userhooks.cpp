@@ -648,6 +648,10 @@ int32_t	__stdcall hook_GlobalAlloc(struct emu_env_w32 *win, struct emu_env_w32_d
 	  __in  UINT uFlags,
 	  __in  SIZE_T dwBytes
 	);
+	HLOCAL WINAPI LocalAlloc(
+	  __in  UINT uFlags,
+	  __in  SIZE_T uBytes
+	);
 */
 	uint32_t eip_save = popd();
 	uint32_t flags = popd();
@@ -660,10 +664,10 @@ int32_t	__stdcall hook_GlobalAlloc(struct emu_env_w32 *win, struct emu_env_w32_d
 		void *buf = malloc(size);
 		memset(buf,0,size);
 		emu_memory_write_block(mem,baseMemAddress,buf, size);
-		printf("%x\tGlobalAlloc(sz=%x) = %x\n", eip_save, size, baseMemAddress);
+		printf("%x\t%s(sz=%x) = %x\n", eip_save, ex->fnname, size, baseMemAddress);
 		free(buf);
 	}else{
-		printf("%x\tGlobalAlloc(sz=%x) (Ignored size out of range)\n", eip_save, size);
+		printf("%x\t%s(sz=%x) (Ignored size out of range)\n", eip_save, ex->fnname, size);
 	}
 
 	cpu->reg[eax] = baseMemAddress;

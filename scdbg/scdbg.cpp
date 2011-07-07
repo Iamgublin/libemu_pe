@@ -249,6 +249,7 @@ struct signature signatures[] =
 	{"template.hll.didier",				"\x89\x45\xF8\x68\xFA\x8B\x34\x00\x68\x88\x4E\x0D\x00\xE8\x08\x00\x00\x00\x89\x45\xFC", 21 },
 	{"template.hll.didier.orshl.hasher","\x8A\x10\x80\xCA\x60\x03\xDA\xD1\xE3\x03\x45\x10\x8A\x08\x84\xC9\xE0\xEE", 18 },
 	{"template.hll.wishmaster",		    "\x57\x8B\x6C\x24\x18\x8B\x45\x3C\xFF\x74\x05\x78\xFF\x74\x05\x7C\x8B\x54\x05\x78\x03\xD5\x8B\x4A\x18\x8B\x5A\x20", 28 },
+	{"generic.hll.prolog",				"\x55\x8B\xEC\x81\xEC", 5 },
 	{"peb.k32Base.ru",                  "\x64\x8B\x71\x30\x8B\x76\x0C\x8B\x76\x1C\x8B\x5E\x08\x8B\x56\x20\x8B\x36\x66\x39\x4A\x18", 22 },
 	{"scanner.GetProcAddress",          "\x56\xAC\x3C\x8B\x75\xFB\x80\x3E\x7D\x75\xF6\x83\xC6\x03\xAD\x3D\xFF\xFF\x00\x00\x75\xEB\x83\xEE\x11", 25},
 	{"scanner.hookcheck",               "\x80\x38\xE8\x74\x0A\x80\x38\xE9\x74\x05\x80\x38\xEB\x75\x11", 15},
@@ -1646,6 +1647,7 @@ void set_hooks(struct emu_env *env){
 	ADDHOOK(OpenServiceW);
 	ADDHOOK(RegOpenKeyExA);
 	ADDHOOK(OpenSCManagerW);
+	ADDHOOK(GlobalAlloc);
 
 	//these dont follow the macro pattern..mostly redirects/multitasks
 	emu_env_w32_export_new_hook(env, "LoadLibraryExA",  hook_LoadLibraryA, NULL);
@@ -1657,6 +1659,7 @@ void set_hooks(struct emu_env *env){
 	emu_env_w32_export_new_hook(env, "OpenServiceA", hook_OpenServiceW, NULL);
 	emu_env_w32_export_new_hook(env, "RegOpenKeyExW", hook_RegOpenKeyExA, NULL);
 	emu_env_w32_export_new_hook(env, "OpenSCManagerA", hook_OpenSCManagerW, NULL);
+	emu_env_w32_export_new_hook(env, "LocalAlloc", hook_GlobalAlloc, NULL);
 
 	//-----handled by the generic stub 2 string
 	emu_env_w32_export_new_hook(env, "InternetOpenA", hook_GenericStub2String, NULL);
@@ -1689,7 +1692,6 @@ void set_hooks(struct emu_env *env){
 	GENERICHOOK(DeleteService);
 
 	ADDHOOK(GetModuleHandleA);
-	ADDHOOK(GlobalAlloc);
 	ADDHOOK(MessageBoxA);
 	ADDHOOK(ShellExecuteA);
 	ADDHOOK(SHGetSpecialFolderPathA);
@@ -2898,15 +2900,6 @@ reinit:
 		return 0;
 	}
 
-	
-	if(opts.offset > 0){
-		printf("Execution starts at file offset %x\n", opts.offset);
-		start_color(mgreen);
-		disasm_block(opts.baseAddress+opts.offset, 5);
-		end_color();
-		nl();
-	}
-
 	if( opts.override.host != NULL){
 		printf("Override connect host active %s\n", opts.override.host);
 	}
@@ -2949,6 +2942,14 @@ reinit:
 	printf("Max Steps: %d\n", opts.steps);
 	printf("Using base offset: 0x%x\n", opts.baseAddress);
 	if(opts.verbose>0) printf("Verbosity: %i\n", opts.verbose);
+
+	if(opts.offset > 0){
+		printf("Execution starts at file offset %x\n", opts.offset);
+		/*start_color(mgreen);
+		disasm_block(opts.baseAddress+opts.offset, 5);
+		end_color();
+		nl();*/
+	}
 
 	nl();
 	run_sc();
