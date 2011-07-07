@@ -764,7 +764,7 @@ bool find_apiTable(uint32_t offset, uint32_t size){
 	for(i=tableStart; i <= tableEnd; i+=4){
 		 emu_memory_read_dword(mem, offset+i, &b);
 		 if( fulllookupAddress(b, buf) == 1 ){
-			 printf("\t\t[x + %d] = %s\n", j, buf);
+			 printf("\t\t[x + %x] = %s\n", j, buf);
 		 }
 		 j+=4;
 	}
@@ -785,7 +785,14 @@ void doApiScan(void){
 			int stack_size = cpu->reg[ebp] - cpu->reg[esp];
 			if( stack_size < 1 || stack_size > 0x1000) stack_size = 0x1000;
 			printf("Scanning stack for api table base=%x sz=%x\n", stack_start, stack_size);
-			find_apiTable( stack_start , stack_size );	
+			if(!find_apiTable( stack_start , stack_size )){
+				printf("Scanning for register based tables: ");
+				for(i=0;i<8;i++){
+					printf(" %s,", regm[i]);
+					if( find_apiTable( cpu->reg[i] , 0x80 ) ) break;
+				}
+				nl();
+			}
 		}
 		if( malloc_cnt > 0 ){ //then there were allocs made..
 			for(i=0; i < malloc_cnt; i++){
@@ -859,6 +866,12 @@ void do_memdump(void){
 
 		if(ii < opts.size){
 			strcpy(tmp_path, opts.sc_file);
+			int x = strlen(opts.sc_file);
+			while(x > 0){ //ida only uses up to first . in idb name so strip all other extensions from base name.
+				if(tmp_path[x] == '.') tmp_path[x] = 0; //'_';
+				if(tmp_path[x] == '\\' || tmp_path[x] == '/') break;
+				x--;
+			}
 			sprintf(tmp_path,"%s.unpack",tmp_path);
 
 			start_color(myellow);
