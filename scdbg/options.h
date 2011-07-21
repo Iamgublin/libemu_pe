@@ -44,6 +44,7 @@ struct run_time_options
 	bool sigScan;
 	bool automationRun;
 	bool noseh;
+	char* temp_dir;
 
 	struct
 	{

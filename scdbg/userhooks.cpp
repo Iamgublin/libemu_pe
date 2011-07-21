@@ -69,6 +69,10 @@ extern struct emu_memory *mem;
 extern struct emu_cpu *cpu;    //these two are global in main code
 extern bool disable_mm_logging;
 extern int fulllookupAddress(int eip, char* buf255);
+extern void start_color(enum colors);
+extern void end_color(void);
+
+enum colors{ mwhite=15, mgreen=10, mred=12, myellow=14, mblue=9, mpurple=5 };
 
 int nextFhandle = 0;
 uint32_t MAX_ALLOC  = 0x1000000;
@@ -135,7 +139,11 @@ void loadargs(int count, uint32_t ary[]){
 
 char* SafeTempFile(void){
 	char* buf = (char*)malloc(300);
-	GetTempPath(255, buf);
+	if(opts.temp_dir == NULL){
+		GetTempPath(255, buf);
+	}else{
+		strncpy(buf, opts.temp_dir, 255);
+	}
 	return strncat(buf,tmpnam(NULL),299);
 }
 
@@ -1555,37 +1563,6 @@ int32_t	__stdcall hook_MultiByteToWideChar(struct emu_env_w32 *win, struct emu_e
 	return 0;
 }
 
-int32_t	__stdcall hook_CreateFileW(struct emu_env_w32 *win, struct emu_env_w32_dll_export *ex)
-{
-/*
-HANDLE CreateFile(
-  LPCTSTR lpFileName,
-  DWORD dwDesiredAccess,
-  DWORD dwShareMode,
-  LPSECURITY_ATTRIBUTES lpSecurityAttributes,
-  DWORD dwCreationDisposition,
-  DWORD dwFlagsAndAttributes,
-  HANDLE hTemplateFile
-);
-*/
-	uint32_t eip_save = popd();
-	struct emu_string *filename = popstring();
-	uint32_t desiredaccess = popd();
-	uint32_t sharemode = popd();
-	uint32_t securityattr = popd();
-    uint32_t createdisp = popd();
-	uint32_t flagsandattr = popd();
-	uint32_t templatefile = popd();
-
-	uint32_t rv = 0x4711;
-	printf("%x\t%s(%s) = %x (not fully implemented)\n", eip_save, ex->fnname, filename->data, rv  );
-
-	emu_string_free(filename);
-	cpu->reg[eax] = rv;
-	emu_cpu_eip_set(cpu, eip_save);
-
-	return 0;
-}
 
 int32_t	__stdcall hook_URLDownloadToFileA(struct emu_env_w32 *win, struct emu_env_w32_dll_export *ex)
 {
@@ -1681,7 +1658,9 @@ int32_t	__stdcall hook_fopen(struct emu_env_w32 *win, struct emu_env_w32_dll_exp
 		char* localfile = SafeTempFile();
 		FILE *f = fopen(localfile,"w");
 		printf("%x\tfopen(%s) = %x\n", eip_save, filename, (int)f);
+		start_color(myellow);
 		printf("\tInteractive mode local file: %s\n", localfile);
+		end_color();
 		free(localfile);
 		cpu->reg[eax] = (int)f; 
 	}
@@ -1755,7 +1734,9 @@ int32_t	__stdcall hook__lcreat(struct emu_env_w32 *win, struct emu_env_w32_dll_e
 	if(opts.interactive_hooks != 0){
 		char *localfile = SafeTempFile();
 		FILE *f = fopen(localfile,"w");
+		start_color(myellow);
 		printf("\tInteractive mode local file: %s\n", localfile);
+		end_color();
 		free(localfile);
 		handle = (int)f;
 	}else{
@@ -1937,7 +1918,7 @@ int32_t	__stdcall hook_CreateFileA(struct emu_env_w32 *win, struct emu_env_w32_d
 		);
 	*/
 	uint32_t eip_save = popd();
-    struct emu_string *filename = popstring();
+	struct emu_string *filename = isWapi(ex->fnname) ? popwstring() :  popstring();
 	uint32_t desiredaccess = popd();
 	uint32_t sharemode = popd();
 	uint32_t securityattr = popd();
@@ -1967,7 +1948,12 @@ int32_t	__stdcall hook_CreateFileA(struct emu_env_w32 *win, struct emu_env_w32_d
 	
 	printf("%x\t%s(%s) = %x\n", eip_save, ex->fnname, emu_string_char(filename), cpu->reg[eax]  );
 
-	if(!opts.CreateFileOverride && opts.interactive_hooks) printf("\tInteractive mode local file %s\n", localfile);
+	if(!opts.CreateFileOverride && opts.interactive_hooks){
+		start_color(myellow);
+		printf("\tInteractive mode local file %s\n", localfile);
+		end_color();
+	}
+
 	opts.CreateFileOverride = false;
 
 	emu_string_free(filename);
@@ -3503,4 +3489,38 @@ int32_t	__stdcall hook_ControlService(struct emu_env_w32 *win, struct emu_env_w3
 	emu_cpu_eip_set(cpu, eip_save);
 	return 0;
 }
+
+int32_t	__stdcall hook_QueryDosDeviceA(struct emu_env_w32 *win, struct emu_env_w32_dll_export *ex)
+{
+	/*
+		DWORD WINAPI QueryDosDevice(
+		  __in_opt  LPCTSTR lpDeviceName,
+		  __out     LPTSTR lpTargetPath,
+		  __in      DWORD ucchMax
+		);
+	*/
+	uint32_t eip_save = popd();
+	struct emu_string* name = popstring();
+	uint32_t buf = popd();
+	uint32_t size = popd();
+
+	uint32_t retval=0;
+	char* hdd  = "\\Device\\HarddiskVolume1\x00\x00";
+	char* flop = "\\Device\\Floppy0\x00\x00";
+	char* tmp  = NULL;
+
+	printf("%x\tQueryDosDeviceA(%s, buf: %x, size: %x)\n", eip_save, name->data, buf, size);
 	
+	tmp = strcmp(name->data, "a:")==0 ? flop : hdd;  
+
+	retval = strlen(tmp)+2;
+	if(size < retval){
+		emu_memory_write_block(mem, buf,tmp, retval);
+	}else{
+		retval = ERROR_INSUFFICIENT_BUFFER;
+	}
+	
+	cpu->reg[eax] = retval;	 
+	emu_cpu_eip_set(cpu, eip_save);
+	return 0;
+}

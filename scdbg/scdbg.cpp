@@ -289,6 +289,14 @@ bool isProxied(char* api){
 	return false;
 }
 
+bool FolderExists(char* folder)
+{
+	DWORD rv = GetFileAttributes(folder);
+	if( rv == INVALID_FILE_ATTRIBUTES) return false;
+	if( !(rv & FILE_ATTRIBUTE_DIRECTORY) ) return false;
+	return true;
+}
+
 int bInstr(char *buf, char *match, int bufLen, int matchLen){
 
 	int i, j;
@@ -1628,8 +1636,6 @@ void debugCPU(struct emu *e, bool showdisasm){
 
 void set_hooks(struct emu_env *env){
 
-    //#define ADDHOOK(name)     emu_env_w32_export_new_hook(env, #name, hook_##name, NULL);
-
 	extern int32_t	__stdcall hook_GenericStub(struct emu_env_w32 *win, struct emu_env_w32_dll_export *ex);
 	extern int32_t	__stdcall hook_GenericStub2String(struct emu_env_w32 *win, struct emu_env_w32_dll_export *ex);
 	extern int32_t	__stdcall hook_shdocvw65(struct emu_env_w32 *win, struct emu_env_w32_dll_export *ex);
@@ -1651,6 +1657,7 @@ void set_hooks(struct emu_env *env){
 	ADDHOOK(RegOpenKeyExA);
 	ADDHOOK(OpenSCManagerW);
 	ADDHOOK(GlobalAlloc);
+	ADDHOOK(CreateFileA);
 
 	//these dont follow the macro pattern..mostly redirects/multitasks
 	emu_env_w32_export_new_hook(env, "LoadLibraryExA",  hook_LoadLibraryA, NULL);
@@ -1663,6 +1670,7 @@ void set_hooks(struct emu_env *env){
 	emu_env_w32_export_new_hook(env, "RegOpenKeyExW", hook_RegOpenKeyExA, NULL);
 	emu_env_w32_export_new_hook(env, "OpenSCManagerA", hook_OpenSCManagerW, NULL);
 	emu_env_w32_export_new_hook(env, "LocalAlloc", hook_GlobalAlloc, NULL);
+	emu_env_w32_export_new_hook(env, "CreateFileW", hook_CreateFileA, NULL);
 
 	//-----handled by the generic stub 2 string
 	emu_env_w32_export_new_hook(env, "InternetOpenA", hook_GenericStub2String, NULL);
@@ -1715,7 +1723,6 @@ void set_hooks(struct emu_env *env){
 	ADDHOOK(WriteProcessMemory);
 	ADDHOOK(CreateRemoteThread);
 	ADDHOOK(MultiByteToWideChar);
-	ADDHOOK(CreateFileW);
 	ADDHOOK(URLDownloadToFileA);
 	ADDHOOK(execv);
 	ADDHOOK(fclose);
@@ -1731,7 +1738,6 @@ void set_hooks(struct emu_env *env){
 	ADDHOOK(Sleep);
 	ADDHOOK(DeleteFileA);
 	ADDHOOK(CloseHandle);
-	ADDHOOK(CreateFileA);
 	ADDHOOK(CreateProcessA);
 	ADDHOOK(GetVersion);
 	ADDHOOK(GetProcAddress);
@@ -1778,6 +1784,7 @@ void set_hooks(struct emu_env *env){
 	ADDHOOK(HttpSendRequestA);
 	ADDHOOK(InternetReadFile);
 	ADDHOOK(ControlService);
+	ADDHOOK(QueryDosDeviceA);
 
 }
 
@@ -2401,6 +2408,7 @@ void show_help(void)
 		{"s", "int"	     ,   "max number of steps to run (def=2000000, -1 unlimited)"},	
 		{"sigs", NULL	 ,   "show signatures (can be used with -disasm)"},	
 		{"t", "int"	     ,   "time to delay (ms) between steps when v=1 or 2"},
+		{"temp", "folder",   "use folder as temp path for interactive mode file writes"},
 		{"u", NULL ,         "unlimited steps (same as -s -1)"},
 		{"v",  NULL		 ,   "verbosity, can be used up to 4 times, ex. /v /v /vv"},
 		{"- /+", NULL ,      "increments or decrements GetFileSize, can be used multiple times"},
@@ -2545,6 +2553,28 @@ void parse_opts(int argc, char* argv[] ){
 		if(sl==2 && strstr(buf,"/h") > 0 ){ show_help();handled=true;}
 		if(sl==2 && strstr(buf,"/?") > 0 ){ show_help();handled=true;}
 		if(sl==5 && strstr(argv[i],"/help") > 0 ){ show_help();handled=true;}
+
+		if(sl==5 && strstr(argv[i],"/temp") > 0 ){
+			if(i+1 >= argc){
+				printf("Invalid option /temp must specify a folder path as next arg\n");
+				exit(0);
+			}
+			opts.temp_dir = strdup(argv[i+1]);
+			if( !FolderExists(opts.temp_dir) ){
+				start_color(myellow);
+				printf("/temp argument must be a valid folder path.\nFolder not found: %s", opts.temp_dir);
+				end_color();
+				exit(0);
+			}
+			if( strlen(opts.temp_dir) > 255){
+				start_color(myellow);
+				printf("Sorry /temp argument must be less than 255 chars in length.."); //im lazy
+				end_color();
+				exit(0);
+			}
+			printf("temp directory will be: %s\n", opts.temp_dir);
+			i++;handled=true;
+		}
 
 		if(sl==2 && strstr(buf,"/f") > 0 ){
 			if(i+1 >= argc){
@@ -2734,7 +2764,7 @@ void parse_opts(int argc, char* argv[] ){
 			i++;handled=true;
 		}
 
-		if(strstr(buf,"/t") > 0 ){
+		if(sl==2 && strstr(buf,"/t") > 0 ){
 			if(i+1 >= argc){
 				printf("Invalid option /t must specify delay in millisecs as next arg\n");
 				exit(0);
@@ -3032,13 +3062,6 @@ void LoadPatch(char* fpath){
 
 	fclose(f);
 
-}
-
-bool FolderExists(char* folder)
-{
-	DWORD rv = GetFileAttributes(folder);
-	if( !(rv & FILE_ATTRIBUTE_DIRECTORY) ) return false;
-	return true;
 }
 
 void HandleDirMode(char* folder){
