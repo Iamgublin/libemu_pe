@@ -63,6 +63,8 @@
 extern int32_t instr_salc_d6(struct emu_cpu *c, struct emu_cpu_instruction *i);
 extern int32_t instr_movs_a5(struct emu_cpu *c, struct emu_cpu_instruction *i);
 extern int32_t instr_cmpxchg_0fb1(struct emu_cpu *c, struct emu_cpu_instruction *i);
+extern int32_t instr_rdtsc_0f31(struct emu_cpu *c, struct emu_cpu_instruction *i);
+extern int32_t instr_imul_69(struct emu_cpu *c, struct emu_cpu_instruction *i);
 
 struct emu_cpu_instruction_info ii_onebyte[0x100] = {
 	/* 00 */ {instr_add_00, "add", {0, 0, II_MOD_REG_RM, 0, 0, 0, 0, 0}},
@@ -170,7 +172,7 @@ struct emu_cpu_instruction_info ii_onebyte[0x100] = {
 	/* 66 */ {prefix_fn, "OPSIZE:", {0, 0, 0, 0, 0, 0, 0, 0}},
 	/* 67 */ {prefix_fn, "ADSIZE:", {0, 0, 0, 0, 0, 0, 0, 0}},
 	/* 68 */ {instr_push_68, "push", {0, 0, 0, II_IMM, 0, 0, 0, 0}},
-	/* 69 */ {0, 0, {0, 0, 0, 0, 0, 0, 0, 0}},
+	/* 69 */ {instr_imul_69, "imul", {0, 0, II_MOD_REG_RM, II_IMM, 0, 0, 0, 0}},
 	/* 6a */ {instr_push_6a, "push", {0, 0, 0, II_IMM8, 0, 0, 0, 0}},
 	/* 6b */ {instr_imul_6b, "imul", {0, 0, II_MOD_REG_RM, II_IMM8, 0, 0, 0, 0}},
 	/* 6c */ {0, 0, {0, 0, 0, 0, 0, 0, 0, 0}},
@@ -379,7 +381,7 @@ struct emu_cpu_instruction_info ii_twobyte[0x100] = {
 	/* 2e */ {0, 0, {0, 0, 0, 0, 0, 0, 0, 0}},
 	/* 2f */ {0, 0, {0, 0, 0, 0, 0, 0, 0, 0}},
 	/* 30 */ {0, 0, {0, 0, 0, 0, 0, 0, 0, 0}},
-	/* 31 */ {0, 0, {0, 0, 0, 0, 0, 0, 0, 0}},
+	/* 31 */ {instr_rdtsc_0f31, "rdtsc", {0, 0, 0, 0, 0, 0, 0, 0}}, //dzzie
 	/* 32 */ {0, 0, {0, 0, 0, 0, 0, 0, 0, 0}},
 	/* 33 */ {0, 0, {0, 0, 0, 0, 0, 0, 0, 0}},
 	/* 34 */ {0, 0, {0, 0, 0, 0, 0, 0, 0, 0}},

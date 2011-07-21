@@ -250,6 +250,7 @@ struct signature signatures[] =
 	{"template.hll.didier.orshl.hasher","\x8A\x10\x80\xCA\x60\x03\xDA\xD1\xE3\x03\x45\x10\x8A\x08\x84\xC9\xE0\xEE", 18 },
 	{"template.hll.wishmaster",		    "\x57\x8B\x6C\x24\x18\x8B\x45\x3C\xFF\x74\x05\x78\xFF\x74\x05\x7C\x8B\x54\x05\x78\x03\xD5\x8B\x4A\x18\x8B\x5A\x20", 28 },
 	{"generic.hll.prolog",				"\x55\x8B\xEC\x81\xEC", 5 },
+	{"generic.hll.prolog2",				"\x55\x89\xE5\x81\xEC", 5 },
 	{"peb.k32Base.ru",                  "\x64\x8B\x71\x30\x8B\x76\x0C\x8B\x76\x1C\x8B\x5E\x08\x8B\x56\x20\x8B\x36\x66\x39\x4A\x18", 22 },
 	{"scanner.GetProcAddress",          "\x56\xAC\x3C\x8B\x75\xFB\x80\x3E\x7D\x75\xF6\x83\xC6\x03\xAD\x3D\xFF\xFF\x00\x00\x75\xEB\x83\xEE\x11", 25},
 	{"scanner.hookcheck",               "\x80\x38\xE8\x74\x0A\x80\x38\xE9\x74\x05\x80\x38\xEB\x75\x11", 15},
@@ -319,9 +320,11 @@ void showSigs(void){
 
 	printf("\n Signatures: \n");
 	while( signatures[i].siglen > 0 ){
-		printf("\t%s\n",signatures[i].name);
+		printf("\t%s\r\n",signatures[i].name);
 		if(doDisasm){
 			emu_memory_write_block(mem,0x401000, signatures[i].sig, signatures[i].siglen);
+			emu_memory_write_dword(mem, 0x401000+signatures[i].siglen, 0);
+			emu_memory_write_dword(mem, 0x401000+signatures[i].siglen+4, 0);
 			while(size < signatures[i].siglen){
 				printf("\t\t");
 				size += disasm_addr_simple( 0x401000+size );
@@ -1900,7 +1903,7 @@ int mini_run(int limit){
 	{
 		if ( emu_cpu_step(cpu) != 0 ) break;
         if(steps >= limit) break;
-		if(!cpu->repeat_current_instr) steps++;
+		/*if(!cpu->repeat_current_instr)*/ steps++;
 		if( isDllMemAddress(cpu->eip) ) break;  //bails on dll mem addr (we dont have hooks set cause no output wanted, if end eip = an api address good sign!)
 		if( cpu->instr.opc == 0 ) break; //we will consider 0000 add [eax], eax as invalid memory.. 
 	}
@@ -1943,6 +1946,11 @@ int find_sc(void){ //loose brute force let user decide...
 	int r_cnt = -1;
 
 	for(i=0; i < opts.size ; i++){
+
+		if( ctrl_c_count > 0 ){
+			printf("Control-C detected aborting run, currently at offset 0x%x\n", i);
+			break;
+		}
 
 		emu_memory_write_block(mem, opts.baseAddress, opts.scode,  opts.size);
 		for (j=0;j<8;j++) cpu->reg[j] = regs[j];
@@ -2945,10 +2953,10 @@ reinit:
 
 	if(opts.offset > 0){
 		printf("Execution starts at file offset %x\n", opts.offset);
-		/*start_color(mgreen);
+		start_color(mgreen);
 		disasm_block(opts.baseAddress+opts.offset, 5);
 		end_color();
-		nl();*/
+		nl(); 
 	}
 
 	nl();

@@ -591,7 +591,11 @@ int32_t emu_cpu_parse(struct emu_cpu *c)
 				
 				if ( c->cpu_instr_info->function == 0 )
 				{
-					emu_strerror_set(c->emu,"opcode %02x not supported\n", c->instr.cpu.opc);
+					if( c->instr.cpu.opc == 0x0f )
+						emu_strerror_set(c->emu,"opcode 0f %02x not supported\n", c->instr.cpu.opc_2nd);
+					else
+						emu_strerror_set(c->emu,"opcode %02x not supported\n", c->instr.cpu.opc);
+
 					emu_errno_set(c->emu, EOPNOTSUPP);
 /*					int y=0;
 					for (y=0;y<expected_instr_size;y++)

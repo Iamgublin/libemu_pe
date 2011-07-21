@@ -1,4 +1,6 @@
 		Changelog for libemu
+		
+7.20.11 - new opcode: rdtsc, tested/enabled existing: instr_imul_69
 
 6.24.11 - new export emu_memory_read_wide_string, 9 new hooks (SCM)
         - CloseServiceHandle, DeleteService, ControlService

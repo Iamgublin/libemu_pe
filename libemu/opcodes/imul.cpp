@@ -494,3 +494,97 @@ int32_t instr_group_3_f7_imul(struct emu_cpu *c, struct emu_cpu_instruction *i)
 	return 0;
 }
 
+
+/* dzzie modified base of imul_6b http://faydoc.tripod.com/cpu/imul.htm
+int32_t instr_imul_69(struct emu_cpu *c, struct emu_cpu_instruction *i)
+{
+	if ( i->modrm.mod != 3 )
+	{
+		if ( i->prefixes & PREFIX_OPSIZE )
+		{
+			/ * was case 6B /r ib IMUL r16,m16,imm8 
+			   now      69 /r iw IMUL r16,r/m16, imm16  
+			 * /
+			int16_t sexd = (int16_t)*i->imm16;
+
+			uint16_t m16;
+			MEM_WORD_READ(c, i->modrm.ea, &m16);
+
+			INSTR_CALC(16,
+					   32,
+					   c, 
+					   m16,
+					   sexd) 
+
+			*c->reg16[i->modrm.opc] = operation_result;
+
+			uint8_t high;
+			WORD_UPPER_TO_BYTE(high,operation_result);
+			INSTR_SET_FLAGS(c,high);
+		}
+		else
+		{
+			/ * was case 6B /r ib IMUL r32,m16,imm8
+			 * now      69 /r id IMUL r32,r/m32, imm32         
+			 *  
+			 * /
+
+			int32_t sexd = (int16_t)*i->imm16;
+
+			uint32_t m32;
+			MEM_DWORD_READ(c, i->modrm.ea, &m32);
+
+			INSTR_CALC(32, 
+					   64,
+					   c, 
+					   m32,
+					   sexd)
+
+			c->reg[i->modrm.opc] = operation_result;
+
+			uint32_t high;
+			QWORD_UPPER_TO_DWORD(high,operation_result);
+			INSTR_SET_FLAGS(c,high);
+		}
+	}
+	else
+	{
+		if ( i->prefixes & PREFIX_OPSIZE )
+		{
+			/* was case 6B /r ib IMUL r16,imm8 
+			   now case 69 /r iw IMUL r16,imm16  
+			 * /
+			int16_t sexd = (int16_t)*i->imm16;
+
+			INSTR_CALC(16,
+					   32,
+					   c, 
+					   *c->reg16[i->modrm.rm],
+					   sexd)
+			*c->reg16[i->modrm.opc] = operation_result;
+
+			uint16_t high;
+			WORD_UPPER_TO_BYTE(high,operation_result);
+			INSTR_SET_FLAGS(c,high);
+		}
+		else
+		{
+			/* was case 6B /r ib IMUL r32,imm8  
+			   now case 69 /r id IMUL r32, imm32   
+			 * /
+			int32_t sexd = (int32_t)*i->imm;
+
+			INSTR_CALC(32,
+					   64,
+					   c, 
+					   c->reg[i->modrm.rm],
+					   sexd)
+			c->reg[i->modrm.opc] = operation_result;
+
+			uint32_t high;
+			QWORD_UPPER_TO_DWORD(high,operation_result);
+			INSTR_SET_FLAGS(c,high);
+		}
+	}
+	return 0;
+}*/

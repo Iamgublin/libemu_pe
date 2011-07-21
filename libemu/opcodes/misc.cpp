@@ -103,6 +103,27 @@ int32_t instr_salc_d6(struct emu_cpu *c, struct emu_cpu_instruction *i)
 	return 0;
 }
 
+//dzzie
+uint32_t last_TSC_EAX = 0;
+uint32_t last_TSC_EDX = 0;
+int32_t instr_rdtsc_0f31(struct emu_cpu *c, struct emu_cpu_instruction *i){
+	/*The Time Stamp Counter is a 64-bit register present on all x86 
+	processors since the Pentium that counts the number of ticks since reset. 
+	returns the TSC in EDX:EAX*/
+	if(last_TSC_EDX==0){
+		_asm{
+			rdtsc
+			mov last_TSC_EDX, edx
+			mov last_TSC_EAX, eax
+		}
+	}else{
+		last_TSC_EAX += 0x100;
+	}
+	c->reg[edx]= last_TSC_EDX;
+	c->reg[eax]= last_TSC_EAX;
+	return 0;
+}
+
 int32_t instr_daa_27(struct emu_cpu *c, struct emu_cpu_instruction *i)
 {
 	/* 27
