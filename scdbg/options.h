@@ -45,6 +45,7 @@ struct run_time_options
 	bool automationRun;
 	bool noseh;
 	char* temp_dir;
+	int   min_steps;
 
 	struct
 	{

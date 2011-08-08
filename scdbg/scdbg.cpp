@@ -1953,7 +1953,7 @@ int find_sc(void){ //loose brute force let user decide...
 	memset(&results,0,sizeof(struct result)*41);
 	int r_cnt = -1;
 
-	for(i=0; i < opts.size ; i++){
+	for(i=opts.offset; i < opts.size ; i++){
 
 		if( ctrl_c_count > 0 ){
 			printf("Control-C detected aborting run, currently at offset 0x%x\n", i);
@@ -1966,7 +1966,7 @@ int find_sc(void){ //loose brute force let user decide...
 		if( opts.scode[i] != 0 ){
 			cpu->eip = opts.baseAddress + i;
 			s = mini_run(limit);
-			if(s > 100 && cpu->eip > (opts.baseAddress + i + 100) ){
+			if(s > opts.min_steps && cpu->eip > (opts.baseAddress + i + opts.min_steps) ){
 				if(last_step_cnt >= s && (last_offset+1) == i ){ //try not to spam
 					last_offset++;
 				}else{
@@ -2400,6 +2400,7 @@ void show_help(void)
 		{"lookup", "api" ,   "shows the address of WinAPi function ex. -lookup GetProcAddress"},
 		{"mm", NULL,         "enabled Memory Monitor (logs access to key addresses)"},
 		{"mdll", NULL,       "Monitor Dll - log direct access to dll memory (hook detection/patches)"},
+		{"min", "steps",     "min number of steps (decimal) to trigger record in findsc mode (def 200)"},
 		{"nc", NULL,         "no color (if using sending output to other apps)"},
 		{"noseh", NULL,      "Disables support for seh and UnhandledExceptionFilter"},
 		{"o", "hexnum"   ,   "base offset to use (default: 0x401000)"},
@@ -2516,6 +2517,7 @@ void parse_opts(int argc, char* argv[] ){
 	opts.sigScan = false;
 	opts.automationRun = false;
 	opts.noseh = false;
+	opts.min_steps = 200;
 
 	for(i=1; i < argc; i++){
 
@@ -2634,6 +2636,15 @@ void parse_opts(int argc, char* argv[] ){
 				exit(0);
 			}
 		    opts.baseAddress = strtol(argv[i+1], NULL, 16);			
+			i++;handled=true;
+		}
+
+		if(strstr(argv[i],"/min") > 0 ){
+			if(i+1 >= argc){
+				printf("Invalid option /min must specify min number of decimal steps (findsc mode) as next arg\n");
+				exit(0);
+			}
+		    opts.min_steps = atoi(argv[i+1]);			
 			i++;handled=true;
 		}
 
