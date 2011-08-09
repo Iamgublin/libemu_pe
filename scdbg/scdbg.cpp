@@ -1786,6 +1786,8 @@ void set_hooks(struct emu_env *env){
 	ADDHOOK(InternetReadFile);
 	ADDHOOK(ControlService);
 	ADDHOOK(QueryDosDeviceA);
+	ADDHOOK(lstrcatA);
+	ADDHOOK(SHDeleteKeyA);
 
 }
 
@@ -2006,11 +2008,15 @@ int find_sc(void){ //loose brute force let user decide...
 			printf("%d) offset=0x%-8x   steps=MAX    final_eip=%-8x   %s", i, results[s].offset, results[s].final_eip, buf255 );
 		 else 
 			printf("%d) offset= 0x%-8x   steps=%-8d   final_eip= %-8x   %s", i, results[s].offset , results[s].steps , results[s].final_eip, buf255 );
-		/*real_hexdump(opts.scode + results[s].offset, 10, -1, true);
-		nl();
-		start_color(mgreen);
-		disasm_block(opts.baseAddress + results[s].offset, 5);
-		end_color();*/
+
+		if(opts.disasm_mode > 0){
+			real_hexdump(opts.scode + results[s].offset, opts.disasm_mode, -1, true);
+			nl();
+			start_color(mgreen);
+			disasm_block(opts.baseAddress + results[s].offset, opts.disasm_mode);
+			end_color();
+		}
+
 		nl();
 		results[s].steps = -1; //zero out this entry so it wont be chosen again
 	}	
@@ -2019,7 +2025,9 @@ int find_sc(void){ //loose brute force let user decide...
 		return sorted[0].offset; //there was only one to choose from just run it..
 	}
 
+	opts.disasm_mode = 0;
 	ret = read_int("\nEnter index:",(char*)&buf);
+    if(ret < 0 ) return -1;
 	if(ret > (i-1) ) return -1; // i = number of results in sorted..
 	return sorted[ret].offset;
 
@@ -2530,10 +2538,10 @@ void parse_opts(int argc, char* argv[] ){
 		buf[1] = argv[i][1];
 		buf[2] = '0';
 		 		
-		if(strstr(buf,"/-") > 0 ){ opts.adjust_getfsize-- ;handled=true;}
-		if(strstr(buf,"/+") > 0 ){ opts.adjust_getfsize++ ;handled=true;}
-		if(strstr(buf,"/i") > 0 ){opts.interactive_hooks = 1;handled=true;}
-		if(strstr(buf,"/v") > 0 ){opts.verbose++; handled=true;}
+		if(sl==2 && strstr(buf,"/-") > 0 ){ opts.adjust_getfsize-- ;handled=true;}
+		if(sl==2 && strstr(buf,"/+") > 0 ){ opts.adjust_getfsize++ ;handled=true;}
+		if(sl==2 && strstr(buf,"/i") > 0 ){opts.interactive_hooks = 1;handled=true;}
+		if(sl==2 && strstr(buf,"/v") > 0 ){opts.verbose++; handled=true;}
 		if(sl==2 && strstr(buf,"/r") > 0 ){ opts.report = true; opts.mem_monitor = true;handled=true;}
 		if(sl==2 && strstr(buf,"/u") > 0 ){opts.steps = -1;handled=true;}
 		if(sl==6 && strstr(argv[i],"/noseh") > 0 ){   opts.noseh = true; handled=true;}
@@ -2552,7 +2560,7 @@ void parse_opts(int argc, char* argv[] ){
 		if(sl==5 && strstr(argv[i],"/dump")  > 0 ){  opts.hexdump_file = 1;handled=true;}
 		if(sl==6 && strstr(argv[i],"/hooks")  > 0 ){ show_supported_hooks();handled=true;}
 		if(sl==4 && strstr(argv[i],"/cfo")  > 0 ){ opts.CreateFileOverride = true;handled=true;}
-		if(strstr(buf,"/d") > 0 ){ opts.dump_mode = true;handled=true;}
+		if(sl==2 && strstr(buf,"/d") > 0 ){ opts.dump_mode = true;handled=true;}
 		if(sl==2 && strstr(buf,"/h") > 0 ){ show_help();handled=true;}
 		if(sl==2 && strstr(buf,"/?") > 0 ){ show_help();handled=true;}
 		if(sl==5 && strstr(argv[i],"/help") > 0 ){ show_help();handled=true;}
@@ -2630,7 +2638,7 @@ void parse_opts(int argc, char* argv[] ){
 			i++;handled=true;
 		}
 
-		if(strstr(buf,"/o") > 0 ){
+		if(sl==2 && strstr(buf,"/o") > 0 ){
 			if(i+1 >= argc){
 				printf("Invalid option /o must specify a hex base addr as next arg\n");
 				exit(0);
@@ -2639,7 +2647,7 @@ void parse_opts(int argc, char* argv[] ){
 			i++;handled=true;
 		}
 
-		if(strstr(argv[i],"/min") > 0 ){
+		if(sl==4 && strstr(argv[i],"/min") > 0 ){
 			if(i+1 >= argc){
 				printf("Invalid option /min must specify min number of decimal steps (findsc mode) as next arg\n");
 				exit(0);
@@ -2654,7 +2662,7 @@ void parse_opts(int argc, char* argv[] ){
 				exit(0);
 			}
 			//opts.fopen = fopen(argv[i+1],"r");  //ms implemented of fread barfs after 0x27000?
-			opts.h_fopen = CreateFile(argv[i+1],GENERIC_READ,0,0,OPEN_EXISTING,FILE_ATTRIBUTE_NORMAL,0);
+			opts.h_fopen = CreateFile(argv[i+1],GENERIC_READ,FILE_SHARE_READ,0,OPEN_EXISTING,FILE_ATTRIBUTE_NORMAL,0);
 			opts.fopen_fpath = strdup(argv[i+1]);
 			opts.fopen_fsize = GetFileSize(opts.h_fopen,0);//file_length(opts.fopen);
 			//if((int)opts.fopen < 1){
@@ -2749,7 +2757,7 @@ void parse_opts(int argc, char* argv[] ){
 			i++;handled=true;
 		}
 
-		if(strstr(buf,"/e") > 0 ){
+		if(sl==2 && strstr(buf,"/e") > 0 ){
 			if(i+1 >= argc){
 				printf("Invalid option /e must specify err verbosity as next arg\n");
 				exit(0);
@@ -2767,7 +2775,7 @@ void parse_opts(int argc, char* argv[] ){
 			i++;handled=true;
 		}
 
-		if(strstr(buf,"/s") > 0 ){
+		if(sl==2 && strstr(buf,"/s") > 0 ){
 			if(i+1 >= argc){
 				printf("Invalid option /s must specify num of steps as next arg\n");
 				exit(0);
@@ -2829,6 +2837,28 @@ void loadsc(void){
 
 }
 
+void min_window_size(void){
+	CONSOLE_SCREEN_BUFFER_INFO sb;
+	COORD maxb;
+	BOOL ret = false;
+	bool changed = false;
+	SMALL_RECT da = {0, 0, 0, 0}; 
+    HANDLE hOut = GetStdHandle(STD_OUTPUT_HANDLE);
+    maxb = GetLargestConsoleWindowSize(hOut);
+	GetConsoleScreenBufferInfo(hOut, &sb); 
+	da = sb.srWindow;
+	if(sb.srWindow.Right < 100 && maxb.X > 100){ da.Right = 100; changed = true;}
+	if(sb.srWindow.Bottom < 40 && maxb.Y > 40){  da.Bottom = 40; changed = true;}
+	maxb.X = da.Right + 1;
+	maxb.Y = da.Bottom * 5;
+	if(changed){
+		ret = SetConsoleScreenBufferSize(hOut, maxb);
+		//printf("Change buffer: %x\n", ret);
+		ret = SetConsoleWindowInfo(hOut,TRUE,&da);
+		//printf("SetInfo: %x\n", ret);
+	}
+}
+
 
 
 int main(int argc, char *argv[])
@@ -2839,7 +2869,8 @@ int main(int argc, char *argv[])
 	memset(&emm, 0, sizeof(emm));
 	memset(&mallocs, 0 , sizeof(mallocs));
 	memset(&opts,0,sizeof(struct run_time_options));
-
+    
+	min_window_size();
 	SetConsoleCtrlHandler(ctrl_c_handler, TRUE); //http://msdn.microsoft.com/en-us/library/ms686016
 
 	hCon = GetStdHandle( STD_INPUT_HANDLE );
@@ -2847,6 +2878,7 @@ int main(int argc, char *argv[])
 
 	DWORD old;
 	GetConsoleMode(hCon, &old);
+	old |= ENABLE_QUICK_EDIT_MODE | ENABLE_EXTENDED_FLAGS ; //always enable this and leave it this way..
 	orgt = old;
 	old &= ~ENABLE_LINE_INPUT;
 	SetConsoleMode(hCon, old);

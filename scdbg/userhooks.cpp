@@ -3524,3 +3524,54 @@ int32_t	__stdcall hook_QueryDosDeviceA(struct emu_env_w32 *win, struct emu_env_w
 	emu_cpu_eip_set(cpu, eip_save);
 	return 0;
 }
+
+int32_t	__stdcall hook_lstrcatA(struct emu_env_w32 *win, struct emu_env_w32_dll_export *ex)
+{
+	/*  LPTSTR WINAPI lstrcat(
+		  __inout  LPTSTR lpString1,
+		  __in     LPTSTR lpString2
+		);
+	*/
+	uint32_t eip_save = popd();
+	struct emu_string* s1 = popstring();
+	struct emu_string* s2 = popstring();
+	int i=0;
+
+	printf("%x\tlstrcatA(%s, %s)\n", eip_save, s1->data, s2->data);
+
+	int sz = s1->size;
+	if(sz!=0) sz--;
+
+	for(i=0; i < s2->size+1; i++){
+		emu_memory_write_byte(mem, s1->emu_offset + sz + i, s2->data[i]);
+	}
+	//emu_memory_write_byte(mem, s1->emu_offset + s1->size-1 + i, 0);
+	
+	emu_string_free(s1);
+	emu_string_free(s2);
+	set_ret(s1->emu_offset); 
+	emu_cpu_eip_set(cpu, eip_save);
+	return 0;
+
+}
+
+int32_t	__stdcall hook_SHDeleteKeyA(struct emu_env_w32 *win, struct emu_env_w32_dll_export *ex)
+{
+	/*  LSTATUS SHDeleteKey(
+		  __in      HKEY hkey,
+		  __in_opt  LPCTSTR pszSubKey
+		);
+	*/
+	uint32_t eip_save = popd();
+	uint32_t key = popd();
+	struct emu_string* subKey = popstring();
+	int i=0;
+
+	printf("%x\tSHDeleteKeyA(%x, %s)\n", eip_save, key, subKey->data);
+	
+	emu_string_free(subKey);
+	set_ret(ERROR_SUCCESS); 
+	emu_cpu_eip_set(cpu, eip_save);
+	return 0;
+
+}
