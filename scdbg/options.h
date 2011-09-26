@@ -46,6 +46,7 @@ struct run_time_options
 	bool noseh;
 	char* temp_dir;
 	int   min_steps;
+	bool  norw;
 
 	struct
 	{

@@ -33,6 +33,7 @@
 #include <stdio.h>
 #include <stdarg.h>
 #include <errno.h>
+#include <Shlobj.h>
 #include "emu.h"
 #include "emu_memory.h"
 #include "emu_cpu.h"
@@ -212,6 +213,10 @@ char* getHive(int hive){
 
 void GetSHFolderName(int id, char* buf255){
 	// Shlobj.h   http://msdn.microsoft.com/en-us/library/bb762494(v=vs.85).aspx
+
+	SHGetSpecialFolderPath(0,buf255,id,FALSE);
+
+/*
 	switch(id){
 		case 0:      strcpy(buf255, "./DESKTOP"); break;
 		case 1:      strcpy(buf255, "./INTERNET");break;
@@ -245,7 +250,8 @@ void GetSHFolderName(int id, char* buf255){
 		case 0x0021: strcpy(buf255, "./COOKIES");break;
 		case 0x0022: strcpy(buf255, "./HISTORY");break;
 		default: sprintf(buf255,"Unknown CSIDL: %x",id);
-	}
+
+	}*/
 
 }
 
@@ -1024,12 +1030,12 @@ int32_t	__stdcall hook_ReadFile(struct emu_env_w32 *win, struct emu_env_w32_dll_
 		}else{
 			rv = ReadFile( (HANDLE)m_hfile, tmp, numBytes, &bytesRead, 0);
 			emu_memory_write_block(mem, lpBuffer,tmp, numBytes);
-			if( bytesRead != numBytes) printf("\tReadFile error? numBytes=%x bytesRead=%x rv=%x\n", numBytes, bytesRead, rv);
+			if( bytesRead != numBytes && !opts.norw) printf("\tReadFile error? numBytes=%x bytesRead=%x rv=%x\n", numBytes, bytesRead, rv);
 			free(tmp);
 		}
 	}
 
-	printf("%x\tReadFile(hFile=%x, buf=%x, numBytes=%x) = %x\n", eip_save, hfile, lpBuffer, numBytes, rv);
+	if(!opts.norw) printf("%x\tReadFile(hFile=%x, buf=%x, numBytes=%x) = %x\n", eip_save, hfile, lpBuffer, numBytes, rv);
 
 	if(lpNumBytes != 0) emu_memory_write_dword(mem, lpNumBytes, numBytes);
 
@@ -2206,7 +2212,7 @@ int32_t	__stdcall hook_WriteFile(struct emu_env_w32 *win, struct emu_env_w32_dll
 
 	uint32_t max_size = 0x900000;
 	if( bytestowrite > max_size ){  //sample 2c2167d371c6e0ccbcee778a4d10b3bd - dzzie 
-		printf("\tWriteFile modifying BytesToWrite from %x to %x\n", bytestowrite , max_size);
+		if(!opts.norw) printf("\tWriteFile modifying BytesToWrite from %x to %x\n", bytestowrite , max_size);
 		bytestowrite = max_size;
 	}
 
@@ -2234,7 +2240,7 @@ int32_t	__stdcall hook_WriteFile(struct emu_env_w32 *win, struct emu_env_w32_dll
 
 	bool isSpam = strcmp(win->lastApiCalled, "WriteFile") == 0 ? true : false;
 
-	if(!isSpam)
+	if(!isSpam && !opts.norw)
 		printf("%x\tWriteFile(h=%x, buf=%x, len=%x, lpw=%x, lap=%x) = %x\n",eip_save, (int)file, p_buffer, bytestowrite, p_byteswritten,p_overlapped, returnvalue );
 	
 	if(isSpam && win->lastApiHitCount == 2) printf("\tHiding repetitive WriteFile calls\n");
@@ -3571,6 +3577,45 @@ int32_t	__stdcall hook_SHDeleteKeyA(struct emu_env_w32 *win, struct emu_env_w32_
 	
 	emu_string_free(subKey);
 	set_ret(ERROR_SUCCESS); 
+	emu_cpu_eip_set(cpu, eip_save);
+	return 0;
+
+}
+
+int32_t	__stdcall hook_CreateDirectoryA(struct emu_env_w32 *win, struct emu_env_w32_dll_export *ex)
+{
+	/*  BOOL WINAPI CreateDirectory(
+		  __in      LPCTSTR lpPathName,
+		  __in_opt  LPSECURITY_ATTRIBUTES lpSecurityAttributes
+		);
+	*/
+	uint32_t eip_save = popd();
+	struct emu_string* s1 = popstring();
+	uint32_t sec = popd();
+	int i=0;
+
+	printf("%x\tCreateDirectoryA(%s)\n", eip_save, s1->data);
+	
+	emu_string_free(s1);
+	set_ret(TRUE); 
+	emu_cpu_eip_set(cpu, eip_save);
+	return 0;
+
+}
+
+int32_t	__stdcall hook_SetCurrentDirectoryA(struct emu_env_w32 *win, struct emu_env_w32_dll_export *ex)
+{
+	/*  BOOL WINAPI SetCurrentDirectory(
+		  __in  LPCTSTR lpPathName
+		);
+	*/
+	uint32_t eip_save = popd();
+	struct emu_string* s1 = popstring();
+
+	printf("%x\tSetCurrentDirectoryA(%s)\n", eip_save, s1->data);
+	
+	emu_string_free(s1);
+	set_ret(1); 
 	emu_cpu_eip_set(cpu, eip_save);
 	return 0;
 

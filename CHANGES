@@ -1,5 +1,7 @@
 		Changelog for libemu
 
+9.26.11 - hooks: msvcrt.strstr, msvcrt.strtoul, CreateDirectoryA, SetCurrentDirectoryA
+
 8.8.11  - /min (min steps to trigger findsc record), findsc now honors /foff
 		
 7.20.11 - new opcode: rdtsc, tested/enabled existing: instr_imul_69

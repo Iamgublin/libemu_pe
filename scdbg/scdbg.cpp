@@ -278,7 +278,7 @@ bool isInteractive(char* api){
 bool isProxied(char* api){
 	char* iApi[] = {"CryptReleaseContext","CryptDestroyHash","CryptGetHashParam","CryptHashData",
 					"CryptCreateHash","CryptAcquireContextA","CryptAcquireContextW","GetCommandLineA","GetSystemTime",
-					"GetTempPathA","GetTempFileNameA","strstr","SHGetFolderPathA", NULL };
+					"GetTempPathA","GetTempFileNameA","strstr","SHGetFolderPathA","SHGetSpecialFolderPathA", NULL };
 
 	int i=0;
 	while( iApi[i] != NULL ){
@@ -1659,6 +1659,8 @@ void set_hooks(struct emu_env *env){
 	ADDHOOK(OpenSCManagerW);
 	ADDHOOK(GlobalAlloc);
 	ADDHOOK(CreateFileA);
+	ADDHOOK(strstr);
+	ADDHOOK(strtoul);
 
 	//these dont follow the macro pattern..mostly redirects/multitasks
 	emu_env_w32_export_new_hook(env, "LoadLibraryExA",  hook_LoadLibraryA, NULL);
@@ -1681,6 +1683,8 @@ void set_hooks(struct emu_env *env){
 	//-----by ordinal
 	emu_env_w32_export_new_hook_ordinal(env, "shdocvw", 0x65,  hook_shdocvw65);
 	emu_env_w32_export_new_hook_ordinal(env, "msvcrt", 0x02E1, hook_memset); //have to hook this one by ordinal cause it finds ntdll.memset first
+	emu_env_w32_export_new_hook_ordinal(env, "msvcrt", 0x030d, hook_strstr); //have to hook this one by ordinal cause it finds ntdll.strstr first
+	emu_env_w32_export_new_hook_ordinal(env, "msvcrt", 0x0311, hook_strtoul); //have to hook this one by ordinal cause it finds ntdll.strtoul first
 
 	//-----handled by the generic stub
 	GENERICHOOK(ZwTerminateProcess);
@@ -1713,8 +1717,6 @@ void set_hooks(struct emu_env *env){
 	ADDHOOK(VirtualProtectEx);
 	ADDHOOK(SetFilePointer);
 	ADDHOOK(ReadFile);
-	ADDHOOK(strstr);
-	ADDHOOK(strtoul);
 	ADDHOOK(GetTempFileNameA);
 	ADDHOOK(GetModuleFileNameA);
 	ADDHOOK(DialogBoxIndirectParamA);
@@ -1788,6 +1790,8 @@ void set_hooks(struct emu_env *env){
 	ADDHOOK(QueryDosDeviceA);
 	ADDHOOK(lstrcatA);
 	ADDHOOK(SHDeleteKeyA);
+	ADDHOOK(CreateDirectoryA);
+	ADDHOOK(SetCurrentDirectoryA);
 
 }
 
@@ -2411,6 +2415,7 @@ void show_help(void)
 		{"min", "steps",     "min number of steps (decimal) to trigger record in findsc mode (def 200)"},
 		{"nc", NULL,         "no color (if using sending output to other apps)"},
 		{"noseh", NULL,      "Disables support for seh and UnhandledExceptionFilter"},
+		{"norw", NULL,       "Disables display of read/write file hooks"},
 		{"o", "hexnum"   ,   "base offset to use (default: 0x401000)"},
 		{"patch", "fpath",   "load patch file <fpath> into libemu memory"},
 		{"r", NULL ,         "show analysis report at end of run (includes -mm)"},
@@ -2506,7 +2511,8 @@ void parse_opts(int argc, char* argv[] ){
 	int i;
 	int sl=0;
 	char buf[5];
-
+    
+	opts.sc_file[0] = 0;
 	opts.opts_parsed = 1;
 	opts.verbosity_onerr = 0;
 	opts.verbosity_after =0;
@@ -2526,6 +2532,7 @@ void parse_opts(int argc, char* argv[] ){
 	opts.automationRun = false;
 	opts.noseh = false;
 	opts.min_steps = 200;
+	opts.norw = false;
 
 	for(i=1; i < argc; i++){
 
@@ -2544,6 +2551,7 @@ void parse_opts(int argc, char* argv[] ){
 		if(sl==2 && strstr(buf,"/v") > 0 ){opts.verbose++; handled=true;}
 		if(sl==2 && strstr(buf,"/r") > 0 ){ opts.report = true; opts.mem_monitor = true;handled=true;}
 		if(sl==2 && strstr(buf,"/u") > 0 ){opts.steps = -1;handled=true;}
+		if(sl==5 && strstr(argv[i],"/norw") > 0 ){   opts.norw = true; handled=true;}
 		if(sl==6 && strstr(argv[i],"/noseh") > 0 ){   opts.noseh = true; handled=true;}
 		if(sl==3 && strstr(argv[i],"/nc") > 0 ){   opts.no_color = true; handled=true;}
 		if(sl==5 && strstr(argv[i],"/sigs") > 0 ){ showSigs(); exit(0); }
@@ -2904,6 +2912,8 @@ reinit:
 		exit(0);
 	}
 
+	if(opts.file_mode == false && opts.patch_file == NULL)	show_help();
+
 	loadsc();
 	init_emu();	
 	
@@ -3003,8 +3013,6 @@ reinit:
 		}
 
 	}
-
-	if(opts.file_mode == false && opts.patch_file == NULL)	show_help();
 
 	if(opts.dump_mode){
 		if(opts.file_mode == false){
