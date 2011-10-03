@@ -1,5 +1,8 @@
 		Changelog for libemu
 
+10.3.11 - emu_env_w32_load_dll use actual module size to copy k32 and ntdll live memory to emu
+          (some system like CN had crash with hardcoded default - thanks Zhi Liu)
+
 9.26.11 - hooks: msvcrt.strstr, msvcrt.strtoul, CreateDirectoryA, SetCurrentDirectoryA
 
 8.8.11  - /min (min steps to trigger findsc record), findsc now honors /foff

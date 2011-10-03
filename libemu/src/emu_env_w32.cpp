@@ -29,6 +29,8 @@
 #include <string.h>
 #include <errno.h>
 #include <stddef.h>
+#include <psapi.h>
+#pragma comment( lib, "psapi" )
 
 #include "emu.h"
 #include "emu_cpu.h"
@@ -388,6 +390,18 @@ void emu_env_w32_free(struct emu_env_w32 *env)
 
 }
 
+uint32_t ModuleSize(char* dllname){
+	
+	uint32_t retval = 0;
+	MODULEINFO mi;
+	HANDLE hProc  = OpenProcess(PROCESS_QUERY_INFORMATION | PROCESS_VM_READ ,FALSE, GetCurrentProcessId());
+	if(GetModuleInformation(hProc, GetModuleHandle(dllname), &mi, sizeof(MODULEINFO))){
+		retval = mi.SizeOfImage;
+	}
+	CloseHandle(hProc);
+	return retval;
+
+}
 
 int32_t emu_env_w32_load_dll(struct emu_env_w32 *env, char *dllname)
 {
@@ -395,8 +409,12 @@ int32_t emu_env_w32_load_dll(struct emu_env_w32 *env, char *dllname)
 	logDebug(env->emu, "trying to load dll %s\n", dllname);
 
 	int i;
+	uint32_t modsize;
+
 	for ( i=1; known_dlls[i].dllname != NULL; i++ )
 	{
+		modsize=0;
+
 		if ( _strnicmp(dllname, known_dlls[i].dllname, strlen(known_dlls[i].dllname)) == 0 )
 		{
 			logDebug(env->emu, "loading dll %s\n",dllname);
@@ -405,16 +423,32 @@ int32_t emu_env_w32_load_dll(struct emu_env_w32 *env, char *dllname)
 			struct emu_memory *mem = emu_memory_get(env->emu);
 
 			//------ dzzie--------
-			if ( _strnicmp(dllname, "kernel32", strlen("kernel32")) == 0 ||
-				 _strnicmp(dllname, "ntdll", strlen("ntdll")) == 0)
+			if ( (_strnicmp(dllname, "kernel32", strlen("kernel32")) == 0 ||
+				  _strnicmp(dllname, "ntdll", strlen("ntdll")) == 0) /*&& 
+				 !IsBadReadPtr(GetModuleHandle(dllname), known_dlls[i].imagesize)*/
+				)
 			{   
 				//some shellcodes scan these dlls for opcodes, return addresses, or function signatures. 
 				//note we still overwrite the MZ headers and export table with our hardcoded buffers - added 5.5.11
 				//only thing that could fail, is if they try to locate a function by its signature because fx offsets change.
 				//if they are just scanning for opcode sequences (more often seen) then this is fine. alternative is to
 				//add 600k to the binary all of the k32.text section which is to much for the small benifit..
+
+				/*
 				void* realdll = GetModuleHandle(dllname);
-				uint32_t ww = emu_memory_write_block(mem, known_dlls[i].baseaddress , realdll, known_dlls[i].imagesize);   
+				uint32_t ww = emu_memory_write_block(mem, known_dlls[i].baseaddress , realdll, known_dlls[i].imagesize);
+				*/
+
+				//10.3.11 - added IsBadReadPtr sanity check. if hardcoded size > actual k32 size = access violation - (known problem on CN systems thx Zhi Liu)
+				//maybe better solution would be to use GetModuleInformation from psapi
+				modsize = ModuleSize(dllname);
+			}
+
+			if( modsize != 0 ){
+				void* realdll = GetModuleHandle(dllname);
+				//printf("Loading real memory for dll: %s - real size: %x ", dllname, modsize);
+				uint32_t ww = emu_memory_write_block(mem, known_dlls[i].baseaddress , realdll, modsize); 
+				//printf("Success\n");
 			}else{
 				//since we dont include the full dll in the static bufs, we want to at least 
 				//make sure all the addr exist in case the shellcode tries to do hook detection. added 3.10.11
