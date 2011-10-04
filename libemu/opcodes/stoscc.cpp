@@ -55,11 +55,12 @@ int32_t instr_stos_aa(struct emu_cpu *c, struct emu_cpu_instruction *i)
 	}
 	else
 	{
-		if (i->prefixes & PREFIX_F3)
+		if (i->prefixes & PREFIX_F3 || i->prefixes & PREFIX_F2)
 		{
 			/* F3 AA 
 			 * Fill ECX bytes at ES:[EDI] with AL
-			 * REP STOS m8        
+			 * REP STOS m8  
+			 * added repne (F2) support - dzzie 10.4.11 (seems exact same behavior)
 			 */
 
 

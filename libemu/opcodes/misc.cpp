@@ -59,6 +59,7 @@ int32_t prefix_repnef2_alerter(struct emu_cpu *c, struct emu_cpu_instruction *i)
 	switch(i->opc){
 		case 0xA4: //instr_movsb (a4)		
 		case 0xae: break; //scasb 0xAe
+		case 0xAA: break; //stoss_aa
 		
 		default:
 			emu_strerror_set(c->emu,"support for repne not implemented for opcode %X\n", i->opc);
