@@ -292,10 +292,6 @@
 				>
 			</File>
 			<File
-				RelativePath=".\..\libemu\src\emu_cpu_data.cpp"
-				>
-			</File>
-			<File
 				RelativePath=".\..\libemu\src\emu_env.cpp"
 				>
 			</File>
@@ -305,10 +301,6 @@
 			</File>
 			<File
 				RelativePath=".\..\libemu\src\emu_env_w32_dll.cpp"
-				>
-			</File>
-			<File
-				RelativePath=".\..\libemu\src\emu_env_w32_dll_export.cpp"
 				>
 			</File>
 			<File
@@ -325,10 +317,6 @@
 			</File>
 			<File
 				RelativePath=".\..\libemu\src\emu_string.cpp"
-				>
-			</File>
-			<File
-				RelativePath=".\..\libemu\src\emu_track.cpp"
 				>
 			</File>
 			<File
@@ -477,10 +465,6 @@
 			</File>
 			<File
 				RelativePath=".\..\libemu\opcodes\rcr.cpp"
-				>
-			</File>
-			<File
-				RelativePath=".\..\libemu\opcodes\repcc.cpp"
 				>
 			</File>
 			<File
