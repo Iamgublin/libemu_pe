@@ -1661,6 +1661,7 @@ void set_hooks(struct emu_env *env){
 	ADDHOOK(CreateFileA);
 	ADDHOOK(strstr);
 	ADDHOOK(strtoul);
+    ADDHOOK(InternetSetOptionA);
 
 	//these dont follow the macro pattern..mostly redirects/multitasks
 	emu_env_w32_export_new_hook(env, "LoadLibraryExA",  hook_LoadLibraryA, NULL);
@@ -1674,6 +1675,7 @@ void set_hooks(struct emu_env *env){
 	emu_env_w32_export_new_hook(env, "OpenSCManagerA", hook_OpenSCManagerW, NULL);
 	emu_env_w32_export_new_hook(env, "LocalAlloc", hook_GlobalAlloc, NULL);
 	emu_env_w32_export_new_hook(env, "CreateFileW", hook_CreateFileA, NULL);
+	emu_env_w32_export_new_hook(env, "InternetSetOptionW", hook_InternetSetOptionA, NULL);
 
 	//-----handled by the generic stub 2 string
 	emu_env_w32_export_new_hook(env, "InternetOpenA", hook_GenericStub2String, NULL);

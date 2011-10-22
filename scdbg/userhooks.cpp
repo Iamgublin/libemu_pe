@@ -3620,3 +3620,30 @@ int32_t	__stdcall hook_SetCurrentDirectoryA(struct emu_env_w32 *win, struct emu_
 	return 0;
 
 }
+
+int32_t	__stdcall hook_InternetSetOptionA(struct emu_env_w32 *win, struct emu_env_w32_dll_export *ex)
+{
+	/*  
+		BOOL InternetSetOption(
+		  __in  HINTERNET hInternet,
+		  __in  DWORD dwOption,
+		  __in  LPVOID lpBuffer,
+		  __in  DWORD dwBufferLength
+		);
+
+		option flags: http://msdn.microsoft.com/en-us/library/windows/desktop/aa385328(v=vs.85).aspx
+
+	*/
+	uint32_t eip_save = popd();
+	uint32_t v1 = popd();
+	uint32_t v2 = popd();
+	uint32_t v3 = popd();
+	uint32_t v4 = popd();
+
+	printf("%x\t%s(h=%x, opt=%x, buf=%x, blen=%x)\n", eip_save, ex->fnname, v1,v2,v3,v4);
+	
+	set_ret(1); 
+	emu_cpu_eip_set(cpu, eip_save);
+	return 0;
+
+}
