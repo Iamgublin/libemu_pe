@@ -68,13 +68,13 @@ Begin VB.Form Form1
       Width           =   11175
    End
    Begin MSComctlLib.ListView lvFiles 
-      Height          =   4455
+      Height          =   2895
       Left            =   0
       TabIndex        =   5
       Top             =   720
       Width           =   1575
       _ExtentX        =   2778
-      _ExtentY        =   7858
+      _ExtentY        =   5106
       View            =   3
       LabelEdit       =   1
       LabelWrap       =   -1  'True
@@ -284,6 +284,75 @@ Begin VB.Form Form1
          Object.Width           =   2540
       EndProperty
    End
+   Begin MSComctlLib.ListView lvFileScanner 
+      Height          =   1215
+      Left            =   0
+      TabIndex        =   31
+      Top             =   3960
+      Width           =   1575
+      _ExtentX        =   2778
+      _ExtentY        =   2143
+      View            =   3
+      LabelEdit       =   1
+      LabelWrap       =   -1  'True
+      HideSelection   =   -1  'True
+      FullRowSelect   =   -1  'True
+      GridLines       =   -1  'True
+      _Version        =   393217
+      ForeColor       =   -2147483640
+      BackColor       =   -2147483643
+      BorderStyle     =   1
+      Appearance      =   1
+      NumItems        =   1
+      BeginProperty ColumnHeader(1) {BDD1F052-858B-11D1-B16A-00C0F0283628} 
+         Object.Width           =   2540
+      EndProperty
+   End
+   Begin VB.Label Label5 
+      Caption         =   "File Handle Scanner"
+      Height          =   255
+      Index           =   7
+      Left            =   0
+      TabIndex        =   32
+      Top             =   3720
+      Width           =   1455
+   End
+   Begin VB.Label Label8 
+      Caption         =   "Report Uploader"
+      BeginProperty Font 
+         Name            =   "MS Sans Serif"
+         Size            =   8.25
+         Charset         =   0
+         Weight          =   400
+         Underline       =   -1  'True
+         Italic          =   0   'False
+         Strikethrough   =   0   'False
+      EndProperty
+      ForeColor       =   &H00FF0000&
+      Height          =   255
+      Left            =   5040
+      TabIndex        =   30
+      Top             =   480
+      Width           =   1335
+   End
+   Begin VB.Label Label7 
+      Caption         =   "Manifest Viewer"
+      BeginProperty Font 
+         Name            =   "MS Sans Serif"
+         Size            =   8.25
+         Charset         =   0
+         Weight          =   400
+         Underline       =   -1  'True
+         Italic          =   0   'False
+         Strikethrough   =   0   'False
+      EndProperty
+      ForeColor       =   &H00FF0000&
+      Height          =   255
+      Left            =   3600
+      TabIndex        =   29
+      Top             =   480
+      Width           =   1335
+   End
    Begin VB.Label Label5 
       Caption         =   "Not Detected"
       Height          =   255
@@ -421,6 +490,9 @@ Begin VB.Form Form1
       Begin VB.Menu mnuViewHex 
          Caption         =   "View HexDump"
       End
+      Begin VB.Menu mnuRunScdbg 
+         Caption         =   "Run in Scdbg"
+      End
    End
 End
 Attribute VB_Name = "Form1"
@@ -468,6 +540,8 @@ Private Sub Command1_Click()
             Set lv = lvNoMem
         ElseIf InStr(d, "error accessing") > 0 Then
             Set lv = lvNoAccess
+        ElseIf InStr(d, "open file handle scanning occuring") > 0 Then
+             Set lv = lvFileScanner
         ElseIf InStr(d, "Stepcount 2000001") > 0 Then
             Set lv = lvOverStep
         ElseIf InStr(d, "unhooked call to") > 0 Then
@@ -483,10 +557,10 @@ Private Sub Command1_Click()
             a = InStr(d, "URLDownload")
             a = InStr(a, d, "(") + 1
             b = InStr(a, d, ")")
-            x = Mid(d, a, b - a)
+            X = Mid(d, a, b - a)
             
             urls = urls & fso.FileNameFromPath(CStr(f)) & " " & _
-                        Split(x, ",")(0) & vbCrLf
+                        Split(X, ",")(0) & vbCrLf
                         'Join(Split(x, ","), vbCrLf & vbTab) & _
                         vbCrLf
                     
@@ -505,14 +579,15 @@ Private Sub Command1_Click()
         
     Next
     
-    lvOpcode.ColumnHeaders(1).Text = lvOpcode.ListItems.Count
-    lvNoMem.ColumnHeaders(1).Text = lvNoMem.ListItems.Count
-    lvFiles.ColumnHeaders(1).Text = lvFiles.ListItems.Count
-    lvNoAccess.ColumnHeaders(1).Text = lvNoAccess.ListItems.Count
-    lvDownload.ColumnHeaders(1).Text = lvDownload.ListItems.Count
-    lvOverStep.ColumnHeaders(1).Text = lvOverStep.ListItems.Count
-    lvUnhooked.ColumnHeaders(1).Text = lvUnhooked.ListItems.Count
-    LvNot.ColumnHeaders(1).Text = LvNot.ListItems.Count
+    lvOpcode.ColumnHeaders(1).Text = lvOpcode.ListItems.count
+    lvNoMem.ColumnHeaders(1).Text = lvNoMem.ListItems.count
+    lvFiles.ColumnHeaders(1).Text = lvFiles.ListItems.count
+    lvNoAccess.ColumnHeaders(1).Text = lvNoAccess.ListItems.count
+    lvDownload.ColumnHeaders(1).Text = lvDownload.ListItems.count
+    lvOverStep.ColumnHeaders(1).Text = lvOverStep.ListItems.count
+    lvUnhooked.ColumnHeaders(1).Text = lvUnhooked.ListItems.count
+    lvFileScanner.ColumnHeaders(1).Text = lvFileScanner.ListItems.count
+    LvNot.ColumnHeaders(1).Text = LvNot.ListItems.count
     Label2.Caption = UBound(ff) & " Files total"
     
 End Sub
@@ -529,9 +604,9 @@ Private Sub Command3_Click()
     On Error Resume Next
     
     tmp = Split(Text3, ",")
-    For Each x In tmp
-        Kill Text1 & "\" & x
-        Kill Text1 & "\" & Mid(x, 1, Len(x) - 4)
+    For Each X In tmp
+        Kill Text1 & "\" & X
+        Kill Text1 & "\" & Mid(X, 1, Len(X) - 4)
     Next
     
     MsgBox "Complete! errors?=  " & Err.Description
@@ -549,9 +624,9 @@ Private Sub Command5_Click()
 End Sub
 
 Private Sub Command6_Click()
-    x = InputBox("Enter text to strip from file list", , ".sc.txt")
-    If Len(x) = 0 Then Exit Sub
-    Text3 = Replace(Text3, x, Empty)
+    X = InputBox("Enter text to strip from file list", , ".sc.txt")
+    If Len(X) = 0 Then Exit Sub
+    Text3 = Replace(Text3, X, Empty)
 End Sub
 
 Private Sub Form_Load()
@@ -568,13 +643,26 @@ Private Sub Label4_Click()
     Text2 = notDetected
 End Sub
 
-Private Sub Label4_MouseUp(Button As Integer, Shift As Integer, x As Single, Y As Single)
+Private Sub Label4_MouseUp(Button As Integer, Shift As Integer, X As Single, Y As Single)
     If Button = 2 Then PopupMenu mnuPopup
     Set LiveLv = LvNot     'hidden
 End Sub
 
 Private Sub Label6_Click()
     Text2 = urls
+End Sub
+
+Private Sub Label7_Click()
+    m = Text1 & "\manifest.txt"
+    If Not fso.FileExists(CStr(m)) Then
+        MsgBox "This feature is for a specific file format from an internal database, see source for format. used for data visualization and sorting", vbInformation
+        Exit Sub
+    End If
+    Call Form2.LoadManifest(m)
+End Sub
+
+Private Sub Label8_Click()
+    Form3.Show
 End Sub
 
 '*************************************************************************
@@ -610,34 +698,40 @@ Private Sub Lvunhooked_DblClick()
     On Error Resume Next
     Text3 = Text3 & lvUnhooked.SelectedItem.Text & ","
 End Sub
+Private Sub lvFileScanner_DblClick()
+    On Error Resume Next
+    Text3 = Text3 & lvFileScanner.SelectedItem.Text & ","
+End Sub
 
 '*************************************************************************
 
-Private Sub lvOpcode_MouseUp(Button As Integer, Shift As Integer, x As Single, Y As Single)
+Private Sub lvOpcode_MouseUp(Button As Integer, Shift As Integer, X As Single, Y As Single)
     If Button = 2 Then PopupMenu mnuPopup
 End Sub
-Private Sub lvnoaccess_MouseUp(Button As Integer, Shift As Integer, x As Single, Y As Single)
+Private Sub lvnoaccess_MouseUp(Button As Integer, Shift As Integer, X As Single, Y As Single)
     If Button = 2 Then PopupMenu mnuPopup
 End Sub
-Private Sub lvNoMem_MouseUp(Button As Integer, Shift As Integer, x As Single, Y As Single)
+Private Sub lvNoMem_MouseUp(Button As Integer, Shift As Integer, X As Single, Y As Single)
     If Button = 2 Then PopupMenu mnuPopup
 End Sub
-Private Sub lvFiles_MouseUp(Button As Integer, Shift As Integer, x As Single, Y As Single)
+Private Sub lvFiles_MouseUp(Button As Integer, Shift As Integer, X As Single, Y As Single)
     If Button = 2 Then PopupMenu mnuPopup
 End Sub
-Private Sub lvOverStep_MouseUp(Button As Integer, Shift As Integer, x As Single, Y As Single)
+Private Sub lvOverStep_MouseUp(Button As Integer, Shift As Integer, X As Single, Y As Single)
     If Button = 2 Then PopupMenu mnuPopup
 End Sub
-Private Sub lvUnhooked_MouseUp(Button As Integer, Shift As Integer, x As Single, Y As Single)
+Private Sub lvUnhooked_MouseUp(Button As Integer, Shift As Integer, X As Single, Y As Single)
     If Button = 2 Then PopupMenu mnuPopup
 End Sub
-Private Sub lvDownload_MouseUp(Button As Integer, Shift As Integer, x As Single, Y As Single)
+Private Sub lvDownload_MouseUp(Button As Integer, Shift As Integer, X As Single, Y As Single)
     If Button = 2 Then PopupMenu mnuPopup
 End Sub
-Private Sub lvnot_MouseUp(Button As Integer, Shift As Integer, x As Single, Y As Single)
+Private Sub lvnot_MouseUp(Button As Integer, Shift As Integer, X As Single, Y As Single)
     If Button = 2 Then PopupMenu mnuPopup
 End Sub
-
+Private Sub lvFileScanner_MouseUp(Button As Integer, Shift As Integer, X As Single, Y As Single)
+    If Button = 2 Then PopupMenu mnuPopup
+End Sub
 '*************************************************************************
 
 Private Sub lvOpcode_ItemClick(ByVal Item As MSComctlLib.ListItem)
@@ -677,13 +771,16 @@ Private Sub lvDownload_ItemClick(ByVal Item As MSComctlLib.ListItem)
     Text2 = Item.Tag
     Set LiveLv = lvDownload
 End Sub
-
 Private Sub lvFiles_ItemClick(ByVal Item As MSComctlLib.ListItem)
     On Error Resume Next
     Text2 = Item.Tag
     Set LiveLv = lvFiles
 End Sub
-
+Private Sub lvFileScanner_ItemClick(ByVal Item As MSComctlLib.ListItem)
+    On Error Resume Next
+    Text2 = Item.Tag
+    Set LiveLv = lvFileScanner
+End Sub
 '*************************************************************************
 
 Private Sub mnuDeleteFiles_Click()
@@ -761,6 +858,24 @@ hell:
     
 End Sub
 
+Private Sub mnuRunScdbg_Click()
+
+    If LiveLv Is Nothing Then
+        MsgBox "No list selected"
+        Exit Sub
+    End If
+    
+    f = Text1 & "\" & LiveLv.SelectedItem.Text
+    f = Mid(f, 1, Len(f) - 4)
+    If Not fso.FileExists(CStr(f)) Then
+        MsgBox "File not found: " & f
+        Exit Sub
+    End If
+    
+    frmScTest.InitInterface CStr(f)
+    
+End Sub
+
 Private Sub mnuViewHex_Click()
     If LiveLv Is Nothing Then
         MsgBox "No list selected"
@@ -778,7 +893,7 @@ Private Sub mnuViewHex_Click()
     
 End Sub
 
-Private Sub Text1_OLEDragDrop(Data As DataObject, Effect As Long, Button As Integer, Shift As Integer, x As Single, Y As Single)
+Private Sub Text1_OLEDragDrop(Data As DataObject, Effect As Long, Button As Integer, Shift As Integer, X As Single, Y As Single)
     On Error Resume Next
     Text1 = Data.files(1)
 End Sub
@@ -798,8 +913,8 @@ Function Hexdump(ByVal str, Optional hexOnly = 0) As String
         tt = Hex(ary(i))
         If Len(tt) = 1 Then tt = "0" & tt
         tmp = tmp & tt & " "
-        x = ary(i)
-        chars = chars & IIf((x > 32 And x < 127) Or x > 191, Chr(x), ".")
+        X = ary(i)
+        chars = chars & IIf((X > 32 And X < 127) Or X > 191, Chr(X), ".")
         If i > 1 And i Mod 16 = 0 Then
             h = Hex(offset)
             While Len(h) < 6: h = "0" & h: Wend
@@ -835,13 +950,13 @@ Function Hexdump(ByVal str, Optional hexOnly = 0) As String
     
 End Function
 
-Private Sub push(ary, Value)
+Private Sub push(ary, value)
     On Error GoTo init
-    x = UBound(ary)
+    X = UBound(ary)
     ReDim Preserve ary(UBound(ary) + 1)
-    ary(UBound(ary)) = Value
+    ary(UBound(ary)) = value
     Exit Sub
-init: ReDim ary(0): ary(0) = Value
+init: ReDim ary(0): ary(0) = value
 End Sub
 
 

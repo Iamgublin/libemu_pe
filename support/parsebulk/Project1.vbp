@@ -1,8 +1,14 @@
 Type=Exe
 Reference=*\G{00020430-0000-0000-C000-000000000046}#2.0#0#C:\WINDOWS\system32\stdole2.tlb#OLE Automation
 Object={831FDD16-0C5C-11D2-A9FC-0000F8754DA1}#2.0#0; mscomctl.ocx
+Object={3B7C8863-D78F-101B-B9B5-04021C009402}#1.2#0; RICHTX32.OCX
 Form=Form1.frm
 Class=CFileSystem2; CFileSystem2.cls
+Form=Form2.frm
+Class=CEntry; CEntry.cls
+Form=Form3.frm
+Class=CHttpPost; CHttpPost.cls
+Form=frmScTest.frm
 Startup="Form1"
 ExeName32="parseBulk.exe"
 Path32=".."
