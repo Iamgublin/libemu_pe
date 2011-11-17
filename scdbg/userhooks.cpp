@@ -3647,3 +3647,47 @@ int32_t	__stdcall hook_InternetSetOptionA(struct emu_env_w32 *win, struct emu_en
 	return 0;
 
 }
+
+int32_t	__stdcall hook_GetWindowThreadProcessId(struct emu_env_w32 *win, struct emu_env_w32_dll_export *ex)
+{
+	/*  
+		DWORD WINAPI GetWindowThreadProcessId(
+		  __in       HWND hWnd,
+		  __out_opt  LPDWORD lpdwProcessId
+		);
+
+	*/
+	uint32_t eip_save = popd();
+	uint32_t v1 = popd();
+	uint32_t v2 = popd();
+
+	printf("%x\t%s(h=%x, buf=%x)\n", eip_save, ex->fnname, v1,v2);
+	if(v2!=0) emu_memory_write_dword(mem,v2, 0x14077AC0);
+	set_ret(0x14077AC0); 
+	emu_cpu_eip_set(cpu, eip_save);
+	return 0;
+
+}
+
+int32_t	__stdcall hook_OpenProcess(struct emu_env_w32 *win, struct emu_env_w32_dll_export *ex)
+{
+	/*  
+		HANDLE WINAPI OpenProcess(
+		  __in  DWORD dwDesiredAccess,
+		  __in  BOOL bInheritHandle,
+		  __in  DWORD dwProcessId
+		);
+	*/
+
+	uint32_t eip_save = popd();
+	uint32_t v1 = popd();
+	uint32_t v2 = popd();
+	uint32_t v3 = popd();
+
+	printf("%x\t%s(access=%x, inherit=%x, pid=%x)\n", eip_save, ex->fnname, v1,v2,v3);
+	
+	set_ret(0x99999999); 
+	emu_cpu_eip_set(cpu, eip_save);
+	return 0;
+
+}

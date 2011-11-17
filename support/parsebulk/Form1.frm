@@ -525,10 +525,13 @@ Private Sub Command1_Click()
     lvOverStep.ListItems.Clear
     lvUnhooked.ListItems.Clear
     LvNot.ListItems.Clear
+    lvFileScanner.ListItems.Clear
     notDetected = Empty
     urls = Empty
     
     For Each f In ff
+        If Len(f) = 0 Or Not fso.FileExists(CStr(f)) Then GoTo end_of_loop
+        
         d = fso.ReadFile(f)
         
         If InStr(d, "No shellcode detected") > 0 Then
@@ -577,17 +580,18 @@ Private Sub Command1_Click()
             li.Text = fso.FileNameFromPath(CStr(f))
         End If
         
+end_of_loop:
     Next
     
-    lvOpcode.ColumnHeaders(1).Text = lvOpcode.ListItems.count
-    lvNoMem.ColumnHeaders(1).Text = lvNoMem.ListItems.count
-    lvFiles.ColumnHeaders(1).Text = lvFiles.ListItems.count
-    lvNoAccess.ColumnHeaders(1).Text = lvNoAccess.ListItems.count
-    lvDownload.ColumnHeaders(1).Text = lvDownload.ListItems.count
-    lvOverStep.ColumnHeaders(1).Text = lvOverStep.ListItems.count
-    lvUnhooked.ColumnHeaders(1).Text = lvUnhooked.ListItems.count
-    lvFileScanner.ColumnHeaders(1).Text = lvFileScanner.ListItems.count
-    LvNot.ColumnHeaders(1).Text = LvNot.ListItems.count
+    lvOpcode.ColumnHeaders(1).Text = lvOpcode.ListItems.Count
+    lvNoMem.ColumnHeaders(1).Text = lvNoMem.ListItems.Count
+    lvFiles.ColumnHeaders(1).Text = lvFiles.ListItems.Count
+    lvNoAccess.ColumnHeaders(1).Text = lvNoAccess.ListItems.Count
+    lvDownload.ColumnHeaders(1).Text = lvDownload.ListItems.Count
+    lvOverStep.ColumnHeaders(1).Text = lvOverStep.ListItems.Count
+    lvUnhooked.ColumnHeaders(1).Text = lvUnhooked.ListItems.Count
+    lvFileScanner.ColumnHeaders(1).Text = lvFileScanner.ListItems.Count
+    LvNot.ColumnHeaders(1).Text = LvNot.ListItems.Count
     Label2.Caption = UBound(ff) & " Files total"
     
 End Sub

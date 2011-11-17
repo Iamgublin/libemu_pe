@@ -1794,6 +1794,8 @@ void set_hooks(struct emu_env *env){
 	ADDHOOK(SHDeleteKeyA);
 	ADDHOOK(CreateDirectoryA);
 	ADDHOOK(SetCurrentDirectoryA);
+	ADDHOOK(GetWindowThreadProcessId);
+	ADDHOOK(OpenProcess);
 
 }
 
@@ -2398,7 +2400,7 @@ void show_help(void)
 		{"cmd", "\"string data\"","data to use for GetCommandLineA (use \\\" to embed quotes)"},
 		{"cfo", NULL ,       "CreateFileOverRide - if /fopen use handle else open real arg"},
 		{"d",  NULL	     ,   "dump unpacked shellcode"},
-		{"dir", " folder",   "process all .sc files in <folder> (can be used with -r and -v)"},
+		{"dir", " folder",   "process *.sc in <folder> supports: -r (1 report), -v (report mode), -u"},
 		{"disasm", "int" ,   "Disasm int lines (can be used with /foff)"},
 		{"dump", NULL,       "view hexdump (can be used with /foff)"},
 		{"e", "int"	     ,   "verbosity on error (3 = debug shell)"},
@@ -3152,6 +3154,8 @@ void HandleDirMode(char* folder){
 		
 		sprintf(cmdline, "scdbg -auto -f %s ", shortname);
 		if(opts.verbose > 0) strcat(cmdline, "-r");
+		if(opts.steps == -1) strcat(cmdline, "-u");
+
 		if(opts.report) 
 			sprintf(cmdline+strlen(cmdline), " >> %s\\report.txt", folder);
 		else
@@ -3165,6 +3169,8 @@ void HandleDirMode(char* folder){
 
 			sprintf(cmdline, "scdbg -auto -findsc -f %s ", shortname);
 			if(opts.verbose > 0) strcat(cmdline, "-r");
+			if(opts.steps == -1) strcat(cmdline, "-u");
+
 			if(opts.report) 
 				sprintf(cmdline+strlen(cmdline), " >> %s\\report.txt", folder);
 			else
