@@ -129,7 +129,7 @@ int32_t instr_stos_ab(struct emu_cpu *c, struct emu_cpu_instruction *i)
 				c->reg[edi] -= 2;
 			}
 
-			if ( i->prefixes & PREFIX_F3 ){ //dzzie 5.18.11 (repne seems to have exact same behavior)
+			if ( i->prefixes & PREFIX_F3 || i->prefixes & PREFIX_F2){ //dzzie 5.18.11 (repne seems to have exact same behavior)
 				uint8_t rcx = *c->reg16[cx];
 				rcx--;
 				c->repeat_current_instr = rcx == 0 ? false : true ;
@@ -167,7 +167,7 @@ int32_t instr_stos_ab(struct emu_cpu *c, struct emu_cpu_instruction *i)
 				c->reg[edi] -= 4;
 			}
 
-			if ( i->prefixes & PREFIX_F3 ){ //dzzie 5.18.11 (repne seems to have exact same behavior)
+			if ( i->prefixes & PREFIX_F3 || i->prefixes & PREFIX_F2){ //dzzie 5.18.11 (repne seems to have exact same behavior)
 				c->reg[ecx]--;
 				c->repeat_current_instr = c->reg[ecx] == 0 ? false : true ;
 			}
