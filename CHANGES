@@ -1,7 +1,8 @@
 		Changelog for libemu
 
 12.7.11  - added repne support for stosx (0xAB)
-
+         - disabled SetConsoleMode, messes up Windows 7 accepting input in findsc and dbgshell...
+         
 11.16.11 - new hooks: GetWindowThreadProcessId, OpenProcess
 		 - added support for -u to -dir mode
 		 - added /support/parseBulk (data visualizer for -dir mode output)

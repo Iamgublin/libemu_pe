@@ -2893,7 +2893,7 @@ int main(int argc, char *argv[])
 	old |= ENABLE_QUICK_EDIT_MODE | ENABLE_EXTENDED_FLAGS ; //always enable this and leave it this way..
 	orgt = old;
 	old &= ~ENABLE_LINE_INPUT;
-	SetConsoleMode(hCon, old);
+	//SetConsoleMode(hCon, old); //this fucks up Windows 7
 
 	signal(SIGABRT,restore_terminal);
     signal(SIGTERM,restore_terminal);
