@@ -1,5 +1,7 @@
 		Changelog for libemu
 
+12.19.11 - new hooks: ExpandEnvironmentStringsA,lstrlenA,lstrcmpiA
+
 12.7.11  - added repne support for stosx (0xAB)
          - disabled SetConsoleMode, messes up Windows 7 accepting input in findsc and dbgshell...
          

@@ -80,6 +80,16 @@ uint32_t MAX_ALLOC  = 0x1000000;
 uint32_t next_alloc = 0x60000; //these increment so we dont walk on old allocs
 uint32_t safe_stringbuf = 0x2531D0; //after the peb just empty space
 
+char* SafeMalloc(int size){
+	char* buf = (char*)malloc(size);
+	if( (int)buf == 0){
+		printf("Malloc Failed to allocate 0x%x bytes exiting...",size);
+		exit(0);
+	}
+	memset(buf,0,size);
+	return buf;
+}
+
 int get_fhandle(void){
 	nextFhandle+=4;
 	return nextFhandle;
@@ -3545,14 +3555,14 @@ int32_t	__stdcall hook_lstrcatA(struct emu_env_w32 *win, struct emu_env_w32_dll_
 
 	printf("%x\tlstrcatA(%s, %s)\n", eip_save, s1->data, s2->data);
 
-	int sz = s1->size;
-	if(sz!=0) sz--;
-
-	for(i=0; i < s2->size+1; i++){
-		emu_memory_write_byte(mem, s1->emu_offset + sz + i, s2->data[i]);
-	}
-	//emu_memory_write_byte(mem, s1->emu_offset + s1->size-1 + i, 0);
+	int sz = s1->size + s2->size + 10;
+	char* buf = SafeMalloc(sz);
 	
+	if(s1->size > 0) strncpy(buf,s1->data, s1->size);
+	if(s2->size > 0) lstrcatA(buf, s2->data);
+	emu_memory_write_block(mem,s1->emu_offset,buf,strlen(buf));
+	free(buf);
+
 	emu_string_free(s1);
 	emu_string_free(s2);
 	set_ret(s1->emu_offset); 
@@ -3687,6 +3697,83 @@ int32_t	__stdcall hook_OpenProcess(struct emu_env_w32 *win, struct emu_env_w32_d
 	printf("%x\t%s(access=%x, inherit=%x, pid=%x)\n", eip_save, ex->fnname, v1,v2,v3);
 	
 	set_ret(0x99999999); 
+	emu_cpu_eip_set(cpu, eip_save);
+	return 0;
+
+}
+
+int32_t	__stdcall hook_ExpandEnvironmentStringsA(struct emu_env_w32 *win, struct emu_env_w32_dll_export *ex)
+{
+	/*  
+		DWORD WINAPI ExpandEnvironmentStrings(
+		  __in       LPCTSTR lpSrc,
+		  __out_opt  LPTSTR lpDst,
+		  __in       DWORD nSize
+		);
+	*/
+
+	uint32_t eip_save = popd();
+	struct emu_string* src = popstring();
+	uint32_t dst = popd();
+	uint32_t sz = popd();
+
+	printf("%x\t%s(%s, dst=%x, sz=%x)\n", eip_save, ex->fnname, src->data, dst,sz);
+	
+	char* buf = SafeMalloc(sz+1);
+	int ret = ExpandEnvironmentStringsA(src->data, buf, sz);
+	
+	if(dst!=0 && ret!=0) emu_memory_write_block(mem,dst,buf,ret); 
+
+	free(buf);
+	emu_string_free(src);
+	set_ret(ret); 
+	emu_cpu_eip_set(cpu, eip_save);
+	return 0;
+
+}
+
+int32_t	__stdcall hook_lstrlenA(struct emu_env_w32 *win, struct emu_env_w32_dll_export *ex)
+{
+	/*  
+		int WINAPI lstrlen(
+		  __in  LPCTSTR lpString
+		);
+	*/
+
+	uint32_t eip_save = popd();
+	struct emu_string* src = popstring();
+
+	printf("%x\t%s(%s)\n", eip_save, ex->fnname, src->data);
+	
+	int ret = lstrlenA(src->data);
+
+	emu_string_free(src);
+	set_ret(ret); 
+	emu_cpu_eip_set(cpu, eip_save);
+	return 0;
+
+}
+
+int32_t	__stdcall hook_lstrcmpiA(struct emu_env_w32 *win, struct emu_env_w32_dll_export *ex)
+{
+	/*  
+		int WINAPI lstrcmpi(
+		  __in  LPCTSTR lpString1,
+		  __in  LPCTSTR lpString2
+		);
+	*/
+
+	uint32_t eip_save = popd();
+	struct emu_string* src = popstring();
+    struct emu_string* src2 = popstring();
+
+	printf("%x\t%s(%s, %s)\n", eip_save, ex->fnname, src->data, src2->data);
+	
+	int ret = lstrcmpiA(src->data,src2->data);
+
+	emu_string_free(src);
+	emu_string_free(src2);
+	set_ret(ret); 
 	emu_cpu_eip_set(cpu, eip_save);
 	return 0;
 

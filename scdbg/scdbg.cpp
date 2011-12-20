@@ -263,7 +263,7 @@ bool isInteractive(char* api){
 				    "_lclose","_lwrite","_hwrite","CloseHandle","CreateFileA","WaitForSingleObject",
 					"WriteFile","accept","bind","closesocket","connect","listen","recv","send",
 					"sendto","socket","WSASocketA","CreateFileMappingA","FindFirstFileA",
-					"fread", NULL };
+					"fread","ExpandEnvironmentStringsA","lstrlenA","lstrcmpiA", NULL };
 
 	int i=0;
 	while( iApi[i] != NULL ){
@@ -1796,6 +1796,9 @@ void set_hooks(struct emu_env *env){
 	ADDHOOK(SetCurrentDirectoryA);
 	ADDHOOK(GetWindowThreadProcessId);
 	ADDHOOK(OpenProcess);
+	ADDHOOK(ExpandEnvironmentStringsA);
+	ADDHOOK(lstrlenA);
+	ADDHOOK(lstrcmpiA);
 
 }
 
