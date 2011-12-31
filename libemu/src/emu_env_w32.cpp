@@ -423,35 +423,48 @@ int32_t emu_env_w32_load_dll(struct emu_env_w32 *env, char *dllname)
 			struct emu_memory *mem = emu_memory_get(env->emu);
 
 			//------ dzzie--------
-			if ( (_strnicmp(dllname, "kernel32", strlen("kernel32")) == 0 ||
-				  _strnicmp(dllname, "ntdll", strlen("ntdll")) == 0) /*&& 
-				 !IsBadReadPtr(GetModuleHandle(dllname), known_dlls[i].imagesize)*/
-				)
+			int isK32 = _strnicmp(dllname, "kernel32", strlen("kernel32"));
+			int isNTDLL = _strnicmp(dllname, "ntdll", strlen("ntdll"));
+
+			if ( isK32 == 0 || isNTDLL == 0 )
 			{   
-				//some shellcodes scan these dlls for opcodes, return addresses, or function signatures. 
-				//note we still overwrite the MZ headers and export table with our hardcoded buffers - added 5.5.11
-				//only thing that could fail, is if they try to locate a function by its signature because fx offsets change.
-				//if they are just scanning for opcode sequences (more often seen) then this is fine. alternative is to
-				//add 600k to the binary all of the k32.text section which is to much for the small benifit..
+				//this is to support opcode scanners and shellcode which does jmp api+5 hook avoidance..(some without even checking for hook or bp they just do it always...)
+				//opcodes from k32 are fairly often used, enough so that we want the offsets to line up
+				//exactly with the export addresses we use in our hardcoded lists. so I have included
+				//k32.text as a 500k resource. ntdll is not used as much, so we will just grab it from
+				//memory from the current process even though offsets wont line up if service pack is different than mine.
+				if( isK32 == 0 ){ 
+					HMODULE hMod = 0;
+					HRSRC hRes = FindResource(hMod,"kernel32.dll","RT_RCDATA");
 
-				/*
-				void* realdll = GetModuleHandle(dllname);
-				uint32_t ww = emu_memory_write_block(mem, known_dlls[i].baseaddress , realdll, known_dlls[i].imagesize);
-				*/
-
-				//10.3.11 - added IsBadReadPtr sanity check. if hardcoded size > actual k32 size = access violation - (known problem on CN systems thx Zhi Liu)
-				//maybe better solution would be to use GetModuleInformation from psapi
-				modsize = ModuleSize(dllname);
-			}
-
-			if( modsize != 0 ){
-				void* realdll = GetModuleHandle(dllname);
-				//printf("Loading real memory for dll: %s - real size: %x ", dllname, modsize);
-				uint32_t ww = emu_memory_write_block(mem, known_dlls[i].baseaddress , realdll, modsize); 
-				//printf("Success\n");
+					if(hRes==NULL){//we were compiled as dll ?
+						hMod = GetModuleHandle("vslibemu.dll");
+						hRes = FindResource( hMod, "kernel32.dll", "RT_RCDATA"); 
+					}
+					
+					if(hRes==NULL){
+						printf("Failed to load kernel32 Resource?");
+					}else{
+						HGLOBAL hResourceLoaded = LoadResource(hMod, hRes);
+						void* lpResLock = LockResource(hResourceLoaded);
+					    uint32_t sz = SizeofResource(hMod, hRes);
+						if(sz > 0){
+							emu_memory_write_block(mem, 0x7C801000 , lpResLock, sz); //res file is just the .text opcode section
+						}else{ 
+							printf("Failed to write kernel32 resource to emu memory?");
+						}
+						UnlockResource(lpResLock);
+					}
+				}else{ 
+					//NTDLL - just grab a copy of whatever version is on the user system from memory...
+					modsize = ModuleSize(dllname);
+				    void* realdll = GetModuleHandle(dllname);
+					//printf("Loading real memory for dll: %s - real size: %x ", dllname, modsize);
+					uint32_t ww = emu_memory_write_block(mem, known_dlls[i].baseaddress , realdll, modsize); 
+				}
+				
 			}else{
-				//since we dont include the full dll in the static bufs, we want to at least 
-				//make sure all the addr exist in case the shellcode tries to do hook detection. added 3.10.11
+				//at least make sure the expected addr range exists for hook detection codes. added 3.10.11
 				char* tmp = (char*)malloc(known_dlls[i].imagesize);
 				memset(tmp,0,known_dlls[i].imagesize);
 				emu_memory_write_block(mem, known_dlls[i].baseaddress,  tmp, known_dlls[i].imagesize);

@@ -270,6 +270,10 @@
 				>
 			</File>
 			<File
+				RelativePath="..\libemu\include\resources.rc"
+				>
+			</File>
+			<File
 				RelativePath=".\..\libemu\include\stdbool.h"
 				>
 			</File>

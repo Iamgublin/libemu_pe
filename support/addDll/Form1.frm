@@ -10,6 +10,14 @@ Begin VB.Form Form1
    ScaleHeight     =   4995
    ScaleWidth      =   13860
    StartUpPosition =   3  'Windows Default
+   Begin VB.CheckBox chkWriteAsFile 
+      Caption         =   "Write to out.txt"
+      Height          =   195
+      Left            =   8460
+      TabIndex        =   7
+      Top             =   360
+      Width           =   2895
+   End
    Begin VB.CommandButton Command4 
       Caption         =   "Prepare raw lordpe export list"
       Height          =   465
@@ -27,6 +35,7 @@ Begin VB.Form Form1
       _ExtentX        =   24262
       _ExtentY        =   7646
       _Version        =   393217
+      Enabled         =   -1  'True
       ScrollBars      =   2
       TextRTF         =   $"Form1.frx":0000
       BeginProperty Font {0BE35203-8F91-11CE-9DE3-00AA004BB851} 
@@ -43,13 +52,13 @@ Begin VB.Form Form1
       Height          =   315
       Left            =   6960
       TabIndex        =   3
-      Text            =   "7c80000"
+      Text            =   "7C800000"
       Top             =   120
       Width           =   1395
    End
    Begin VB.CommandButton Command1 
       Caption         =   "Get Hex Data as C commented src"
-      Height          =   465
+      Height          =   285
       Left            =   8415
       TabIndex        =   1
       Top             =   45
@@ -91,20 +100,50 @@ Private Sub Command1_Click()
     
     On Error Resume Next
     Dim f As Long
+    Dim f2 As Long, fp As String, dat As String
     Dim offset As Long
     Dim b(15) As Byte
+    Dim b2() As Byte
+    Dim tmp() As String
+    
     f = FreeFile
     rtf.Text = Empty
     offset = CLng("&h" & Text3)
     Open Text1 For Binary As f
+    
+    f2 = FreeFile
+    fp = App.Path & "\out.txt"
+    If chkWriteAsFile.Value = 1 Then
+        Kill fp
+        Open fp For Binary As f2
+    End If
+    
 again:
     Get f, , b()
-    rtf.Text = rtf.Text & Hexdump(StrConv(b, vbUnicode), , offset) & vbCrLf
-    Me.Refresh
-    DoEvents
+    dat = Hexdump(StrConv(b, vbUnicode), , offset) & vbCrLf
+    
+    If chkWriteAsFile.Value = 1 Then
+        b2() = StrConv(dat, vbFromUnicode, 1033)
+        Put f2, , b2()
+    Else
+        push tmp, dat
+    End If
+    
+    If offset Mod 1600 = 0 Then
+        DoEvents
+        Me.Caption = Hex(offset) & " / " & Hex(LOF(f))
+        Me.Refresh
+    End If
+    
     offset = offset + 16
-    If Not EOF(f) Then GoTo again
+If Not EOF(f) Then GoTo again
+    
     Close f
+    Close f2
+    
+    If chkWriteAsFile.Value = 0 Then
+        rtf.Text = Join(tmp, "")
+    End If
     
     MsgBox "done"
     
