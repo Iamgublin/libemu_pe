@@ -1,2 +1,4 @@
 
+#pragma code_page( 65001 ) //UTF-8
+NTDLL.DLL     RT_RCDATA DISCARDABLE  "ntdll.text.bin"
 KERNEL32.DLL  RT_RCDATA DISCARDABLE  "k32.text.bin"

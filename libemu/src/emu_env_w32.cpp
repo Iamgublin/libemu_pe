@@ -429,42 +429,43 @@ int32_t emu_env_w32_load_dll(struct emu_env_w32 *env, char *dllname)
 			if ( isK32 == 0 || isNTDLL == 0 )
 			{   
 				//this is to support opcode scanners and shellcode which does jmp api+5 hook avoidance..(some without even checking for hook or bp they just do it always...)
-				//opcodes from k32 are fairly often used, enough so that we want the offsets to line up
-				//exactly with the export addresses we use in our hardcoded lists. so I have included
-				//k32.text as a 500k resource. ntdll is not used as much, so we will just grab it from
-				//memory from the current process even though offsets wont line up if service pack is different than mine.
-				if( isK32 == 0 ){ 
-					HMODULE hMod = 0;
-					HRSRC hRes = FindResource(hMod,"kernel32.dll","RT_RCDATA");
+				//opcodes from k32 are fairly often used, enough so that we want the offsets to line up exactly 
+				 
+				HMODULE hMod = 0;
+				HRSRC hRes = FindResource(hMod,dllname,"RT_RCDATA");
 
-					if(hRes==NULL){//we were compiled as dll ?
-						hMod = GetModuleHandle("vslibemu.dll");
-						hRes = FindResource( hMod, "kernel32.dll", "RT_RCDATA"); 
+				if(hRes==NULL){ //we were compiled as dll ?
+					hMod = GetModuleHandle("vslibemu.dll");
+					hRes = FindResource( hMod, dllname, "RT_RCDATA"); 
+				}
+				
+				if(hRes==NULL){
+					printf("Failed to load %s Resource?", dllname);
+				}else{
+					HGLOBAL hResourceLoaded = LoadResource(hMod, hRes);
+					void* lpResLock = LockResource(hResourceLoaded);
+				    uint32_t sz = SizeofResource(hMod, hRes);
+					if(sz > 0){ //+ 0x1000 is valid for both ntdll and k32 (start of .text section)
+						emu_memory_write_block(mem, known_dlls[i].baseaddress + 0x1000 , lpResLock, sz); //res file is just the .text opcode section
+					}else{ 
+						printf("Failed to write %s resource to emu memory?", dllname);
 					}
-					
-					if(hRes==NULL){
-						printf("Failed to load kernel32 Resource?");
-					}else{
-						HGLOBAL hResourceLoaded = LoadResource(hMod, hRes);
-						void* lpResLock = LockResource(hResourceLoaded);
-					    uint32_t sz = SizeofResource(hMod, hRes);
-						if(sz > 0){
-							emu_memory_write_block(mem, 0x7C801000 , lpResLock, sz); //res file is just the .text opcode section
-						}else{ 
-							printf("Failed to write kernel32 resource to emu memory?");
-						}
-						UnlockResource(lpResLock);
-					}
-				}else{ 
+					UnlockResource(lpResLock);
+				}
+			 
+				
+				/*else{ 
 					//NTDLL - just grab a copy of whatever version is on the user system from memory...
+					//--> this CRASHS under Win7, they only map sections not whole blob like earlier versions..
 					modsize = ModuleSize(dllname);
 				    void* realdll = GetModuleHandle(dllname);
 					//printf("Loading real memory for dll: %s - real size: %x ", dllname, modsize);
 					uint32_t ww = emu_memory_write_block(mem, known_dlls[i].baseaddress , realdll, modsize); 
-				}
+				}*/
 				
 			}else{
 				//at least make sure the expected addr range exists for hook detection codes. added 3.10.11
+				//printf("Loading dummy memory for dll: %s\n", dllname);
 				char* tmp = (char*)malloc(known_dlls[i].imagesize);
 				memset(tmp,0,known_dlls[i].imagesize);
 				emu_memory_write_block(mem, known_dlls[i].baseaddress,  tmp, known_dlls[i].imagesize);

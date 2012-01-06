@@ -1,5 +1,12 @@
 		Changelog for libemu
 
+1.6.12   - ntdll.text section now hardcoded in. fixes crash under Win7 when trying
+           to live load from memory. (mapping of sections is different)
+           
+12.31.11 - kernel32.text section now hardcoded in so offsets always line up
+           in mem copies of loaded dlls copied to emu memory 
+           (offsets may not line up if not xpsp3 but not worth xx mb for this)
+           
 12.19.11 - new hooks: ExpandEnvironmentStringsA,lstrlenA,lstrcmpiA
 
 12.7.11  - added repne support for stosx (0xAB)

@@ -263,7 +263,7 @@ bool isInteractive(char* api){
 				    "_lclose","_lwrite","_hwrite","CloseHandle","CreateFileA","WaitForSingleObject",
 					"WriteFile","accept","bind","closesocket","connect","listen","recv","send",
 					"sendto","socket","WSASocketA","CreateFileMappingA","FindFirstFileA",
-					"fread","ExpandEnvironmentStringsA","lstrlenA","lstrcmpiA", NULL };
+					"fread","ExpandEnvironmentStringsA","lstrlenA","lstrcmpiA","lstrcatA", NULL };
 
 	int i=0;
 	while( iApi[i] != NULL ){
@@ -278,7 +278,8 @@ bool isInteractive(char* api){
 bool isProxied(char* api){
 	char* iApi[] = {"CryptReleaseContext","CryptDestroyHash","CryptGetHashParam","CryptHashData",
 					"CryptCreateHash","CryptAcquireContextA","CryptAcquireContextW","GetCommandLineA","GetSystemTime",
-					"GetTempPathA","GetTempFileNameA","strstr","SHGetFolderPathA","SHGetSpecialFolderPathA", NULL };
+					"GetTempPathA","GetTempFileNameA","strstr","SHGetFolderPathA","SHGetSpecialFolderPathA",
+					"ExpandEnvironmentStringsA","lstrlenA","lstrcmpiA","lstrcatA", NULL };
 
 	int i=0;
 	while( iApi[i] != NULL ){
@@ -1352,7 +1353,7 @@ void show_debugshell_help(void){
 			"\to - step over\n" 
 			"\t+/- - basic calculator to add or subtract 2 hex values\n"  
 			"\t.lp - lookup - get symbol for address\n"  
-			"\t.pl - reverse lookup - get address for symbol\n" 
+			"\t.pl - reverse lookup - get address for symbol (special: peb,dllmap,fs0)\n" 
 			"\t.api - scan memory for api table\n"
 			"\t.seh - shows current value at fs[0]\n"
 			"\t.reg - manually set register value\n"
