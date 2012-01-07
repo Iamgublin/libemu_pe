@@ -263,7 +263,7 @@ bool isInteractive(char* api){
 				    "_lclose","_lwrite","_hwrite","CloseHandle","CreateFileA","WaitForSingleObject",
 					"WriteFile","accept","bind","closesocket","connect","listen","recv","send",
 					"sendto","socket","WSASocketA","CreateFileMappingA","FindFirstFileA",
-					"fread","ExpandEnvironmentStringsA","lstrlenA","lstrcmpiA","lstrcatA", NULL };
+					"fread","ExpandEnvironmentStringsA","lstrlenA","lstrcmpiA","lstrcatA","strcat", NULL };
 
 	int i=0;
 	while( iApi[i] != NULL ){
@@ -279,7 +279,7 @@ bool isProxied(char* api){
 	char* iApi[] = {"CryptReleaseContext","CryptDestroyHash","CryptGetHashParam","CryptHashData",
 					"CryptCreateHash","CryptAcquireContextA","CryptAcquireContextW","GetCommandLineA","GetSystemTime",
 					"GetTempPathA","GetTempFileNameA","strstr","SHGetFolderPathA","SHGetSpecialFolderPathA",
-					"ExpandEnvironmentStringsA","lstrlenA","lstrcmpiA","lstrcatA", NULL };
+					"ExpandEnvironmentStringsA","lstrlenA","lstrcmpiA","lstrcatA","strcat", NULL };
 
 	int i=0;
 	while( iApi[i] != NULL ){
@@ -1653,6 +1653,7 @@ void set_hooks(struct emu_env *env){
 	ADDHOOK(CreateProcessInternalA);
 	ADDHOOK(ExitProcess);
 	ADDHOOK(memset);
+	ADDHOOK(memcpy);
 	ADDHOOK(CryptAcquireContextA);
 	ADDHOOK(GetFileSize);
 	ADDHOOK(OpenServiceW);
@@ -1663,6 +1664,7 @@ void set_hooks(struct emu_env *env){
 	ADDHOOK(strstr);
 	ADDHOOK(strtoul);
     ADDHOOK(InternetSetOptionA);
+    ADDHOOK(lstrcatA);
 
 	//these dont follow the macro pattern..mostly redirects/multitasks
 	emu_env_w32_export_new_hook(env, "LoadLibraryExA",  hook_LoadLibraryA, NULL);
@@ -1677,6 +1679,7 @@ void set_hooks(struct emu_env *env){
 	emu_env_w32_export_new_hook(env, "LocalAlloc", hook_GlobalAlloc, NULL);
 	emu_env_w32_export_new_hook(env, "CreateFileW", hook_CreateFileA, NULL);
 	emu_env_w32_export_new_hook(env, "InternetSetOptionW", hook_InternetSetOptionA, NULL);
+	emu_env_w32_export_new_hook(env, "strcat", hook_lstrcatA, NULL);
 
 	//-----handled by the generic stub 2 string
 	emu_env_w32_export_new_hook(env, "InternetOpenA", hook_GenericStub2String, NULL);
@@ -1791,7 +1794,6 @@ void set_hooks(struct emu_env *env){
 	ADDHOOK(InternetReadFile);
 	ADDHOOK(ControlService);
 	ADDHOOK(QueryDosDeviceA);
-	ADDHOOK(lstrcatA);
 	ADDHOOK(SHDeleteKeyA);
 	ADDHOOK(CreateDirectoryA);
 	ADDHOOK(SetCurrentDirectoryA);

@@ -3547,13 +3547,14 @@ int32_t	__stdcall hook_lstrcatA(struct emu_env_w32 *win, struct emu_env_w32_dll_
 		  __inout  LPTSTR lpString1,
 		  __in     LPTSTR lpString2
 		);
+		and ntdll.strcat
 	*/
 	uint32_t eip_save = popd();
 	struct emu_string* s1 = popstring();
 	struct emu_string* s2 = popstring();
 	int i=0;
 
-	printf("%x\tlstrcatA(%s, %s)\n", eip_save, s1->data, s2->data);
+	printf("%x\t%s(%s, %s)\n", eip_save, ex->fnname , s1->data, s2->data);
 
 	int sz = s1->size + s2->size + 10;
 	char* buf = SafeMalloc(sz);
@@ -3778,3 +3779,28 @@ int32_t	__stdcall hook_lstrcmpiA(struct emu_env_w32 *win, struct emu_env_w32_dll
 	return 0;
 
 }
+
+int32_t	__stdcall hook_memcpy(struct emu_env_w32 *win, struct emu_env_w32_dll_export *ex)
+{
+	/*  
+		void * memcpy ( void * destination, const void * source, size_t num );.
+	*/
+	uint32_t eip_save = popd();
+	uint32_t dest = popd();
+	uint32_t src = popd();
+	uint32_t sz = popd();
+
+	printf("%x\t%s(dst=%x, src=%x, sz=%x)\n", eip_save, ex->fnname , dest, src, sz);
+
+	void* buf = (void*)SafeMalloc(sz+1);
+	emu_memory_read_block(mem, src, buf, sz);
+	emu_memory_write_block(mem,dest, buf, sz);
+	free(buf);
+	
+	set_ret(dest); 
+	emu_cpu_eip_set(cpu, eip_save);
+	return 0;
+
+}
+
+

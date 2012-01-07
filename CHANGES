@@ -1,8 +1,9 @@
 		Changelog for libemu
 
-1.6.12   - ntdll.text section now hardcoded in. fixes crash under Win7 when trying
+1.6.12   - new hooks: memcpy, strcat
+         - ntdll.text section now hardcoded in. fixes crash under Win7 when trying
            to live load from memory. (mapping of sections is different)
-           
+        
 12.31.11 - kernel32.text section now hardcoded in so offsets always line up
            in mem copies of loaded dlls copied to emu memory 
            (offsets may not line up if not xpsp3 but not worth xx mb for this)
