@@ -1691,6 +1691,9 @@ void set_hooks(struct emu_env *env){
 	emu_env_w32_export_new_hook_ordinal(env, "msvcrt", 0x02E1, hook_memset); //have to hook this one by ordinal cause it finds ntdll.memset first
 	emu_env_w32_export_new_hook_ordinal(env, "msvcrt", 0x030d, hook_strstr); //have to hook this one by ordinal cause it finds ntdll.strstr first
 	emu_env_w32_export_new_hook_ordinal(env, "msvcrt", 0x0311, hook_strtoul); //have to hook this one by ordinal cause it finds ntdll.strtoul first
+	emu_env_w32_export_new_hook_ordinal(env, "msvcrt", 0x02DF, hook_memcpy); //have to hook this one by ordinal cause it finds ntdll  first
+	emu_env_w32_export_new_hook_ordinal(env, "msvcrt", 0x02FE, hook_lstrcatA); //have to hook this one by ordinal cause it finds ntdll  first
+
 
 	//-----handled by the generic stub
 	GENERICHOOK(ZwTerminateProcess);
@@ -1752,7 +1755,6 @@ void set_hooks(struct emu_env *env){
 	ADDHOOK(GetProcAddress);
 	ADDHOOK(GetSystemDirectoryA);
 	ADDHOOK(malloc);
-	ADDHOOK(memset);  // finds ntdll.memset first
 	ADDHOOK(SetUnhandledExceptionFilter);
 	ADDHOOK(WaitForSingleObject);
 	ADDHOOK(WriteFile);
