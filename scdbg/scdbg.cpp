@@ -1804,6 +1804,7 @@ void set_hooks(struct emu_env *env){
 	ADDHOOK(ExpandEnvironmentStringsA);
 	ADDHOOK(lstrlenA);
 	ADDHOOK(lstrcmpiA);
+	ADDHOOK(lstrcpyA);
 
 }
 
@@ -1977,14 +1978,18 @@ int find_sc(void){ //loose brute force let user decide...
 			printf("Control-C detected aborting run, currently at offset 0x%x\n", i);
 			break;
 		}
+		
+		/*if( i == 0x20){
+			i = i; //for debugging breakpoint 
+		}*/
 
 		emu_memory_write_block(mem, opts.baseAddress, opts.scode,  opts.size);
 		for (j=0;j<8;j++) cpu->reg[j] = regs[j];
 
 		if( opts.scode[i] != 0 ){
 			cpu->eip = opts.baseAddress + i;
-			s = mini_run(limit);
-			if(s > opts.min_steps && cpu->eip > (opts.baseAddress + i + opts.min_steps) ){
+			s = mini_run(limit); //   v-- start offset must be at least 10 bytes away from final eip rva - (excludes tight loops from garbage)
+			if(s > opts.min_steps && abs(opts.baseAddress + i - cpu->eip ) > 10 /*&& cpu->eip > (opts.baseAddress + i + opts.min_steps)*/ ){
 				if(last_step_cnt >= s && (last_offset+1) == i ){ //try not to spam
 					last_offset++;
 				}else{
@@ -1996,6 +2001,9 @@ int find_sc(void){ //loose brute force let user decide...
 					results[r_cnt].org_i  = i;
 					last_offset = i;
 					last_step_cnt = s;
+					if( fulllookupAddress(cpu->eip, (char*)&buf255) == 1 ){ //run ends in an api address its shellcode so cheat and move to front of sort
+						results[r_cnt].steps = limit;
+					}
 				}
 			}
 		}

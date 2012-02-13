@@ -3804,3 +3804,23 @@ int32_t	__stdcall hook_memcpy(struct emu_env_w32 *win, struct emu_env_w32_dll_ex
 }
 
 
+int32_t	__stdcall hook_lstrcpyA(struct emu_env_w32 *win, struct emu_env_w32_dll_export *ex)
+{
+	/*  
+		LPTSTR WINAPI lstrcpy( __out  LPTSTR lpString1, __in   LPTSTR lpString2);
+	*/
+	uint32_t eip_save = popd();
+	uint32_t dest = popd();
+	struct emu_string *str2 = popstring();
+	
+	printf("%x\t%s(dst=%x, src=%s)\n", eip_save, ex->fnname , dest, str2->data);
+
+	emu_memory_write_block(mem, dest, str2->data, str2->size);
+	emu_memory_write_byte(mem, dest+str2->size+1, 0);
+	emu_string_free(str2);
+	
+	set_ret(dest); 
+	emu_cpu_eip_set(cpu, eip_save);
+	return 0;
+
+}
