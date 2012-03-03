@@ -124,6 +124,7 @@ void LoadPatch(char* fpath);
 void HandleDirMode(char* folder);
 void nl(void);
 bool isDllMemAddress(uint32_t eip);
+extern char* SafeMalloc(int size);
 
 uint32_t FS_SEGMENT_DEFAULT_OFFSET = 0x7ffdf000;
 
@@ -289,6 +290,34 @@ bool isProxied(char* api){
 		i++;
 	}
 	return false;
+}
+
+char* FileNameFromPath(char* path){
+	if(path==NULL || strlen(path)==0) return strdup("");
+	unsigned int x = strlen(path);
+	while(x > 0){
+		if( path[x-1] == '\\') break;
+		x--;
+	}
+	int sz = strlen(path) - x;
+	char* tmp = (char*)malloc(sz+2);
+	memset(tmp,0,sz+2);
+	for(int i=0; i < sz; i++){
+		tmp[i] = path[x+i];
+	}
+	return tmp;
+}
+
+char* GetParentFolder(char* path){
+	if(path==NULL || strlen(path)==0) return strdup("");
+	unsigned int x = strlen(path);
+	while(x > 0){
+		if( path[x-1] == '\\') break;
+		x--;
+	}
+	char* tmp = strdup(path);
+	tmp[x]=0;
+	return tmp;
 }
 
 bool FolderExists(char* folder)
@@ -858,16 +887,41 @@ bool was_packed(void){
 	return ii < opts.size ? true : false;
 }
 
+char* getDumpPath(char* extension){
+	
+	char* tmp_path;
+	char* fname;
+
+	if( opts.temp_dir == NULL || strlen(opts.temp_dir)==0){
+		tmp_path = SafeMalloc(strlen(opts.sc_file) + 50);
+		strcpy(tmp_path, opts.sc_file);
+	}else{
+		fname = FileNameFromPath(opts.sc_file);
+		tmp_path = SafeMalloc(strlen(opts.temp_dir) + 50 + strlen(fname));
+		sprintf(tmp_path, "%s\\%s", opts.temp_dir, fname);
+	}
+
+	int x = strlen(tmp_path);
+	while(x > 0){ //ida only uses up to first . in idb name so strip all other extensions from base name.
+		if(tmp_path[x] == '.') tmp_path[x] = 0; //'_';
+		if(tmp_path[x] == '\\' || tmp_path[x] == '/') break;
+		x--;
+	}
+	sprintf(tmp_path,"%s.%s",tmp_path,extension);
+
+	return tmp_path;
+}
+
 void do_memdump(void){
 	
 	unsigned char* tmp ;
 	char* tmp_path;
+	char* extension[200];
 	int ii;
 	FILE *fp;
 
 	printf("Primary memory: Reading 0x%x bytes from 0x%x\n", opts.size, opts.baseAddress);
 	tmp = (unsigned char*)malloc(opts.size);
-   	tmp_path = (char*)malloc( strlen(opts.sc_file) + 50);
 
 	if(emu_memory_read_block(mem, opts.baseAddress, tmp,  opts.size) == -1){
 		printf("ReadBlock failed!\n");
@@ -879,18 +933,9 @@ void do_memdump(void){
 		}
 
 		if(ii < opts.size){
-			strcpy(tmp_path, opts.sc_file);
-			int x = strlen(opts.sc_file);
-			while(x > 0){ //ida only uses up to first . in idb name so strip all other extensions from base name.
-				if(tmp_path[x] == '.') tmp_path[x] = 0; //'_';
-				if(tmp_path[x] == '\\' || tmp_path[x] == '/') break;
-				x--;
-			}
-			sprintf(tmp_path,"%s.unpack",tmp_path);
-
+			tmp_path = getDumpPath("unpack");
 			start_color(myellow);
 			printf("Change found at %i dumping to %s\n",ii,tmp_path);
-		
 			fp = fopen(tmp_path, "wb");
 			if(fp==0){
 				printf("Failed to create file\n");
@@ -900,6 +945,7 @@ void do_memdump(void){
 				printf("Data dumped successfully to disk\n");
 			}
 			end_color();
+			free(tmp_path);
 		}else{
 			printf("No changes found in primary memory, dump not created.\n");
 		}
@@ -920,10 +966,8 @@ void do_memdump(void){
 			if(emu_memory_read_block(mem, mallocs[ii].base, tmp,  mallocs[ii].size) == -1){
 				printf("ReadBlock failed! base=%x size=%x\n", mallocs[ii].base, mallocs[ii].size );
 			}else{
-   			 
-				strcpy(tmp_path, opts.sc_file);
-				sprintf(tmp_path,"%s.alloc_0x%x",tmp_path, mallocs[ii].base);
-			
+				sprintf((char*)extension,"alloc_0x%x",mallocs[ii].base);
+				tmp_path = getDumpPath( (char*)extension);
 				fp = fopen(tmp_path, "wb");
 				if(fp==0){
 					printf("Failed to create file\n");
@@ -932,6 +976,7 @@ void do_memdump(void){
 					fclose(fp);
 					printf("Alloc %x (%x bytes) dumped successfully to disk as %s\n", mallocs[ii].base, mallocs[ii].size, tmp_path);
 				}
+				free(tmp_path);
 			}
 
 			free(tmp);
