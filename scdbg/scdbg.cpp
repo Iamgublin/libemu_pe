@@ -3004,6 +3004,10 @@ reinit:
 		opts.offset -= opts.baseAddress;
 	}
 
+	if(opts.cmdline != NULL){
+		printf("Using Command line: %s\n", opts.cmdline);
+	}
+
 	if(opts.interactive_hooks==1){
 		WORD wVersionRequested;
 		WSADATA wsaData;

@@ -1,5 +1,9 @@
 		Changelog for libemu
 
+3.3.12   - dump files now honor -temp override
+         - file drops now default to shellcode parent dir, still honor -temp though
+         - gui_launcher project added
+         
 1.6.12   - new hooks: memcpy, strcat (msvcrt and ntdll)
          - ntdll.text section now hardcoded in. fixes crash under Win7 when trying
            to live load from memory. (mapping of sections is different)

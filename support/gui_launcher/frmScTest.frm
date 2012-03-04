@@ -13,7 +13,7 @@ Begin VB.Form frmScTest
       Caption         =   "..."
       Height          =   315
       Left            =   9240
-      TabIndex        =   26
+      TabIndex        =   21
       Top             =   60
       Width           =   795
    End
@@ -22,7 +22,7 @@ Begin VB.Form frmScTest
       Left            =   1260
       Locked          =   -1  'True
       OLEDropMode     =   1  'Manual
-      TabIndex        =   25
+      TabIndex        =   20
       Text            =   "Can drag and drop here"
       Top             =   60
       Width           =   7815
@@ -37,40 +37,55 @@ Begin VB.Form frmScTest
          Italic          =   0   'False
          Strikethrough   =   0   'False
       EndProperty
-      Height          =   4860
+      Height          =   4740
       Left            =   120
       MultiLine       =   -1  'True
       ScrollBars      =   2  'Vertical
       TabIndex        =   3
-      Top             =   2580
+      Top             =   2700
       Width           =   9960
    End
    Begin VB.Frame Frame1 
       Caption         =   " Options "
-      Height          =   2055
+      Height          =   2115
       Left            =   60
       TabIndex        =   0
       Top             =   480
       Width           =   10005
-      Begin VB.CheckBox chkTemp 
-         Caption         =   "temp = file path"
+      Begin VB.TextBox txtProcCmdLine 
+         Height          =   285
+         Left            =   2280
+         TabIndex        =   25
+         Top             =   1020
+         Width           =   5475
+      End
+      Begin VB.CheckBox chkCmdLine 
+         Caption         =   "Process Command Line"
+         Height          =   255
+         Left            =   240
+         TabIndex        =   24
+         Top             =   1020
+         Width           =   1995
+      End
+      Begin VB.CheckBox chkNoRW 
+         Caption         =   "No RW Display"
          Height          =   195
          Left            =   240
-         TabIndex        =   27
+         TabIndex        =   22
          Top             =   720
          Width           =   1395
       End
       Begin VB.TextBox txtManualArgs 
          Height          =   285
          Left            =   1800
-         TabIndex        =   23
-         Top             =   1380
+         TabIndex        =   18
+         Top             =   1680
          Width           =   5955
       End
       Begin VB.TextBox txtStartOffset 
          Height          =   285
          Left            =   8160
-         TabIndex        =   20
+         TabIndex        =   15
          Text            =   "0"
          Top             =   180
          Width           =   675
@@ -79,7 +94,7 @@ Begin VB.Form frmScTest
          Caption         =   "Start Offset  0x"
          Height          =   255
          Left            =   6780
-         TabIndex        =   21
+         TabIndex        =   16
          Top             =   180
          Width           =   1515
       End
@@ -87,31 +102,31 @@ Begin VB.Form frmScTest
          Caption         =   "..."
          Height          =   285
          Left            =   7830
-         TabIndex        =   19
-         Top             =   1020
+         TabIndex        =   14
+         Top             =   1380
          Width           =   465
       End
       Begin VB.TextBox txtFopen 
          Height          =   285
          Left            =   1035
          OLEDropMode     =   1  'Manual
-         TabIndex        =   18
-         Top             =   1020
+         TabIndex        =   13
+         Top             =   1380
          Width           =   6720
       End
       Begin VB.CheckBox chkfopen 
          Caption         =   "fopen"
          Height          =   240
          Left            =   240
-         TabIndex        =   17
-         Top             =   1020
+         TabIndex        =   12
+         Top             =   1380
          Width           =   1230
       End
       Begin VB.CheckBox ChkMemMon 
          Caption         =   "Monitor DLL Read/Write"
          Height          =   195
          Left            =   1920
-         TabIndex        =   16
+         TabIndex        =   11
          Top             =   720
          Width           =   2295
       End
@@ -119,7 +134,7 @@ Begin VB.Form frmScTest
          Caption         =   "FindSc"
          Height          =   255
          Left            =   5640
-         TabIndex        =   15
+         TabIndex        =   10
          Top             =   180
          Width           =   1095
       End
@@ -127,7 +142,7 @@ Begin VB.Form frmScTest
          Caption         =   "Debug Shell"
          Height          =   195
          Left            =   4080
-         TabIndex        =   14
+         TabIndex        =   9
          Top             =   480
          Width           =   1455
       End
@@ -135,7 +150,7 @@ Begin VB.Form frmScTest
          Caption         =   "Unlimited steps"
          Height          =   255
          Left            =   4080
-         TabIndex        =   13
+         TabIndex        =   8
          Top             =   180
          Width           =   1635
       End
@@ -143,7 +158,7 @@ Begin VB.Form frmScTest
          Caption         =   "Scan for Api table"
          Height          =   195
          Left            =   1920
-         TabIndex        =   8
+         TabIndex        =   7
          Top             =   180
          Width           =   1995
       End
@@ -151,7 +166,7 @@ Begin VB.Form frmScTest
          Caption         =   "Use Interactive Hooks"
          Height          =   255
          Left            =   1920
-         TabIndex        =   7
+         TabIndex        =   6
          Top             =   420
          Width           =   1935
       End
@@ -159,7 +174,7 @@ Begin VB.Form frmScTest
          Caption         =   "Create Dump"
          Height          =   255
          Left            =   240
-         TabIndex        =   6
+         TabIndex        =   5
          Top             =   420
          Width           =   1455
       End
@@ -168,7 +183,7 @@ Begin VB.Form frmScTest
          Height          =   375
          Left            =   8370
          TabIndex        =   2
-         Top             =   1320
+         Top             =   1680
          Width           =   1575
       End
       Begin VB.CheckBox chkReport 
@@ -179,108 +194,25 @@ Begin VB.Form frmScTest
          Top             =   180
          Width           =   1695
       End
+      Begin VB.Label Label3 
+         Appearance      =   0  'Flat
+         BackColor       =   &H80000005&
+         BorderStyle     =   1  'Fixed Single
+         Caption         =   "     More"
+         ForeColor       =   &H00FF0000&
+         Height          =   255
+         Left            =   9060
+         TabIndex        =   23
+         Top             =   600
+         Width           =   855
+      End
       Begin VB.Label Label1 
          Caption         =   "Manual  Arguments"
          Height          =   285
          Left            =   225
-         TabIndex        =   22
-         Top             =   1380
+         TabIndex        =   17
+         Top             =   1740
          Width           =   1410
-      End
-      Begin VB.Label Label6 
-         Caption         =   "scdbg homepage"
-         BeginProperty Font 
-            Name            =   "MS Sans Serif"
-            Size            =   8.25
-            Charset         =   0
-            Weight          =   400
-            Underline       =   -1  'True
-            Italic          =   0   'False
-            Strikethrough   =   0   'False
-         EndProperty
-         ForeColor       =   &H00FF0000&
-         Height          =   255
-         Index           =   8
-         Left            =   2460
-         TabIndex        =   12
-         Top             =   1740
-         Width           =   1335
-      End
-      Begin VB.Label Label6 
-         Caption         =   "cmdline"
-         BeginProperty Font 
-            Name            =   "MS Sans Serif"
-            Size            =   8.25
-            Charset         =   0
-            Weight          =   400
-            Underline       =   -1  'True
-            Italic          =   0   'False
-            Strikethrough   =   0   'False
-         EndProperty
-         ForeColor       =   &H00FF0000&
-         Height          =   255
-         Index           =   7
-         Left            =   4200
-         TabIndex        =   11
-         Top             =   1740
-         Width           =   675
-      End
-      Begin VB.Label Label6 
-         Caption         =   "Video Demo"
-         BeginProperty Font 
-            Name            =   "MS Sans Serif"
-            Size            =   8.25
-            Charset         =   0
-            Weight          =   400
-            Underline       =   -1  'True
-            Italic          =   0   'False
-            Strikethrough   =   0   'False
-         EndProperty
-         ForeColor       =   &H00FF0000&
-         Height          =   255
-         Index           =   2
-         Left            =   5280
-         TabIndex        =   10
-         Top             =   1740
-         Width           =   1035
-      End
-      Begin VB.Label Label6 
-         Caption         =   "Help"
-         BeginProperty Font 
-            Name            =   "MS Sans Serif"
-            Size            =   8.25
-            Charset         =   0
-            Weight          =   400
-            Underline       =   -1  'True
-            Italic          =   0   'False
-            Strikethrough   =   0   'False
-         EndProperty
-         ForeColor       =   &H00FF0000&
-         Height          =   195
-         Index           =   6
-         Left            =   6720
-         TabIndex        =   9
-         Top             =   1740
-         Width           =   375
-      End
-      Begin VB.Label Label6 
-         Caption         =   "Libemu HomePage"
-         BeginProperty Font 
-            Name            =   "MS Sans Serif"
-            Size            =   8.25
-            Charset         =   0
-            Weight          =   400
-            Underline       =   -1  'True
-            Italic          =   0   'False
-            Strikethrough   =   0   'False
-         EndProperty
-         ForeColor       =   &H00FF0000&
-         Height          =   255
-         Index           =   4
-         Left            =   540
-         TabIndex        =   5
-         Top             =   1740
-         Width           =   1455
       End
       Begin VB.Label Label6 
          Caption         =   "Example"
@@ -296,9 +228,9 @@ Begin VB.Form frmScTest
          ForeColor       =   &H00FF0000&
          Height          =   255
          Index           =   5
-         Left            =   7560
+         Left            =   9120
          TabIndex        =   4
-         Top             =   1740
+         Top             =   240
          Width           =   735
       End
    End
@@ -306,9 +238,77 @@ Begin VB.Form frmScTest
       Caption         =   "Shellcode file"
       Height          =   255
       Left            =   120
-      TabIndex        =   24
+      TabIndex        =   19
       Top             =   120
       Width           =   1035
+   End
+   Begin VB.Menu mnuPopup 
+      Caption         =   "mnuPopup"
+      Visible         =   0   'False
+      Begin VB.Menu mnuMore 
+         Caption         =   "Show Help"
+         Index           =   0
+      End
+      Begin VB.Menu mnuMore 
+         Caption         =   "Show Hooks"
+         Index           =   1
+      End
+      Begin VB.Menu mnuMore 
+         Caption         =   "Show Signatures"
+         Index           =   2
+      End
+      Begin VB.Menu mnuMore 
+         Caption         =   "Show Signatures (w/ Disasm)"
+         Index           =   3
+      End
+      Begin VB.Menu mnuMore 
+         Caption         =   "-"
+         Index           =   4
+      End
+      Begin VB.Menu mnuMore 
+         Caption         =   "Copy Last Command Line"
+         Index           =   5
+      End
+      Begin VB.Menu mnuMore 
+         Caption         =   "Directory Scan Mode"
+         Index           =   6
+      End
+      Begin VB.Menu mnuMore 
+         Caption         =   "Directory Scan (Single Report)"
+         Index           =   7
+      End
+      Begin VB.Menu mnuMore 
+         Caption         =   "Highlighted Dump"
+         Index           =   8
+      End
+      Begin VB.Menu mnuMore 
+         Caption         =   "-"
+         Index           =   9
+      End
+      Begin VB.Menu mnuMore 
+         Caption         =   "scDbg Homepage"
+         Index           =   10
+      End
+      Begin VB.Menu mnuMore 
+         Caption         =   "Libemu Homepage"
+         Index           =   11
+      End
+      Begin VB.Menu mnuMore 
+         Caption         =   "Video Trainer 1"
+         Index           =   12
+      End
+      Begin VB.Menu mnuMore 
+         Caption         =   "Video Trainer 2"
+         Index           =   13
+      End
+      Begin VB.Menu mnuMore 
+         Caption         =   "Get Source (Windows)"
+         Index           =   14
+      End
+      Begin VB.Menu mnuMore 
+         Caption         =   "Get Source (Linux/Cygwin)"
+         Index           =   15
+      End
    End
 End
 Attribute VB_Name = "frmScTest"
@@ -504,7 +504,8 @@ Private Sub Command1_Click()
     If chkDebugShell.Value = 1 Then cmdline = cmdline & " -vvv"
     If chkFindSc.Value = 1 Then cmdline = cmdline & " -findsc"
     If ChkMemMon.Value = 1 Then cmdline = cmdline & " -mdll"
-    If chkTemp.Value = 1 Then cmdline = cmdline & " -temp " & GetShortName(fso.GetParentFolder(loadedFile))
+    If chkNoRW.Value = 1 Then cmdline = cmdline & " -norw" '" -temp " & GetShortName(fso.GetParentFolder(loadedFile))
+    If chkCmdLine.Value = 1 Then cmdline = cmdline & " -cmd """ & Replace(txtProcCmdLine, """", "\""") & """"
     
     If chkOffset.Value = 1 Then
         If Not isHexNum(txtStartOffset) Then
@@ -550,8 +551,11 @@ Private Sub Form_Load()
     chkReport.Value = GetMySetting("reportmode", 0)
     chkUnlimitedSteps.Value = GetMySetting("unlimitedsteps", 0)
     ChkMemMon.Value = GetMySetting("memorymonitor", 0)
-    chkTemp.Value = GetMySetting("apptemp", 0)
+    chkNoRW.Value = GetMySetting("norw", 0)
     txtManualArgs = GetMySetting("manualargs", "")
+    txtProcCmdLine = GetMySetting("txtcmdline", "")
+    
+    Call checkFor_sctest
     
     If Len(Command) > 0 Then
         c = Replace(Command, """", Empty)
@@ -572,7 +576,12 @@ Private Sub Form_Unload(Cancel As Integer)
      Call SaveMySetting("unlimitedsteps", chkUnlimitedSteps.Value)
      Call SaveMySetting("memorymonitor", ChkMemMon.Value)
      Call SaveMySetting("manualargs", txtManualArgs)
-     Call SaveMySetting("apptemp", chkTemp.Value)
+     Call SaveMySetting("norw", chkNoRW.Value)
+     Call SaveMySetting("txtcmdline", txtProcCmdLine)
+End Sub
+
+Private Sub Label3_Click()
+    PopupMenu mnuPopup
 End Sub
 
 Private Sub Label6_Click(Index As Integer)
@@ -581,16 +590,6 @@ Private Sub Label6_Click(Index As Integer)
     Dim f As Long
     
     cap = Label6(Index).Caption
-    
-    If InStr(cap, "Help") > 0 Then
-        If checkFor_sctest() Then
-            Shell "cmd /k mode con lines=45 cols=100 && """ & sctest & """ -h", vbNormalFocus
-        End If
-    End If
-    
-    If InStr(cap, "Home") > 0 Then
-        Shell "cmd /c start http://libemu.carnivore.it/"
-    End If
     
     If InStr(cap, "Example") > 0 Then
         x = QuickDecode("ACACD13AD13FD4C3C5C5C5610BF38BDCBC49382A79DAC31BEA4E2B6A1A5226A36A26A35A3685A36A22C321A36A1EA56A56A36A16A3FA2B6A16A3E42B6252A3690AA3F42B71361BD71BE07F7FA3E42B263AA951244D5B5B695D2CA31BA9512B5E7E425C5D2CA313ABEA2EABEB2EADE05EF3ADD75EFF2BDC2BD47FC20D2A2A2A5E505E5A084D524D0A05410A1A081A081A081A0A4F4D5E0A5F4148495A411B1C084D524D2A442AC20B2A2A2A5D29EBC2252A2A2A5F4148495A411B1C084D524D2A442AC22F2A2A2A27AEC9D7D7D7EB7273757AABC67E1BEAA3D6A5626AA3FFDB849A6E837F7C79794402442979797D7BD700ABEE7EADEAEB683C793C203C683C0B3C0A3C093C103C0F3C0E3C")
@@ -605,21 +604,53 @@ Private Sub Label6_Click(Index As Integer)
         txtLoadedFile = p
         Me.InitInterface CStr(x)
     End If
+
+End Sub
+
+Private Sub mnuMore_Click(Index As Integer)
+
+    homedir = GetShortName(fso.GetParentFolder(sctest))
+    cmd = "cmd /k chdir /d " & homedir & "\ && "
+    cmd = cmd & "mode con lines=45 cols=100 && """ & sctest & """ "
     
-    If InStr(cap, "Demo") > 0 Then
-        Shell "cmd /c start http://www.youtube.com/watch?v=jFkegwFasIw"
-    End If
+    Select Case Index
+        Case 0: cmd = cmd & "-h"
+        Case 1: cmd = cmd & "-hooks"
+        Case 2: cmd = cmd & "-sigs"
+        Case 3: cmd = cmd & "-sigs -disasm"
+        Case 4: 'divider
+        Case 5:
+                Clipboard.Clear
+                Clipboard.SetText lastcmdline
+                MsgBox Len(lastcmdline) & " bytes copied to clipboard" & vbCrLf & vbCrLf & lastcmdline, vbInformation
+                Exit Sub
+        Case 6, 7:
+                d = dlg.FolderDialog()
+                If Len(d) = 0 Then Exit Sub
+                cmd = cmd & "-dir " & GetShortName(CStr(d))
+                If Index = 7 Then cmd = cmd & " -r"
+                
+        Case 8:
+                If Not fso.FileExists(txtLoadedFile) Then
+                    MsgBox "No shellcode file loaded yet.", vbInformation
+                    Exit Sub
+                End If
+                cmd = cmd & "-f " & GetShortName(txtLoadedFile) & " -dump"
+                
+        Case 9: 'divider
+        Case 10: cmd = "cmd /c start http://sandsprite.com/blogs/index.php?uid=7&pid=152"
+        Case 11: cmd = "cmd /c start http://libemu.carnivore.it/"
+        Case 12: cmd = "cmd /c start http://www.youtube.com/watch?v=jFkegwFasIw"
+        Case 13: cmd = "cmd /c start http://www.youtube.com/watch?v=qkDPUF3bf6E"
+        Case 14: cmd = "cmd /c start https://github.com/dzzie/VS_LIBEMU"
+        Case 15: cmd = "cmd /c start https://github.com/dzzie/SCDBG"
+        
+    End Select
     
-    If InStr(cap, "scdbg") > 0 Then
-        Shell "cmd /c start http://sandsprite.com/blogs/index.php?uid=7&pid=152"
-    End If
+    lastcmdline = cmd
     
-    If InStr(1, cap, "cmdline", 1) > 0 Then
-        Clipboard.Clear
-        Clipboard.SetText lastcmdline
-        MsgBox Len(lastcmdline) & " bytes copied to clipboard" & vbCrLf & vbCrLf & lastcmdline, vbInformation
-    End If
-    
+    On Error Resume Next
+    Shell cmd, vbNormalFocus
     
 End Sub
 

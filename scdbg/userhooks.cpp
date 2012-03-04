@@ -72,10 +72,12 @@ extern bool disable_mm_logging;
 extern int fulllookupAddress(int eip, char* buf255);
 extern void start_color(enum colors);
 extern void end_color(void);
+extern char* getDumpPath(char* extension);
 
 enum colors{ mwhite=15, mgreen=10, mred=12, myellow=14, mblue=9, mpurple=5 };
 
 int nextFhandle = 0;
+int nextDropIndex=0;
 uint32_t MAX_ALLOC  = 0x1000000;
 uint32_t next_alloc = 0x60000; //these increment so we dont walk on old allocs
 uint32_t safe_stringbuf = 0x2531D0; //after the peb just empty space
@@ -148,14 +150,16 @@ void loadargs(int count, uint32_t ary[]){
 	}
 }
 
-char* SafeTempFile(void){
-	char* buf = (char*)malloc(300);
-	if(opts.temp_dir == NULL){
-		GetTempPath(255, buf);
+//now by default drops files to the shellcode parent dir unless overridden w -temp
+char* SafeTempFile(void){ 
+	char  ext[20];
+	if(nextDropIndex > 100){
+		//printf("To many temp files switching to tempname...\n");
+		strncat((char*)ext,tmpnam(NULL),19);
 	}else{
-		strncpy(buf, opts.temp_dir, 255);
+		sprintf((char*)ext, "drop_%d", nextDropIndex++);
 	}
-	return strncat(buf,tmpnam(NULL),299);
+	return getDumpPath(ext);
 }
 
 
