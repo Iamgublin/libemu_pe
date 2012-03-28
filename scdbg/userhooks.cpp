@@ -3563,9 +3563,9 @@ int32_t	__stdcall hook_lstrcatA(struct emu_env_w32 *win, struct emu_env_w32_dll_
 	int sz = s1->size + s2->size + 10;
 	char* buf = SafeMalloc(sz);
 	
-	if(s1->size > 0) strncpy(buf,s1->data, s1->size);
+	if(s1->size > 0) strncpy(buf, s1->data, s1->size);
 	if(s2->size > 0) lstrcatA(buf, s2->data);
-	emu_memory_write_block(mem,s1->emu_offset,buf,strlen(buf));
+	emu_memory_write_block(mem,s1->emu_offset,buf,strlen(buf)+1);
 	free(buf);
 
 	emu_string_free(s1);
