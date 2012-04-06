@@ -24,12 +24,12 @@ Public Missing As Boolean
 Public tvNode As Node
 Public ExtractedUrl As String
 
-Function LoadRaw(data) As Boolean
+Function LoadRaw(Data) As Boolean
     '1253    11.15.11 - 4:51am   1xx.2xx.95.116  2274    cc34d9be7ad27b1614ac4daac89343b4
     
     On Error Resume Next
     
-    tmp = Split(data, vbTab)
+    tmp = Split(Data, vbTab)
     ID = CLng(tmp(0))
     SDate = tmp(1)
     ip = tmp(2)
@@ -46,8 +46,8 @@ Function LoadRaw(data) As Boolean
             a = InStr(scLog, "URLDownload")
             a = InStr(a, scLog, "(") + 1
             b = InStr(a, scLog, ")")
-            x = Mid(scLog, a, b - a)
-            ExtractedUrl = Trim(Split(x, ",")(0))
+            X = Mid(scLog, a, b - a)
+            ExtractedUrl = Trim(Split(X, ",")(0))
         End If
         
     Else
@@ -61,7 +61,8 @@ Function LoadRaw(data) As Boolean
         SCPath = Empty
     End If
     
-    LoadRaw = Not Missing
+    'LoadRaw = Not Missing
+    LoadRaw = True
     
 End Function
 

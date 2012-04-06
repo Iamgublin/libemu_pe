@@ -28,7 +28,6 @@ Begin VB.Form Form2
       _ExtentX        =   18230
       _ExtentY        =   5741
       _Version        =   393217
-      Enabled         =   -1  'True
       ScrollBars      =   2
       TextRTF         =   $"Form2.frx":0000
       BeginProperty Font {0BE35203-8F91-11CE-9DE3-00AA004BB851} 
@@ -151,7 +150,7 @@ Public Function LoadManifest(path)
         End If
     Next
     
-    Debug.Print "Unique: " & uniqueIPs.count & " Total: " & entries.count
+    Debug.Print "Unique: " & uniqueIPs.Count & " Total: " & entries.Count
     
     For Each e In uniqueIPs
         Set n = tv.Nodes.Add(, , , e.ip)
@@ -169,7 +168,7 @@ Public Function LoadManifest(path)
     Next
     
         
-    Me.Caption = "Total: " & entries.count
+    Me.Caption = "Total: " & entries.Count
         
     
     
@@ -191,9 +190,9 @@ Private Sub Command3_Click()
     Dim p As Node
     
     tmp = Split(Text2, ",")
-    For Each x In tmp
+    For Each X In tmp
         For Each e In entries
-            If e.ID = x Then
+            If e.ID = X Then
                 Kill e.LogPath
                 Kill e.SCPath
                 Set p = e.tvNode.Parent
@@ -204,7 +203,7 @@ Private Sub Command3_Click()
     Next
     
     MsgBox "Complete!"
-    Me.Caption = "Total: " & (tv.Nodes.count - uniqueIPs.count)
+    Me.Caption = "Total: " & (tv.Nodes.Count - uniqueIPs.Count)
     
 End Sub
 
@@ -278,7 +277,7 @@ Private Sub mnuDeleteAll_Click()
         End If
     Next
     
-    For i = tv.Nodes.count To 1 Step -1
+    For i = tv.Nodes.Count To 1 Step -1
         Set n = tv.Nodes(i)
         If n.ForeColor = vbRed Then
             tv.Nodes.Remove n.Index
@@ -286,7 +285,7 @@ Private Sub mnuDeleteAll_Click()
     Next
     
     tv.Nodes.Remove selNode.Index
-    Me.Caption = "Total: " & (tv.Nodes.count - uniqueIPs.count)
+    Me.Caption = "Total: " & (tv.Nodes.Count - uniqueIPs.Count)
     
 End Sub
 
@@ -315,7 +314,7 @@ Private Sub tv_DblClick()
     End If
 End Sub
 
-Private Sub tv_MouseUp(Button As Integer, Shift As Integer, x As Single, y As Single)
+Private Sub tv_MouseUp(Button As Integer, Shift As Integer, X As Single, Y As Single)
     If selNode Is Nothing Then Exit Sub
     If Button = 2 Then
         If selNode.Children > 0 Then

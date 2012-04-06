@@ -1850,6 +1850,8 @@ void set_hooks(struct emu_env *env){
 	ADDHOOK(lstrlenA);
 	ADDHOOK(lstrcmpiA);
 	ADDHOOK(lstrcpyA);
+	ADDHOOK(OpenEventA);
+	ADDHOOK(CreateEventA);
 
 }
 

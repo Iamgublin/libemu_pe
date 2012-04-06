@@ -3828,3 +3828,53 @@ int32_t	__stdcall hook_lstrcpyA(struct emu_env_w32 *win, struct emu_env_w32_dll_
 	return 0;
 
 }
+
+int32_t	__stdcall hook_OpenEventA(struct emu_env_w32 *win, struct emu_env_w32_dll_export *ex)
+{
+	/*  
+		HANDLE WINAPI OpenEvent(
+		  __in  DWORD dwDesiredAccess,
+		  __in  BOOL bInheritHandle,
+		  __in  LPCTSTR lpName
+		);
+	*/
+	uint32_t eip_save = popd();
+	uint32_t access = popd();
+	uint32_t inherit = popd();
+	struct emu_string *name = popstring();
+	
+	printf("%x\tOpenEventA(%s)\n", eip_save , name->data);
+
+	emu_string_free(name);
+	
+	set_ret(0); 
+	emu_cpu_eip_set(cpu, eip_save);
+	return 0;
+
+}
+
+int32_t	__stdcall hook_CreateEventA(struct emu_env_w32 *win, struct emu_env_w32_dll_export *ex)
+{
+	/*  
+		HANDLE WINAPI CreateEvent(
+		  __in_opt  LPSECURITY_ATTRIBUTES lpEventAttributes,
+		  __in      BOOL bManualReset,
+		  __in      BOOL bInitialState,
+		  __in_opt  LPCTSTR lpName
+		);
+	*/
+	uint32_t eip_save = popd();
+	uint32_t attrib = popd();
+	uint32_t reset = popd();
+	uint32_t init = popd();
+	struct emu_string *name = popstring();
+	
+	printf("%x\tCreateEventA(%s)\n", eip_save , name->data);
+
+	emu_string_free(name);
+	
+	set_ret(0x378298); 
+	emu_cpu_eip_set(cpu, eip_save);
+	return 0;
+
+}
