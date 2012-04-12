@@ -2658,7 +2658,7 @@ void parse_opts(int argc, char* argv[] ){
 				end_color();
 				exit(0);
 			}
-			printf("temp directory will be: %s\n", opts.temp_dir);
+			if(!opts.automationRun) printf("temp directory will be: %s\n", opts.temp_dir);
 			i++;handled=true;
 		}
 
@@ -2747,7 +2747,7 @@ void parse_opts(int argc, char* argv[] ){
 				end_color();
 				exit(0);
 			}
-			printf("fopen(%s) = %x\n", argv[i+1], (int)opts.h_fopen);
+			if(!opts.automationRun) printf("fopen(%s) = %x\n", argv[i+1], (int)opts.h_fopen);
 			i++;handled=true;
 		}
 
@@ -2902,7 +2902,7 @@ void loadsc(void){
 	opts.scode = (unsigned char*)malloc(opts.size); 
 	fread(opts.scode, 1, opts.size, fp);
 	fclose(fp);
-	printf("Loaded %x bytes from file %s\n", opts.size, opts.sc_file);
+	if(!opts.automationRun) printf("Loaded %x bytes from file %s\n", opts.size, opts.sc_file);
 	 
 	if(opts.size==0){
 		printf("No shellcode loaded must use either /f or /S options\n");
@@ -3020,7 +3020,7 @@ reinit:
 	//---- mem_monitor init - always started now to generate reports.. mm & mdll still shows more specifics in log output
 	i=0;
 	if(opts.mem_monitor || opts.report ){
-		if(opts.mem_monitor) printf("Memory monitor enabled..\n"); 
+		if(!opts.automationRun) if(opts.mem_monitor) printf("Memory monitor enabled..\n"); 
 		emu_memory_set_access_monitor((uint32_t)mm_hook);
 		while(mm_points[i].address != 0){
 			emu_memory_add_monitor_point(mm_points[i++].address);
@@ -3028,7 +3028,7 @@ reinit:
 	}
 
 	if(opts.mem_monitor || opts.report || opts.mem_monitor_dlls){
- 		if(opts.mem_monitor_dlls) printf("Memory monitor for dlls enabled..\n");
+ 		if(!opts.automationRun) if(opts.mem_monitor_dlls) printf("Memory monitor for dlls enabled..\n");
 		emu_memory_set_range_access_monitor((uint32_t)mm_range_callback);
 		i=0;
 		while(mm_ranges[i].start_at != 0){
@@ -3042,15 +3042,15 @@ reinit:
     }
 	//---- end memory monitor init 
 
-	printf("Initilization Complete..\n");
+	if(!opts.automationRun)printf("Initilization Complete..\n");
 
 	if(opts.adjust_getfsize != 0) printf("Adjusting GetFileSize by %d\n", opts.adjust_getfsize);
 	
 	if(opts.hexdump_file == 1){
 		hexdump_color = true; //highlights possible start addresses (90,E8,E9)
 		if(opts.offset >= opts.size ) opts.offset = 0;
-		if(opts.offset > 0) printf("Starting at offset %x\n", opts.offset);
-		real_hexdump(opts.scode+opts.offset, opts.size-opts.offset,0,false);
+		if(!opts.automationRun) if(opts.offset > 0) printf("Starting at offset %x\n", opts.offset);
+		if(!opts.automationRun) real_hexdump(opts.scode+opts.offset, opts.size-opts.offset,0,false);
 		return 0;
 	}
 
@@ -3090,21 +3090,21 @@ reinit:
 			printf("Dump mode can not run when only using a patch file.\n");
 			opts.dump_mode = false;
 		}else{
-			printf("Dump mode Active...\n");
+			if(!opts.automationRun) printf("Dump mode Active...\n");
 		}
 	}
 		
 	if(opts.interactive_hooks){
 		start_color(myellow);
-		printf("Interactive Hooks enabled\n");
+		if(!opts.automationRun) printf("Interactive Hooks enabled\n");
 		end_color();
 	}
 
-	printf("Max Steps: %d\n", opts.steps);
-	printf("Using base offset: 0x%x\n", opts.baseAddress);
-	if(opts.verbose>0) printf("Verbosity: %i\n", opts.verbose);
+	if(!opts.automationRun) printf("Max Steps: %d\n", opts.steps);
+	if(!opts.automationRun) printf("Using base offset: 0x%x\n", opts.baseAddress);
+	if(!opts.automationRun) if(opts.verbose>0) printf("Verbosity: %i\n", opts.verbose);
 
-	if(opts.offset > 0){
+	if(opts.offset > 0 && !opts.automationRun){
 		printf("Execution starts at file offset %x\n", opts.offset);
 		start_color(mgreen);
 		disasm_block(opts.baseAddress+opts.offset, 5);
