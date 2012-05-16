@@ -125,6 +125,7 @@ void HandleDirMode(char* folder);
 void nl(void);
 bool isDllMemAddress(uint32_t eip);
 extern char* SafeMalloc(int size);
+extern uint32_t popd(void);
 
 uint32_t FS_SEGMENT_DEFAULT_OFFSET = 0x7ffdf000;
 
@@ -258,6 +259,7 @@ struct signature signatures[] =
 	{"scanner.hookcheck",               "\x80\x38\xE8\x74\x0A\x80\x38\xE9\x74\x05\x80\x38\xEB\x75\x11", 15},
 	{NULL, NULL, 0},
 };
+
 
 bool isInteractive(char* api){
 	char* iApi[] = {"MapViewOfFile","SetFilePointer","ReadFile","fclose","fopen","fwrite","_lcreat",
@@ -2938,6 +2940,32 @@ void min_window_size(void){
 
 
 
+int HookDetector(char* fxName){
+
+	/*  typical api prolog 0-5, security apps will replace this with jmp xxxxxxxx
+		which the hookers will detect, or sometimes just jump over always without checking..
+		the jump without checking screws us up, so were compensating with this callback...
+		7C801D7B   8BFF             MOV EDI,EDI
+		7C801D7D   55               PUSH EBP
+		7C801D7E   8BEC             MOV EBP,ESP
+	*/
+
+	start_color(colors::myellow); 
+	printf("\tjmp %s+5 hook evasion code detected! trying to recover...\n", fxName);
+	end_color();
+
+	//if(strcmp(fxName,"LoadLibraryA") == 0){ //probably a pretty generic cleanup for x+5
+		cpu->reg[esp] = cpu->reg[ebp];
+		cpu->reg[ebp] = popd();
+		return 1;
+	//}
+
+	/*printf("Unhandled...\n");
+	exit(0);
+	return 0;*/
+	
+}
+
 int main(int argc, char *argv[])
 {
 	int i=0;
@@ -3028,6 +3056,8 @@ reinit:
 			emu_memory_add_monitor_point(mm_points[i++].address);
 		}
 	}
+
+	emu_env_w32_set_hookDetect_monitor((uint32_t)HookDetector);
 
 	if(opts.mem_monitor || opts.report || opts.mem_monitor_dlls){
  		if(!opts.automationRun) if(opts.mem_monitor_dlls) printf("Memory monitor for dlls enabled..\n");

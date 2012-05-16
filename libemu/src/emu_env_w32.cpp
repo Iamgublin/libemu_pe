@@ -77,6 +77,13 @@ extern const char peb_data[];   //we use a static peb now, see ./support/pebBuil
 //typedef void (__stdcall *genericApi_callback)(emu_env_w32_dll_export*);
 //genericApi_callback generic_api_callback=0;
 
+typedef int (*hd_callback)(char* apiName);
+hd_callback HookDetection_callback=0;
+
+void emu_env_w32_set_hookDetect_monitor(uint32_t lpfnCallback){
+	HookDetection_callback = (hd_callback)lpfnCallback;
+}
+
 struct emu_env_w32_known_dll_segment kernel32_segments[] = 
 {
 	{0x7c800000,kernel32_dll_7c800000,0x2af},
@@ -533,8 +540,25 @@ struct emu_env_w32_dll_export *emu_env_w32_eip_check(struct emu_env *env)
 			//void* ehi= NULL;
 			if ( ehi == NULL )
 			{
-				logDebug(env->emu, "unknown call to %08x\n", eip); //this can happen if dll address is not api start (ex: jmp api+5)
-				return NULL;
+				//hook detection and cleanup code added 5.15.12 dzzie..sucks but we have to support it :/
+				bool ignore = false;
+				if((int)HookDetection_callback!=0){
+					ehi = emu_hashtable_search(dll->exports_by_fnptr, (void *)(uintptr_t)(eip - dll->baseaddr-5));
+					if ( ehi != NULL ){
+						struct emu_env_w32_dll_export *ex = (struct emu_env_w32_dll_export *)ehi->value;
+						if( ex != NULL){
+							if (ex->fnhook != NULL ){
+								//if the call back handles it (returns 1) then it supports working around
+								//hooks in this api, and has cleaned up the stack and we can proceed normally...
+								if(HookDetection_callback(ex->fnname) == 1) ignore = true;
+							}
+						}
+					}
+				}
+				if(!ignore){
+					logDebug(env->emu, "unknown call to %08x\n", eip); //this can happen if dll address is not api start (ex: jmp api+5)
+					return NULL;
+				}
 			}
 
 			struct emu_env_w32_dll_export *ex = (struct emu_env_w32_dll_export *)ehi->value;
