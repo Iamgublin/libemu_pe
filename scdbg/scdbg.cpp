@@ -1687,11 +1687,11 @@ void set_hooks(struct emu_env *env){
 	extern int32_t	__stdcall hook_GenericStub2String(struct emu_env_w32 *win, struct emu_env_w32_dll_export *ex);
 	extern int32_t	__stdcall hook_shdocvw65(struct emu_env_w32 *win, struct emu_env_w32_dll_export *ex);
 
-	#define GENERICHOOK(name) emu_env_w32_export_new_hook(env, #name, hook_GenericStub, NULL);
+	#define GENERICHOOK(name) if(emu_env_w32_export_new_hook(env, #name, hook_GenericStub, NULL) < 0) printf("Failed to set generic Hook %s\n",#name);
 
 	#define ADDHOOK(name) \
 		extern int32_t	__stdcall hook_##name(struct emu_env_w32 *win, struct emu_env_w32_dll_export *ex);\
-		emu_env_w32_export_new_hook(env, #name, hook_##name, NULL);
+		if(emu_env_w32_export_new_hook(env, #name, hook_##name, NULL) < 0) printf("Failed to setHook %s\n",#name);
 
 	ADDHOOK(LoadLibraryA);
 	ADDHOOK(URLDownloadToCacheFileA);
@@ -1781,7 +1781,7 @@ void set_hooks(struct emu_env *env){
 	ADDHOOK(CreateRemoteThread);
 	ADDHOOK(MultiByteToWideChar);
 	ADDHOOK(URLDownloadToFileA);
-	ADDHOOK(execv);
+	ADDHOOK(_execv);
 	ADDHOOK(fclose);
 	ADDHOOK(fopen);
 	ADDHOOK(fwrite);
@@ -1852,6 +1852,8 @@ void set_hooks(struct emu_env *env){
 	ADDHOOK(lstrcpyA);
 	ADDHOOK(OpenEventA);
 	ADDHOOK(CreateEventA);
+	ADDHOOK(_stricmp);
+	ADDHOOK(strcmp);
 
 }
 

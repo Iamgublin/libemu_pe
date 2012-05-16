@@ -1612,7 +1612,7 @@ HRESULT URLDownloadToFile(
 	return 0;
 }
 
-int32_t	__stdcall hook_execv(struct emu_env_w32 *win, struct emu_env_w32_dll_export *ex)
+int32_t	__stdcall hook__execv(struct emu_env_w32 *win, struct emu_env_w32_dll_export *ex)
 {
 	
 	/*
@@ -1629,7 +1629,7 @@ int32_t	__stdcall hook_execv(struct emu_env_w32 *win, struct emu_env_w32_dll_exp
 	struct emu_string *cmdname = popstring();
 	uint32_t p_argv = popd();
 
-	printf("%x\texecv(%s, %x)\n", eip_save, cmdname->data, p_argv);
+	printf("%x\t_execv(%s, %x)\n", eip_save, cmdname->data, p_argv);
 
 	set_ret(0x1988);
 	emu_string_free(cmdname);
@@ -3877,4 +3877,50 @@ int32_t	__stdcall hook_CreateEventA(struct emu_env_w32 *win, struct emu_env_w32_
 	emu_cpu_eip_set(cpu, eip_save);
 	return 0;
 
+}
+
+int32_t	__stdcall hook__stricmp(struct emu_env_w32 *win, struct emu_env_w32_dll_export *ex)
+{
+/* char *stricmp(const char *s1, const char *s2); */
+	uint32_t eip_save  = popd();
+	struct emu_string *s1 = popstring();
+	struct emu_string *s2 = popstring();
+	uint32_t ret=0;
+	
+	if(s1->size==0 || s2->size == 0){
+		ret  = -1;
+	}else{
+		ret = stricmp(s1->data, s2->data);
+	}
+
+	printf("%x\t%s(%s, %s) = %x\n", eip_save, ex->fnname , s1->data, s2->data, ret);
+	
+	emu_string_free(s1);
+	emu_string_free(s2);
+	cpu->reg[eax] = ret;
+	emu_cpu_eip_set(cpu, eip_save);
+	return 0;
+}
+
+int32_t	__stdcall hook_strcmp(struct emu_env_w32 *win, struct emu_env_w32_dll_export *ex)
+{
+/* char *stricmp(const char *s1, const char *s2); */
+	uint32_t eip_save  = popd();
+	struct emu_string *s1 = popstring();
+	struct emu_string *s2 = popstring();
+	uint32_t ret=0;
+	
+	if(s1->size==0 || s2->size == 0){
+		ret  = -1;
+	}else{
+		ret = stricmp(s1->data, s2->data);
+	}
+
+	printf("%x\t%s(%s, %s) = %x\n", eip_save, ex->fnname , s1->data, s2->data, ret);
+	
+	emu_string_free(s1);
+	emu_string_free(s2);
+	cpu->reg[eax] = ret;
+	emu_cpu_eip_set(cpu, eip_save);
+	return 0;
 }

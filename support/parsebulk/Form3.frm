@@ -141,6 +141,8 @@ Attribute VB_GlobalNameSpace = False
 Attribute VB_Creatable = False
 Attribute VB_PredeclaredId = True
 Attribute VB_Exposed = False
+Dim urls As New Collection
+
 Private Sub Command1_Click()
     'ID,Status,Size,Url
      
@@ -160,14 +162,19 @@ Private Sub Command1_Click()
      tmp = Split(Text1, ",")
      lv.ListItems.Clear
     
-     For Each x In tmp
-        If Len(x) > 0 Then
-            x = Replace(x, ".sc.txt", Empty)
+     For Each X In tmp
+        If Len(X) > 0 Then
+            X = Replace(X, ".sc.txt", Empty)
             Set e = New CEntry
-            If e.LoadRaw(x & String(5, vbTab)) Then  'full: 1253    11.15.11 - 4:51am   1xx.2xx.95.116  2274    cc34d9be7ad27b1614ac4daac89343b4
-                Set li = lv.ListItems.Add(, , Trim(x))
+            If e.LoadRaw(X & String(5, vbTab)) Then  'full: 1253    11.15.11 - 4:51am   1xx.2xx.95.116  2274    cc34d9be7ad27b1614ac4daac89343b4
+                Set li = lv.ListItems.Add(, , Trim(X))
                 Set li.Tag = e
                 li.SubItems(3) = e.ExtractedUrl
+                If keyExistsInCollection(urls, li.SubItems(3)) Then
+                    li.SubItems(1) = "Duplicate"
+                Else
+                    urls.Add li.SubItems(3), li.SubItems(3)
+                End If
                 li.SubItems(2) = Len(e.scLog)
                 lv.Refresh
             End If
@@ -189,6 +196,8 @@ Private Sub Command1_Click()
         lv.Refresh
         Me.Refresh
      
+        If li.SubItems(1) = "Duplicate" Then GoTo nextone
+        
         Set e = li.Tag
         
         qs = "pass=" & txtPass & "&id=" & e.ID & _
@@ -199,10 +208,20 @@ Private Sub Command1_Click()
         responseCode = h.DoPost(qs)
         li.SubItems(1) = h.LastResponse
         li.EnsureVisible
+        
+nextone:
     Next
         
 End Sub
 
+Private Function keyExistsInCollection(c As Collection, k As String) As Boolean
+    On Error GoTo hell
+    Dim r
+    r = c(k)
+    keyExistsInCollection = True
+    Exit Function
+hell:
+End Function
 Private Sub Form_Load()
      lv.ColumnHeaders(4).Width = lv.Width - lv.ColumnHeaders(4).Left - 500
      For i = 1 To 3
