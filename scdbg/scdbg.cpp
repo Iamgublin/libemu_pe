@@ -1715,6 +1715,7 @@ void set_hooks(struct emu_env *env){
 
 	//these dont follow the macro pattern..mostly redirects/multitasks
 	emu_env_w32_export_new_hook(env, "LoadLibraryExA",  hook_LoadLibraryA, NULL);
+	emu_env_w32_export_new_hook(env, "LoadLibraryW",  hook_LoadLibraryA, NULL);
 	emu_env_w32_export_new_hook(env, "URLDownloadToCacheFileW", hook_URLDownloadToCacheFileA, NULL);
 	emu_env_w32_export_new_hook(env, "CreateProcessInternalW", hook_CreateProcessInternalA, NULL);
 	emu_env_w32_export_new_hook(env, "ExitThread", hook_ExitProcess, NULL);
@@ -1856,6 +1857,9 @@ void set_hooks(struct emu_env *env){
 	ADDHOOK(CreateEventA);
 	ADDHOOK(_stricmp);
 	ADDHOOK(strcmp);
+	ADDHOOK(GetThreadContext);
+	ADDHOOK(SetThreadContext);
+	ADDHOOK(ResumeThread);
 
 }
 

@@ -634,6 +634,8 @@ Private Sub Command6_Click()
 End Sub
 
 Private Sub Form_Load()
+    
+    
     On Error GoTo isIde
         Debug.Print 1 / 0
         Text1 = "Drag and drop folder here that contains -dir processed samples/reports"

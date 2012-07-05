@@ -81,6 +81,8 @@ int nextDropIndex=0;
 uint32_t MAX_ALLOC  = 0x1000000;
 uint32_t next_alloc = 0x60000; //these increment so we dont walk on old allocs
 uint32_t safe_stringbuf = 0x2531D0; //after the peb just empty space
+CONTEXT last_set_context; 
+int last_set_context_handle=0;
 
 char* SafeMalloc(int size){
 	char* buf = (char*)malloc(size);
@@ -1180,7 +1182,8 @@ int32_t	__stdcall hook_LoadLibraryA(struct emu_env_w32 *win, struct emu_env_w32_
    LoadLibraryExA(LPCTSTR lpFileName, hFile, flags)
 */
 	uint32_t eip_save = popd();
-	struct emu_string *dllstr = popstring();
+	//struct emu_string *dllstr = popstring();
+	struct emu_string *dllstr = isWapi(ex->fnname) ? popwstring() :  popstring();
 
 	int i=0;
 	int found_dll = 0;
@@ -3920,6 +3923,83 @@ int32_t	__stdcall hook_strcmp(struct emu_env_w32 *win, struct emu_env_w32_dll_ex
 	
 	emu_string_free(s1);
 	emu_string_free(s2);
+	cpu->reg[eax] = ret;
+	emu_cpu_eip_set(cpu, eip_save);
+	return 0;
+}
+
+int32_t	__stdcall hook_GetThreadContext(struct emu_env_w32 *win, struct emu_env_w32_dll_export *ex)
+{
+/* 
+		BOOL WINAPI GetThreadContext(
+		  __in     HANDLE hThread,
+		  __inout  LPCONTEXT lpContext
+		);
+*/
+	uint32_t eip_save  = popd();
+	int h = popd();
+	int ctx = popd();
+	uint32_t ret = 1;
+	CONTEXT context; 
+
+	memset(&context,0x40, sizeof(CONTEXT));
+	emu_memory_write_block(mem,ctx,(void*)&context,sizeof(CONTEXT));
+
+	printf("%x\t%s(h=%x)\n", eip_save, ex->fnname, h);
+	
+	cpu->reg[eax] = ret;
+	emu_cpu_eip_set(cpu, eip_save);
+	return 0;
+}
+
+int32_t	__stdcall hook_SetThreadContext(struct emu_env_w32 *win, struct emu_env_w32_dll_export *ex)
+{
+/* 
+		BOOL WINAPI SetThreadContext(
+		  __in     HANDLE hThread,
+		  __inout  LPCONTEXT lpContext
+		);
+*/
+	uint32_t eip_save  = popd();
+	int h = popd();
+	int ctx = popd();
+	uint32_t ret = 1;
+
+	last_set_context_handle = h;
+	emu_memory_read_block(mem,ctx,(void*)&last_set_context,sizeof(CONTEXT));
+
+	printf("%x\t%s(h=%x, eip=%x)\n", eip_save, ex->fnname, h, last_set_context.Eip);
+	
+	cpu->reg[eax] = ret;
+	emu_cpu_eip_set(cpu, eip_save);
+	return 0;
+}
+
+int32_t	__stdcall hook_ResumeThread(struct emu_env_w32 *win, struct emu_env_w32_dll_export *ex)
+{
+/* 
+		DWORD WINAPI ResumeThread(
+		  __in  HANDLE hThread
+		);
+*/
+	uint32_t eip_save  = popd();
+	int h = popd();
+	uint32_t ret = 0;
+
+	printf("%x\t%s(h=%x)\n", eip_save, ex->fnname, h);
+	
+	if(/*false*/ h == last_set_context_handle){
+		printf("\tTransferring Execution to threadstart %x\n", last_set_context.Eip);
+		cpu->reg[eax] = last_set_context.Eax;
+		cpu->reg[ebx] = last_set_context.Ebx;
+		cpu->reg[ecx] = last_set_context.Ecx;
+		cpu->reg[edx] = last_set_context.Edx;
+		cpu->reg[esp] = last_set_context.Esp;
+		cpu->reg[ebp] = last_set_context.Ebp;
+		emu_cpu_eip_set(cpu, last_set_context.Eip);
+		return 0;
+	}
+
 	cpu->reg[eax] = ret;
 	emu_cpu_eip_set(cpu, eip_save);
 	return 0;

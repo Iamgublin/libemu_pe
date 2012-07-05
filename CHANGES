@@ -1,5 +1,7 @@
 		Changelog for libemu
 
+7.5.12   - new hooks: Get/Set/Resume Thread Functions, (exec transferrable)
+
 4.6.12   - new hooks: OpenEventA, CreateEventA
 
 3.3.12   - dump files now honor -temp override
