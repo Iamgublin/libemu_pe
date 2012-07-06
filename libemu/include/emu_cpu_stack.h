@@ -93,7 +93,11 @@
 if( ret != 0 ) \
 	return ret; \
 else \
-	cpu->reg[esp] += 4; }
+	if ( dst_p != &cpu->reg[esp] ) \
+		cpu->reg[esp] += 4; }
+
+//patched 7.6.12 - Signed-off-by: Paul Banks <foss@paulbanks.org> 
+//     http://src.carnivore.it/libemu/commit/?id=09bbeb583be41b96b9e8a5876a18ac698a77abfa
 
 #define POP_WORD(cpu, dst_p) \
 { int32_t ret = emu_memory_read_word(cpu->mem, cpu->reg[esp], dst_p); \

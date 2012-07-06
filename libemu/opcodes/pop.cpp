@@ -90,7 +90,7 @@ int32_t instr_pop_5x(struct emu_cpu *c, struct emu_cpu_instruction *i)
 		//TRACK_INIT_REG32(c->instr, i->opc & 7);
 		POP_DWORD(c, &c->reg[i->opc & 7]);
 	}
-	return 0;
+ 	return 0;
 }
 
 int32_t instr_pop_0fa1(struct emu_cpu *c, struct emu_cpu_instruction *i)
