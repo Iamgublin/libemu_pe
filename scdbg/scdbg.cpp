@@ -2340,14 +2340,26 @@ int run_sc(void)
 			if ( ret == -1 )  //unhandled error time to bail
 			{
 				if(opts.verbose < opts.verbosity_onerr)	opts.verbose = opts.verbosity_onerr; 
+				if(opts.verbose < 2) opts.verbose = 2; //always show disasm and regs on error now..
 
 				start_color(mred);
-				printf("%x\t %s", last_good_eip, emu_strerror(e)); 
+				printf("%x\t %s\n", last_good_eip, emu_strerror(e)); 
 				end_color();
 
 				cpu->eip = last_good_eip;
 				debugCPU(e,true);
 				
+				int mva = cpu->eip; //show next 4 lines of disasm for context..
+				mva += get_instr_length(mva);
+				if(mva != cpu->eip){
+					int minst = 1;
+					while(minst++ < 5){
+						int mlen = disasm_addr_simple(mva);
+						if(mlen<1)break;
+						mva+=mlen;
+					}
+				}
+
 				if(opts.verbose < 3) break; //exit step loop if we didnt enter debug shell
 			}
 
