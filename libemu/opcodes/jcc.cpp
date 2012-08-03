@@ -321,7 +321,7 @@ int32_t instr_jcc_7f(struct emu_cpu *c, struct emu_cpu_instruction *i)
 
 	/* 7F cb       Jump short if greater (ZF=0 and SF=OF)                  JG rel8         */
 	/* 7F cb       Jump short if not less or equal (ZF=0 and SF=OF)        JNLE rel8       */
-	if ( ZF_IS_ONE(c) && (SF_IS(c) == OF_IS(c)))
+	if ( ZF_IS_ZERO(c) && (SF_IS(c) == OF_IS(c))) //dzzie bugfix 8.2.12 (was ZF_IS_ONE)
 	{
 		c->eip += i->disp;
 	}

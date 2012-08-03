@@ -2682,10 +2682,11 @@ int32_t	__stdcall hook_GetLogicalDriveStringsA(struct emu_env_w32 *win, struct e
 	uint32_t bufInSz = popd();
 	uint32_t bufIn = popd();
 	
-	//a: c: 613A0063 3A 00 00 00
+	//0012F304  41 3A 5C 00 43 3A 5C 00  A:\.C:\.
+	//0012F30C  44 3A 5C 00 00 00 00 00  D:\.....
 	if( bufInSz >=8){
-		emu_memory_write_dword(mem,bufIn, 0x63003a61);
-		emu_memory_write_dword(mem,bufIn+4, 0x0000003a);
+		emu_memory_write_dword(mem,bufIn, 0x005C3A41);
+		emu_memory_write_dword(mem,bufIn+4, 0x005C3A43);
 		rv = 8;
 	}
 
@@ -3534,7 +3535,7 @@ int32_t	__stdcall hook_QueryDosDeviceA(struct emu_env_w32 *win, struct emu_env_w
 
 	printf("%x\tQueryDosDeviceA(%s, buf: %x, size: %x)\n", eip_save, name->data, buf, size);
 	
-	tmp = strcmp(name->data, "a:")==0 ? flop : hdd;  
+	tmp = strcmp(name->data, "A:")==0 ? flop : hdd;  
 
 	retval = strlen(tmp)+2;
 	if(size < retval){
