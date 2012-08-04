@@ -322,6 +322,13 @@ char* GetParentFolder(char* path){
 	return tmp;
 }
 
+bool FileExists(LPCTSTR szPath)
+{
+  DWORD dwAttrib = GetFileAttributes(szPath);
+  bool rv = (dwAttrib != INVALID_FILE_ATTRIBUTES && !(dwAttrib & FILE_ATTRIBUTE_DIRECTORY)) ? true : false;
+  return rv;
+}
+
 bool FolderExists(char* folder)
 {
 	DWORD rv = GetFileAttributes(folder);
@@ -2985,7 +2992,9 @@ int HookDetector(char* fxName){
 int main(int argc, char *argv[])
 {
 	int i=0;
-		
+	char cmd[500];
+    char pth[500];
+
 	disable_mm_logging = true;
 	memset(&emm, 0, sizeof(emm));
 	memset(&mallocs, 0 , sizeof(mallocs));
@@ -3014,6 +3023,26 @@ reinit:
 	mem = emu_memory_get(e);
 	env = emu_env_new(e);
 	
+	if(argc==2){ //check to see if its a drag and drop of file or folder on exe
+		
+		if(!SetCurrentDirectory(GetParentFolder(argv[0])))
+			printf("error setting working directory for drag and drop mode..exe=%s\n", argv[0]);
+
+		if( FileExists(argv[1]) ){ 	
+			GetShortPathName(argv[1], pth, 500);
+			sprintf( (char*)cmd, "cmd /k scdbg.exe -f %s", pth);
+			system(cmd);
+			exit(0);
+		}
+	
+		if( FolderExists(argv[1]) ){
+			GetShortPathName(argv[1], pth, 500);
+			sprintf( (char*)cmd, "cmd /k scdbg.exe -dir %s", pth);
+			system(cmd);
+			exit(0);
+		}
+	}
+
 	if(opts.opts_parsed == 0) parse_opts(argc, argv); //this must happen AFTER emu_env_new for -bp apiname lookup
 
 	//emu_log_level_set( emu_logging_get(e),  EMU_LOG_DEBUG);
