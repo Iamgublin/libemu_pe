@@ -582,6 +582,8 @@ int32_t emu_memory_write_dword(struct emu_memory *m, uint32_t addr, uint32_t dwo
 
 int32_t emu_memory_write_block(struct emu_memory *m, uint32_t addr, void *src, size_t len)
 {
+	//printf("write_block(adr=%x, sz=%x)\r\n",addr,len);
+
 	if (m->read_only_access == true)
 		return 0;
 

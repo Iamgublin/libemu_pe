@@ -634,15 +634,30 @@ Private Sub Command6_Click()
 End Sub
 
 Private Sub Form_Load()
+    Dim c As String
+    c = Replace(Command, """", Empty)
     
+    If Len(c) > 0 Then
+        If fso.FolderExists(c) Then
+            Text1 = c
+            Command1_Click
+            Exit Sub
+        End If
+    End If
+    
+    c = GetSetting("parsebulk", "settings", "lastDir", "Drag and drop folder here that contains -dir processed samples/reports")
+    Text1 = c
     
     On Error GoTo isIde
         Debug.Print 1 / 0
-        Text1 = "Drag and drop folder here that contains -dir processed samples/reports"
         mnuPopup.Visible = False
     Exit Sub
 isIde:
     
+End Sub
+
+Private Sub Form_Unload(Cancel As Integer)
+    SaveSetting "parsebulk", "settings", "lastDir", Text1.Text
 End Sub
 
 Private Sub Label4_Click()

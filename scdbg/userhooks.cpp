@@ -79,7 +79,7 @@ enum colors{ mwhite=15, mgreen=10, mred=12, myellow=14, mblue=9, mpurple=5 };
 int nextFhandle = 0;
 int nextDropIndex=0;
 uint32_t MAX_ALLOC  = 0x1000000;
-uint32_t next_alloc = 0x60000; //these increment so we dont walk on old allocs
+uint32_t next_alloc = 0x600000; //these increment so we dont walk on old allocs (adjusted up so large allocs dont stomp on stack vars...thx 8.23.12)
 uint32_t safe_stringbuf = 0x2531D0; //after the peb just empty space
 CONTEXT last_set_context; 
 int last_set_context_handle=0;

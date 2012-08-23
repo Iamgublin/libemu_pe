@@ -1,5 +1,7 @@
 		Changelog for libemu
 
+8.23.12  - bugfix: VirtualAlloc huge allocs could stomp on stack memory
+
 8.2.12   - bugfix libemu JG command (instr_jcc_7f)
 
 7.5.12   - new hooks: Get/Set/Resume Thread Functions, (exec transferrable)
