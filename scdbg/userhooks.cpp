@@ -79,7 +79,7 @@ enum colors{ mwhite=15, mgreen=10, mred=12, myellow=14, mblue=9, mpurple=5 };
 int nextFhandle = 0;
 int nextDropIndex=0;
 uint32_t MAX_ALLOC  = 0x1000000;
-uint32_t next_alloc = 0x600000; //these increment so we dont walk on old allocs (adjusted up so large allocs dont stomp on stack vars...thx 8.23.12)
+uint32_t next_alloc = 0x00600000; //these increment so we dont walk on old allocs (adjusted up so large allocs dont stomp on stack vars 8.23.12)
 uint32_t safe_stringbuf = 0x2531D0; //after the peb just empty space
 CONTEXT last_set_context; 
 int last_set_context_handle=0;
@@ -2685,7 +2685,7 @@ int32_t	__stdcall hook_GetLogicalDriveStringsA(struct emu_env_w32 *win, struct e
 	//0012F304  41 3A 5C 00 43 3A 5C 00  A:\.C:\.
 	//0012F30C  44 3A 5C 00 00 00 00 00  D:\.....
 	if( bufInSz >=8){
-		emu_memory_write_dword(mem,bufIn, 0x005C3A41);
+		emu_memory_write_dword(mem,bufIn, 0x005C3A43);
 		emu_memory_write_dword(mem,bufIn+4, 0x005C3A43);
 		rv = 8;
 	}
@@ -4004,4 +4004,34 @@ int32_t	__stdcall hook_ResumeThread(struct emu_env_w32 *win, struct emu_env_w32_
 	cpu->reg[eax] = ret;
 	emu_cpu_eip_set(cpu, eip_save);
 	return 0;
+}
+
+
+int32_t	__stdcall hook_GetMappedFileNameA(struct emu_env_w32 *win, struct emu_env_w32_dll_export *ex)
+{
+	/*  DWORD WINAPI GetMappedFileName(
+		  _In_   HANDLE hProcess,
+		  _In_   LPVOID lpv,
+		  _Out_  LPTSTR lpFilename,
+		  _In_   DWORD nSize
+		);
+	*/
+	uint32_t eip_save = popd();
+	uint32_t hproc = popd();
+	uint32_t addr = popd();
+	uint32_t fname = popd();
+	uint32_t size = popd();
+
+	printf("%x\tGetMappedFileNameA(hproc=%x, addr%x)\n", eip_save, hproc, addr);
+	
+	char *path = "parentdoc.pdf";
+    int sz = strlen(path)+1;
+
+	if(size > sz) sz = size;
+	if(sz > 0) emu_memory_write_block(mem,fname,path,sz+1);
+
+	set_ret(sz); 
+	emu_cpu_eip_set(cpu, eip_save);
+	return 0;
+
 }

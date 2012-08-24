@@ -1,6 +1,7 @@
 		Changelog for libemu
 
 8.23.12  - bugfix: VirtualAlloc huge allocs could stomp on stack memory
+         - added psapi.dll and GetMappedFileNameA
 
 8.2.12   - bugfix libemu JG command (instr_jcc_7f)
 

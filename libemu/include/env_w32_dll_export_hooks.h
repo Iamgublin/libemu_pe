@@ -6641,3 +6641,31 @@ struct emu_env_w32_dll_export shdocvw_exports[] =
 {0,0,NULL,NULL,0},
 };
 
+struct emu_env_w32_dll_export psapi_exports[] = 
+{
+{"EmptyWorkingSet", 0x00002239, NULL, NULL, 0x0001 },
+{"EnumDeviceDrivers", 0x0000163B, NULL, NULL, 0x0002 },
+{"EnumPageFilesA", 0x00004150, NULL, NULL, 0x0003 },
+{"EnumPageFilesW", 0x00003FE1, NULL, NULL, 0x0004 },
+{"EnumProcessModules", 0x00001EF4, NULL, NULL, 0x0005 },
+{"EnumProcesses", 0x00003A76, NULL, NULL, 0x0006 },
+{"GetDeviceDriverBaseNameA", 0x0000147A, NULL, NULL, 0x0007 },
+{"GetDeviceDriverBaseNameW", 0x00001D9C, NULL, NULL, 0x0008 },
+{"GetDeviceDriverFileNameA", 0x00001CC5, NULL, NULL, 0x0009 },
+{"GetDeviceDriverFileNameW", 0x00001D40, NULL, NULL, 0x000A },
+{"GetMappedFileNameA", 0x00001E90, NULL, NULL, 0x000B },
+{"GetMappedFileNameW", 0x00001DF8, NULL, NULL, 0x000C },
+{"GetModuleBaseNameA", 0x00002132, NULL, NULL, 0x000D },
+{"GetModuleBaseNameW", 0x000020B5, NULL, NULL, 0x000E },
+{"GetModuleFileNameExA", 0x0000204D, NULL, NULL, 0x000F },
+{"GetModuleFileNameExW", 0x0000176A, NULL, NULL, 0x0010 },
+{"GetModuleInformation", 0x0000219A, NULL, NULL, 0x0011 },
+{"GetPerformanceInfo", 0x00003E41, NULL, NULL, 0x0012 },
+{"GetProcessImageFileNameA", 0x00003DBD, NULL, NULL, 0x0013 },
+{"GetProcessImageFileNameW", 0x00003D2F, NULL, NULL, 0x0014 },
+{"GetProcessMemoryInfo", 0x00003BBD, NULL, NULL, 0x0015 },
+{"GetWsChanges", 0x00003CF5, NULL, NULL, 0x0016 },
+{"InitializeProcessForWsWatch", 0x00003CB1, NULL, NULL, 0x0017 },
+{"QueryWorkingSet", 0x000022A4, NULL, NULL, 0x0018 },
+{0,0,NULL},
+};

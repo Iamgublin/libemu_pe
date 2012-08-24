@@ -8,10 +8,20 @@
 //inmemorder  = process, ntdll,kernel32, ...
 //ininitorder = ntdll, kernel32, ... (process not linked in this list)
 
+//we have been using 0x00251ea0 as the peb address...
+
 #include <stddef.h> //offsetof
 
-	#define dllCount 12
+	#define dllCount 13
 //	#define dllCount 3
+
+//peb       0x00251ea0
+//stack 
+//old alloc 0x00060000; alloc size before stack conflict 0x0CFE00 - to small...
+//allocs    0x00006000; alloc size before stack conflict 0x129E00 
+//or allocs 0x00600000; alloc size before dll conflict 0x76BF0000 - 0x00600000 = 0x765F0000 <--
+//start esp 0x0012fe00
+//start ebp 0x0012fff0
 
 struct emu_env_w32_known_dll known_dlls[] = //do not reorder the first three entries!
 {
@@ -27,6 +37,7 @@ struct emu_env_w32_known_dll known_dlls[] = //do not reorder the first three ent
 	{"urlmon",0x78130000,0xA0000,	},
 	{"user32",  0x7E410000,0x00091000,	}, 
 	{"wininet", 0x3D930000,0xD1000,	},
+	{"psapi", 0x76BF0000,0xB000,	}, /*ends at 76BFB000*/
 	{NULL, 0, 0,},
 };
 

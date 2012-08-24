@@ -1869,6 +1869,7 @@ void set_hooks(struct emu_env *env){
 	ADDHOOK(GetThreadContext);
 	ADDHOOK(SetThreadContext);
 	ADDHOOK(ResumeThread);
+	ADDHOOK(GetMappedFileNameA);
 
 }
 
