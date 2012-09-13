@@ -1,5 +1,7 @@
 		Changelog for libemu
 
+9.13.12  - hooks: strrchr, RtlMoveMemory, CopyMemory, CreateProcessW, ZwUnmapViewOfSection
+
 8.23.12  - bugfix: VirtualAlloc huge allocs could stomp on stack memory
          - added psapi.dll and GetMappedFileNameA
 

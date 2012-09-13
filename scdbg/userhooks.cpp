@@ -2000,8 +2000,8 @@ int32_t	__stdcall hook_CreateProcessA(struct emu_env_w32 *win, struct emu_env_w3
   LPPROCESS_INFORMATION pProcInfo
 );*/
 	uint32_t eip_save = popd();
-	struct emu_string *imagename = popstring();
-	struct emu_string *command = popstring();
+	struct emu_string *imagename = isWapi(ex->fnname) ? popwstring() :  popstring();
+	struct emu_string *command = isWapi(ex->fnname) ? popwstring() :  popstring();
 	uint32_t p_process = popd();
 	uint32_t p_thread = popd();
 	uint32_t inherithandles = popd();
@@ -2042,10 +2042,10 @@ int32_t	__stdcall hook_CreateProcessA(struct emu_env_w32 *win, struct emu_env_w3
 		//some shellcode uses the function prolog of CreateProcess to put stack inline..
 		struct emu_string *cmd = emu_string_new();
 		emu_memory_read_string(mem, cpu->reg[ebp] , cmd, 255);
-		printf("%x\tCreateProcessA( %s ) = 0x1269 (ebp)\n",eip_save, (char*)cmd->data);
+		printf("%x\t%s( %s ) = 0x1269 (ebp)\n",eip_save, ex->fnname, (char*)cmd->data);
 		emu_string_free(cmd);
 	}else{
-		printf("%x\tCreateProcessA( %s, %s ) = 0x1269\n",eip_save, pszCmdLine, pszImageName );
+		printf("%x\t%s( %s, %s ) = 0x1269\n",eip_save, ex->fnname, pszCmdLine, pszImageName );
 	}
 
 	set_ret(0x1269);
@@ -3791,7 +3791,14 @@ int32_t	__stdcall hook_lstrcmpiA(struct emu_env_w32 *win, struct emu_env_w32_dll
 int32_t	__stdcall hook_memcpy(struct emu_env_w32 *win, struct emu_env_w32_dll_export *ex)
 {
 	/*  
-		void * memcpy ( void * destination, const void * source, size_t num );.
+		void * memcpy ( void * destination, const void * source, size_t num );
+
+		VOID RtlMoveMemory(
+		  _In_  VOID UNALIGNED *Destination,
+		  _In_  const VOID UNALIGNED *Source,
+		  _In_  SIZE_T Length
+		);
+
 	*/
 	uint32_t eip_save = popd();
 	uint32_t dest = popd();
@@ -4034,4 +4041,47 @@ int32_t	__stdcall hook_GetMappedFileNameA(struct emu_env_w32 *win, struct emu_en
 	emu_cpu_eip_set(cpu, eip_save);
 	return 0;
 
+}
+
+int32_t	__stdcall hook_ZwUnmapViewOfSection(struct emu_env_w32 *win, struct emu_env_w32_dll_export *ex)
+{
+	/*  
+	ZwUnmapViewOfSection
+	*/
+	uint32_t eip_save = popd();
+	uint32_t h = popd();
+	uint32_t addr = popd();
+
+	printf("%x\t%s(h=%x, addr%x)\n", eip_save, ex->fnname, h, addr);
+
+	set_ret(0); //STATUS_SUCCESS
+	emu_cpu_eip_set(cpu, eip_save);
+	return 0;
+
+}
+
+int32_t	__stdcall hook_strrchr(struct emu_env_w32 *win, struct emu_env_w32_dll_export *ex)
+{
+	/*
+		char * strrchr (       char * str, int character );
+	*/
+
+	uint32_t eip_save = popd();
+	struct emu_string* find = popstring();
+	uint32_t it = popd();
+
+	int delta = 0;
+	int retval = (int)strrchr(find->data, it);
+
+	if(retval > 0){  //translate char* offset into emu_offset...
+		delta = retval - (int)find->data;
+		delta += find->emu_offset;
+	}
+
+	printf("%x\tstrrchr(%s, 0x%x) = 0x%x\n", eip_save, find->data, it, delta);
+	
+	emu_string_free(find);
+	cpu->reg[eax] = delta;	 
+	emu_cpu_eip_set(cpu, eip_save);
+	return 0;
 }

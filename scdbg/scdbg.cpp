@@ -1721,7 +1721,9 @@ void set_hooks(struct emu_env *env){
 	ADDHOOK(strtoul);
     ADDHOOK(InternetSetOptionA);
     ADDHOOK(lstrcatA);
-
+    ADDHOOK(CreateProcessA);
+	ADDHOOK(strrchr);
+	
 	//these dont follow the macro pattern..mostly redirects/multitasks
 	emu_env_w32_export_new_hook(env, "LoadLibraryExA",  hook_LoadLibraryA, NULL);
 	emu_env_w32_export_new_hook(env, "LoadLibraryW",  hook_LoadLibraryA, NULL);
@@ -1737,6 +1739,9 @@ void set_hooks(struct emu_env *env){
 	emu_env_w32_export_new_hook(env, "CreateFileW", hook_CreateFileA, NULL);
 	emu_env_w32_export_new_hook(env, "InternetSetOptionW", hook_InternetSetOptionA, NULL);
 	emu_env_w32_export_new_hook(env, "strcat", hook_lstrcatA, NULL);
+    emu_env_w32_export_new_hook(env, "RtlMoveMemory", hook_memcpy, NULL); //kernel32. found first...
+    emu_env_w32_export_new_hook(env, "CopyMemory", hook_memcpy, NULL);
+    emu_env_w32_export_new_hook(env, "CreateProcessW", hook_CreateProcessA, NULL);
 
 	//-----handled by the generic stub 2 string
 	emu_env_w32_export_new_hook(env, "InternetOpenA", hook_GenericStub2String, NULL);
@@ -1750,7 +1755,8 @@ void set_hooks(struct emu_env *env){
 	emu_env_w32_export_new_hook_ordinal(env, "msvcrt", 0x0311, hook_strtoul); //have to hook this one by ordinal cause it finds ntdll.strtoul first
 	emu_env_w32_export_new_hook_ordinal(env, "msvcrt", 0x02DF, hook_memcpy); //have to hook this one by ordinal cause it finds ntdll  first
 	emu_env_w32_export_new_hook_ordinal(env, "msvcrt", 0x02FE, hook_lstrcatA); //have to hook this one by ordinal cause it finds ntdll  first
-
+	emu_env_w32_export_new_hook_ordinal(env, "msvcrt", 0x030b, hook_strrchr); //have to hook this one by ordinal cause it finds ntdll  first
+    emu_env_w32_export_new_hook_ordinal(env, "ntdll", 0x02C7, hook_memcpy);   //RtlMoveMemory found in k32 first...
 
 	//-----handled by the generic stub
 	GENERICHOOK(ZwTerminateProcess);
@@ -1807,7 +1813,6 @@ void set_hooks(struct emu_env *env){
 	ADDHOOK(Sleep);
 	ADDHOOK(DeleteFileA);
 	ADDHOOK(CloseHandle);
-	ADDHOOK(CreateProcessA);
 	ADDHOOK(GetVersion);
 	ADDHOOK(GetProcAddress);
 	ADDHOOK(GetSystemDirectoryA);
@@ -1870,7 +1875,8 @@ void set_hooks(struct emu_env *env){
 	ADDHOOK(SetThreadContext);
 	ADDHOOK(ResumeThread);
 	ADDHOOK(GetMappedFileNameA);
-
+    ADDHOOK(ZwUnmapViewOfSection);
+	
 }
 
 /* we just cant really support every shellcode can we :( 
