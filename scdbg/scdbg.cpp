@@ -2530,6 +2530,7 @@ void show_help(void)
 		{"u", NULL ,         "unlimited steps (same as -s -1)"},
 		{"v",  NULL		 ,   "verbosity, can be used up to 4 times, ex. /v /v /vv"},
 		{"- /+", NULL ,      "increments or decrements GetFileSize, can be used multiple times"},
+		{"va", "0xBase-0xSize","VirtualAlloc memory at 0xBase of 0xSize"}, 
 	};
 
 	system("cls");
@@ -2902,6 +2903,33 @@ void parse_opts(int argc, char* argv[] ){
 			}
 		    opts.time_delay = atoi(argv[i+1]);		
 			i++;handled=true;
+		}
+
+		if(strstr(argv[i],"/va") > 0 ){
+			if(i+1 >= argc){
+				printf("Invalid option /va must specify 0xBase-0xSize as next arg\n");
+				exit(0);
+			}
+		    char *ag = strdup(argv[i+1]);
+			char *sz;
+			uint32_t size=0;
+			uint32_t base=0;
+			if (( sz = strstr(ag, "-")) != NULL)
+			{
+				*sz = '\0';
+				sz++;
+				size = strtol(sz, NULL, 16);
+				base = strtol(ag, NULL, 16);
+				printf("VirtualAlloc(base=%x, size=%x) (endsAt %x)\n", base, size, base+size);
+				char* tmp = (char*)malloc(size);
+				memset(tmp,0,size);
+                emu_memory_write_block(mem, base, tmp, size);
+				i++;handled=true;
+
+			}else{
+				printf("Invalid option /va must specify 0xBase-0xSize as next arg\n");
+				exit(0);
+			}
 		}
 
 		if( !handled ){

@@ -1,5 +1,7 @@
 		Changelog for libemu
 
+9.25.12  - added /va option to force memory range to exist ex: /va 0c1010a0-4
+
 9.13.12  - hooks: strrchr, RtlMoveMemory, CopyMemory, CreateProcessW, ZwUnmapViewOfSection
 
 8.23.12  - bugfix: VirtualAlloc huge allocs could stomp on stack memory
