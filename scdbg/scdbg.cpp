@@ -1997,9 +1997,9 @@ int mini_run(int limit){
 
 	int steps=0;
 
-	while (emu_cpu_parse(cpu) == 0)
+	while (emu_cpu_parse(cpu) != -1)
 	{
-		if ( emu_cpu_step(cpu) != 0 ) break;
+		if ( emu_cpu_step(cpu) == -1 ) break;
         if(steps >= limit) break;
 		/*if(!cpu->repeat_current_instr)*/ steps++;
 		if( isDllMemAddress(cpu->eip) ) break;  //bails on dll mem addr (we dont have hooks set cause no output wanted, if end eip = an api address good sign!)
@@ -2028,10 +2028,10 @@ int find_max(struct result results[], int cnt){
 
 int find_sc(void){ //loose brute force let user decide...
 	
-	int i, ret, s, j ;    
-	int limit = 250000;
+	uint32_t i, ret, s, j ;    
+	uint32_t limit = 250000;
     char buf[20];
-    int last_offset= -2, last_step_cnt=0;
+    uint32_t last_offset= -2, last_step_cnt=0;
 	struct result results[41];
 	struct result sorted[11];
 	int regs[] = {0,0,0,0,0x12fe00,0x12fff0,0,0};
