@@ -36,6 +36,7 @@
 		  - implement a break on memory access command using mem monitor? maybe overkill for shellcode...
 		  - CreateFileMapping/MapViewofFile - figure out how to make work...
 		  - add string deref for pointers in stack dump, deref regs and dword dump?
+		  - log call stack similar to eip log ?
 */
 
 
@@ -138,6 +139,8 @@ int exception_count=0;
 bool in_repeat = false;
 int mdll_last_read_eip=0;
 int mdll_last_read_addr=0;
+uint32_t eip_log[10] = {0,0,0,0,0,0,0,0,0,0};
+const uint32_t eip_log_sz = 10;
 
 bool hexdump_color = false;
 DWORD orgt;
@@ -295,6 +298,32 @@ bool isProxied(char* api){
 	}
 	return false;
 }
+
+void showEipLog(void){
+	nl();
+	for(int i=0;i < eip_log_sz;i++){
+		if(eip_log[i] == 0) break; 
+		disasm_addr_simple(eip_log[i]);
+	}
+}
+
+void logEip(uint32_t eip){
+	
+	for(int i=0;i < eip_log_sz;i++){
+		if(eip_log[i] == 0){  //initial fill
+			eip_log[i] = eip;
+			return;
+		} 
+	}
+
+	for(int i=1;i < eip_log_sz;i++){
+		eip_log[i-1] = eip_log[i];
+	}
+
+	eip_log[ eip_log_sz-1 ] = eip;
+}
+
+
 
 char* FileNameFromPath(char* path){
 	if(path==NULL || strlen(path)==0) return strdup("");
@@ -1405,7 +1434,8 @@ void show_debugshell_help(void){
 			"\tt - set time delay (ms) for verbosity level 1/2\n"
 			"\tk - show stack\n"
 			"\ti - break at instruction (scans disasm for next string match)\n"
-			"\tf - dereF registers (show any common api addresses in regs)\n"  
+			"\tf - dereF registers (show any common api addresses in regs)\n" 
+			"\tj - show log of last 10 instructions executed\n" 
 			"\to - step over\n" 
 			"\t+/- - basic calculator to add or subtract 2 hex values\n"  
 			"\t.lp - lookup - get symbol for address\n"  
@@ -1451,6 +1481,7 @@ void interactive_command(struct emu *e){
 		if(c=='s' || c== 0x0A) break;
 		if(c=='?' || c=='h') show_debugshell_help();
 		if(c=='f') deref_regs();
+		if(c=='j') showEipLog();
 		if(c=='k'){ nl(); show_stack(); nl();}
 		if(c=='c'){ opts.cur_step = 0; printf("Step counter has been zeroed\n"); }
 		if(c=='t') opts.time_delay = read_int("Enter time delay (1000ms = 1sec)", tmp);
@@ -2250,9 +2281,10 @@ int run_sc(void)
 			}
 		}
 
-		if ( cpu->repeat_current_instr == false )
+		if ( cpu->repeat_current_instr == false ){
 			eipsave = emu_cpu_eip_get(emu_cpu_get(e));
-
+			logEip(eipsave);
+		}
 		struct emu_env_w32_dll_export *ex = NULL;
 
 		ex = emu_env_w32_eip_check(env);
