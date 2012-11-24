@@ -1799,6 +1799,7 @@ void set_hooks(struct emu_env *env){
 	GENERICHOOK(TerminateProcess);
 	GENERICHOOK(CreateThread);
 	GENERICHOOK(GetSystemTime);
+	GENERICHOOK(SetSystemTime);
 	GENERICHOOK(RtlDestroyEnvironment);
 	GENERICHOOK(RevertToSelf);
 	GENERICHOOK(RtlExitUserThread);
@@ -1907,6 +1908,7 @@ void set_hooks(struct emu_env *env){
 	ADDHOOK(ResumeThread);
 	ADDHOOK(GetMappedFileNameA);
     ADDHOOK(ZwUnmapViewOfSection);
+	ADDHOOK(SetEndOfFile);
 	
 }
 

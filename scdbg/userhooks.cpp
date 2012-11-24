@@ -522,13 +522,14 @@ int32_t	__stdcall hook_GenericStub(struct emu_env_w32 *win, struct emu_env_w32_d
 
 	char* func = ex->fnname;
 
-	if(strcmp(func, "GetCurrentProcess") ==0 ) arg_count = 0;
-	if(strcmp(func, "GetCurrentThread") ==0 )  arg_count = 0;
-	if(strcmp(func, "RevertToSelf") ==0 )      arg_count = 0;
+	if(strcmp(func, "GetCurrentProcess") ==0 )     arg_count = 0;
+	if(strcmp(func, "GetCurrentThread") ==0 )      arg_count = 0;
+	if(strcmp(func, "RevertToSelf") ==0 )          arg_count = 0;
 	if(strcmp(func, "CloseServiceHandle") ==0 )    arg_count = 1;
-	if(strcmp(func, "DeleteService") ==0 )    arg_count = 1;
+	if(strcmp(func, "DeleteService") ==0 )         arg_count = 1;
 	if(strcmp(func, "RtlDestroywinironment") ==0 ) arg_count = 1;
 	if(strcmp(func, "FindClose") == 0 )    	       arg_count = 1;
+	if(strcmp(func, "SetSystemTime") ==0 ) 		   arg_count = 1;
 	
 	if(strcmp(func, "InternetCloseHandle") ==0 ){
 		arg_count = 1;
@@ -554,7 +555,7 @@ int32_t	__stdcall hook_GenericStub(struct emu_env_w32 *win, struct emu_env_w32_d
 		GetSystemTime(&st);
 		emu_memory_write_block( mem, log_val, &st, sizeof(SYSTEMTIME));
 	}
-
+ 
 	if(strcmp(func, "FreeLibrary") ==0 ){
 		log_val = get_arg(0);  //hmodule
 		arg_count = 1;
@@ -1222,7 +1223,7 @@ int32_t	__stdcall hook_LoadLibraryA(struct emu_env_w32 *win, struct emu_env_w32_
 	}
 
 	printf("%x\t%s(%s)\n",eip_save, func, dllname);
-	if(found_dll == 0) printf("\tNot found\n");
+	if(found_dll == 0) printf("\tNot implemented by libemu\n");
 
 	emu_string_free(dllstr);
 	emu_cpu_eip_set(cpu, eip_save);
@@ -4082,6 +4083,32 @@ int32_t	__stdcall hook_strrchr(struct emu_env_w32 *win, struct emu_env_w32_dll_e
 	
 	emu_string_free(find);
 	cpu->reg[eax] = delta;	 
+	emu_cpu_eip_set(cpu, eip_save);
+	return 0;
+}
+
+int32_t	__stdcall hook_SetEndOfFile(struct emu_env_w32 *win, struct emu_env_w32_dll_export *ex)
+{   
+/*
+	BOOL WINAPI SetEndOfFile(
+  _In_  HANDLE hFile
+);
+*/
+
+	uint32_t eip_save = popd();
+	uint32_t hFile = popd();
+
+	uint32_t ret_val = -1;
+	uint32_t sizeHigh = 0;
+
+	if( hFile < 5 && opts.h_fopen > 0 )
+		ret_val = SetEndOfFile( opts.h_fopen );
+	else
+		ret_val = SetEndOfFile( (HANDLE)hFile );
+		
+	printf("%x\tSetEndOfFile(%x) = %x\n", eip_save, hFile, ret_val );
+	
+	set_ret(ret_val);
 	emu_cpu_eip_set(cpu, eip_save);
 	return 0;
 }
