@@ -1810,6 +1810,7 @@ void set_hooks(struct emu_env *env){
 	GENERICHOOK(GetCurrentThread);
 	GENERICHOOK(CloseServiceHandle);
 	GENERICHOOK(DeleteService);
+	GENERICHOOK(AdjustTokenPrivileges)
 
 	ADDHOOK(GetModuleHandleA);
 	ADDHOOK(MessageBoxA);
@@ -1909,6 +1910,13 @@ void set_hooks(struct emu_env *env){
 	ADDHOOK(GetMappedFileNameA);
     ADDHOOK(ZwUnmapViewOfSection);
 	ADDHOOK(SetEndOfFile);
+	ADDHOOK(LookupPrivilegeValueA);
+	ADDHOOK(OpenProcessToken);
+	ADDHOOK(EnumProcesses);
+	ADDHOOK(GetModuleBaseNameA);
+	ADDHOOK(HttpQueryInfoA);
+	ADDHOOK(StrToIntA);
+	ADDHOOK(gethostbyname);
 	
 }
 

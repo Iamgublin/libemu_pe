@@ -328,6 +328,17 @@ void GetAligIDName(int id, char* buf255){
 			}
 }
 
+char* processNameForPid(uint32_t pid){
+	
+	uint32_t pids[10] = {0,400,788,852,880,924,936,1744,2116,9108};
+	char* names[10] = {"","iexplorer.exe","smss.exe","csrss.exe","winlogon.exe","services.exe","lsass.exe","svchost.exe","explorer.exe","firefox.exe"};
+
+	for(int i=0;i<10;i++){
+		if(pid == pids[i]) return strdup(names[i]);
+	}
+
+	return strdup("");
+}
 
 int32_t	__stdcall hook_GetModuleHandleA(struct emu_env_w32 *win, struct emu_env_w32_dll_export *ex)
 {   //HMODULE WINAPI GetModuleHandle( __in_opt  LPCTSTR lpModuleName);
@@ -508,7 +519,13 @@ int32_t	__stdcall hook_GenericStub(struct emu_env_w32 *win, struct emu_env_w32_d
   HANDLE WINAPI GetCurrentThread(void);
   bool CloseServiceHandle(HANDLE)
 
-
+  BOOL WINAPI AdjustTokenPrivileges(
+  _In_       HANDLE TokenHandle,
+  _In_       BOOL DisableAllPrivileges,
+  _In_opt_   PTOKEN_PRIVILEGES NewState,
+  _In_       DWORD BufferLength,
+  _Out_opt_  PTOKEN_PRIVILEGES PreviousState,
+  _Out_opt_  PDWORD ReturnLength
 );
 
 
@@ -530,6 +547,7 @@ int32_t	__stdcall hook_GenericStub(struct emu_env_w32 *win, struct emu_env_w32_d
 	if(strcmp(func, "RtlDestroywinironment") ==0 ) arg_count = 1;
 	if(strcmp(func, "FindClose") == 0 )    	       arg_count = 1;
 	if(strcmp(func, "SetSystemTime") ==0 ) 		   arg_count = 1;
+	if(strcmp(func, "AdjustTokenPrivileges") ==0 ) arg_count = 6;
 	
 	if(strcmp(func, "InternetCloseHandle") ==0 ){
 		arg_count = 1;
@@ -3702,11 +3720,14 @@ int32_t	__stdcall hook_OpenProcess(struct emu_env_w32 *win, struct emu_env_w32_d
 	uint32_t eip_save = popd();
 	uint32_t v1 = popd();
 	uint32_t v2 = popd();
-	uint32_t v3 = popd();
+	uint32_t pid = popd();
 
-	printf("%x\t%s(access=%x, inherit=%x, pid=%x)\n", eip_save, ex->fnname, v1,v2,v3);
+	char* proc = processNameForPid(pid);
+
+	printf("%x\t%s(access=%x, inherit=%x, pid=%x) - Process: %s  \n", eip_save, ex->fnname, v1,v2,pid, proc);
 	
-	set_ret(0x99999999); 
+	free(proc);
+	set_ret(pid); 
 	emu_cpu_eip_set(cpu, eip_save);
 	return 0;
 
@@ -3893,10 +3914,19 @@ int32_t	__stdcall hook_CreateEventA(struct emu_env_w32 *win, struct emu_env_w32_
 
 int32_t	__stdcall hook__stricmp(struct emu_env_w32 *win, struct emu_env_w32_dll_export *ex)
 {
-/* char *stricmp(const char *s1, const char *s2); */
+/* _cdecl_ char *stricmp(const char *s1, const char *s2); */
 	uint32_t eip_save  = popd();
-	struct emu_string *s1 = popstring();
-	struct emu_string *s2 = popstring();
+
+	uint32_t pS1 = get_arg(0);
+	struct emu_string *s1 = emu_string_new();
+	emu_memory_read_string(mem, pS1, s1, 1256);
+
+	uint32_t pS2 = get_arg(4);
+	struct emu_string *s2 = emu_string_new();
+	emu_memory_read_string(mem, pS2, s2, 1256);
+
+	//struct emu_string *s1 = popstring();
+	//struct emu_string *s2 = popstring();
 	uint32_t ret=0;
 	
 	if(s1->size==0 || s2->size == 0){
@@ -3916,7 +3946,7 @@ int32_t	__stdcall hook__stricmp(struct emu_env_w32 *win, struct emu_env_w32_dll_
 
 int32_t	__stdcall hook_strcmp(struct emu_env_w32 *win, struct emu_env_w32_dll_export *ex)
 {
-/* char *stricmp(const char *s1, const char *s2); */
+/* char *strcmp(const char *s1, const char *s2); */
 	uint32_t eip_save  = popd();
 	struct emu_string *s1 = popstring();
 	struct emu_string *s2 = popstring();
@@ -4112,3 +4142,255 @@ int32_t	__stdcall hook_SetEndOfFile(struct emu_env_w32 *win, struct emu_env_w32_
 	emu_cpu_eip_set(cpu, eip_save);
 	return 0;
 }
+
+
+int32_t	__stdcall hook_LookupPrivilegeValueA(struct emu_env_w32 *win, struct emu_env_w32_dll_export *ex)
+{
+/* BOOL WINAPI LookupPrivilegeValue(
+  _In_opt_  LPCTSTR lpSystemName,
+  _In_      LPCTSTR lpName,
+  _Out_     PLUID lpLuid
+); */
+
+	uint32_t eip_save  = popd();
+	struct emu_string* sysName = popstring();
+	struct emu_string* uName = popstring();
+	uint32_t lpLuid = popd();
+	uint32_t ret=1;
+
+	printf("%x\tLookupPrivilegeValueA(sysName=%s, name=%s, buf=%x)\n", eip_save, sysName->data, uName->data, lpLuid);
+	
+	emu_string_free(sysName);
+	emu_string_free(uName);
+	cpu->reg[eax] = ret;
+	emu_cpu_eip_set(cpu, eip_save);
+	return 0;
+}
+
+int32_t	__stdcall hook_OpenProcessToken(struct emu_env_w32 *win, struct emu_env_w32_dll_export *ex)
+{
+/* BOOL WINAPI OpenProcessToken(
+  _In_   HANDLE ProcessHandle,
+  _In_   DWORD DesiredAccess,
+  _Out_  PHANDLE TokenHandle
+);
+); */
+
+	uint32_t eip_save  = popd();
+	uint32_t h = popd();
+	uint32_t a = popd();
+	uint32_t ph = popd();
+	uint32_t ret=0xcafebabe;
+
+	printf("%x\tOpenProcessToken(h=%x, access=%x, pTokenHandle=%x) = %x\n", eip_save, h, a, ph, ret);
+	
+	cpu->reg[eax] = ret;
+	emu_cpu_eip_set(cpu, eip_save);
+	return 0;
+}
+
+int32_t	__stdcall hook_EnumProcesses(struct emu_env_w32 *win, struct emu_env_w32_dll_export *ex)
+{
+/* BOOL WINAPI EnumProcesses(
+  _Out_  DWORD *pProcessIds,
+  _In_   DWORD cb,
+  _Out_  DWORD *pBytesReturned
+);*/
+
+	uint32_t eip_save  = popd();
+	uint32_t pAry = popd();
+	uint32_t sz = popd();
+	uint32_t pRetSize = popd();
+	uint32_t ret=1;
+
+/*	0	    0			
+    4	    0	SYSTEM		
+  788	    4	SYSTEM	C:\WINDOWS\System32\smss.exe	
+  852	  788	SYSTEM	C:\WINDOWS\system32\csrss.exe	
+  880	  788	SYSTEM	C:\WINDOWS\system32\winlogon.exe	
+  924	  880	SYSTEM	C:\WINDOWS\system32\services.exe	
+  936	  880	SYSTEM	C:\WINDOWS\system32\lsass.exe	
+ 1744	  924	LOCAL SERVICE	C:\WINDOWS\system32\svchost.exe	
+ 2116	 1872	david	C:\WINDOWS\Explorer.EXE	
+ 9108	 2116	david	C:\Program Files\Mozilla Firefox\firefox.exe
+ */
+	uint32_t pids[10] = {0,400,788,852,880,924,936,1744,2116,9108};
+	uint32_t max = 10;
+	uint32_t retSize = 0;
+
+	if( sz < (max * 4) ) max = sz / 4;
+	retSize = max * 4;
+
+	printf("%x\tEnumProcesses(%x, sz=%x, pRet=%x ) ret = %x\n", eip_save, pAry, sz, pRetSize, retSize);
+	
+	emu_memory_write_block(mem,pAry,&pids[0],retSize);
+	emu_memory_write_dword(mem,pRetSize,retSize);
+
+	cpu->reg[eax] = ret;
+	emu_cpu_eip_set(cpu, eip_save);
+	return 0;
+}
+
+
+
+int32_t	__stdcall hook_GetModuleBaseNameA(struct emu_env_w32 *win, struct emu_env_w32_dll_export *ex)
+{
+/*DWORD WINAPI GetModuleBaseName(
+  _In_      HANDLE hProcess,
+  _In_opt_  HMODULE hModule,
+  _Out_     LPTSTR lpBaseName,
+  _In_      DWORD nSize
+);
+*/
+
+	uint32_t eip_save  = popd();
+	uint32_t h = popd();
+	uint32_t hm = popd();
+	uint32_t lpstring = popd();
+	uint32_t sz = popd();
+	uint32_t ret=0;
+
+	char* mName = processNameForPid(h); //handle == pid because of openprocess(pid) = pid
+	uint32_t mSz = strlen(mName)+1;
+
+	printf("%x\tGetModuleBaseNameA(h=%x, hMod=%x, buf=%x, sz=%x)\n", eip_save, h, hm, lpstring, sz);
+	
+	if(sz > mSz){
+		emu_memory_write_block(mem,lpstring,mName,mSz);
+		ret = mSz;
+	}
+	 
+	free(mName);
+	cpu->reg[eax] = ret;
+	emu_cpu_eip_set(cpu, eip_save);
+	return 0;
+}
+
+int32_t	__stdcall hook_HttpQueryInfoA(struct emu_env_w32 *win, struct emu_env_w32_dll_export *ex)
+{
+/*BOOL HttpQueryInfo(
+  _In_     HINTERNET hRequest,
+  _In_     DWORD dwInfoLevel,
+  _Inout_  LPVOID lpvBuffer,
+  _Inout_  LPDWORD lpdwBufferLength,
+  _Inout_  LPDWORD lpdwIndex
+);
+*/
+
+	uint32_t eip_save  = popd();
+	uint32_t h = popd();
+	uint32_t infolevel = popd();
+	uint32_t lpstring = popd();
+	uint32_t lpsz = popd();
+	uint32_t index = popd();
+	uint32_t ret=TRUE;
+	int handled = 0;
+
+	printf("%x\tHttpQueryInfoA(h=%x, infolevel=%x, buf=%x, lpsz=%x, index=%x)", eip_save, h, infolevel, lpstring, lpsz,index);
+	
+	if(infolevel==5){
+		printf("  (HTTP_QUERY_CONTENT_LENGTH)");
+		char* s = "2020";
+		emu_memory_write_block(mem,lpstring,s,5);
+		emu_memory_write_dword(mem,lpsz,5);
+		handled=1;
+	}
+
+	if(handled==0){
+		emu_memory_write_dword(mem,lpstring,0);
+		emu_memory_write_dword(mem,lpsz,0);
+	}
+
+	printf("\n");
+	cpu->reg[eax] = ret;
+	emu_cpu_eip_set(cpu, eip_save);
+	return 0;
+}
+
+int32_t	__stdcall hook_StrToIntA(struct emu_env_w32 *win, struct emu_env_w32_dll_export *ex)
+{
+/*int StrToInt(
+  _In_  PCTSTR pszSrc
+); */
+
+	uint32_t eip_save  = popd();
+	struct emu_string* s = popstring();
+	uint32_t ret = s->size > 0 ? atoi(s->data) : 0x0;
+
+	printf("%x\tStrToIntA(%s) = %x\n", eip_save, s->data, ret);
+	
+	emu_string_free(s);
+	cpu->reg[eax] = ret;
+	emu_cpu_eip_set(cpu, eip_save);
+	return 0;
+}
+
+int32_t	__stdcall hook_gethostbyname(struct emu_env_w32 *win, struct emu_env_w32_dll_export *ex)
+{
+/* 
+struct hostent* FAR gethostbyname(
+  _In_  const char *name
+);
+
+typedef struct hostent { 16 or 0x10 bytes )
+  char FAR      *h_name;       4
+  char FAR  FAR **h_aliases;   4
+  short         h_addrtype;    2
+  short         h_length;      2
+  char FAR  FAR **h_addr_list; 4(An array of pointers to IPv4 addresses formatted as a u_long)
+} HOSTENT, 
+
+*/
+
+	uint32_t eip_save  = popd();
+	struct emu_string* s = popstring();
+
+	uint32_t ret = 0x1000;
+	printf("%x\tgethostbyname(%s) = %x\n", eip_save, s->data, ret);
+
+	struct hostent h ;
+	
+	memset(&h,0,sizeof(hostent));
+	h.h_addrtype = AF_INET;
+	h.h_addr_list = (char**)0x1020;
+	h.h_length = 4;
+
+	uint32_t dummy[4];
+	dummy[0] = 0x1014+8;
+	dummy[1] = 0;
+	dummy[2] = 0x0100007f;
+	dummy[3] = 0;
+
+	if(opts.interactive_hooks){
+		 printf("\tInteractive mode lookup for: %s ", s->data );
+	     struct hostent *remoteHost = gethostbyname(s->data); 
+		 struct in_addr addr;
+		 uint32_t ip=0;
+		 int i=0;
+		 if (remoteHost == NULL) {
+				printf(" - failed\n");
+	  	 }else{
+				if (remoteHost->h_addrtype == AF_INET) {
+					//while (remoteHost->h_addr_list[i] != 0) {
+						if(ip==0) ip = *(uint32_t*)remoteHost->h_addr_list[i];
+						addr.s_addr = *(u_long *) remoteHost->h_addr_list[i];
+						printf(" - address %s (%x)\n", inet_ntoa(addr), addr.s_addr);
+						i++;
+					//}
+				} else /*if (remoteHost->h_addrtype == AF_INET6)*/{
+					ip = *(uint32_t*)remoteHost->h_addr_list[0];
+					printf(" = address %x\n");
+				}
+		 }
+		 if(ip!=0) dummy[2] = ip;
+	}
+	 
+	emu_memory_write_block(mem, 0x1000, &h, sizeof(hostent));
+	emu_memory_write_block(mem, 0x1014, &dummy[0], 4*4);
+	
+	emu_string_free(s);
+	cpu->reg[eax] = ret;
+	emu_cpu_eip_set(cpu, eip_save);
+	return 0;
+}
+

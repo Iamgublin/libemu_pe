@@ -1,5 +1,8 @@
 		Changelog for libemu
 
+11.30.12 - new hooks: LookupPrivilegeValueA,OpenProcessToken,EnumProcesses,GetModuleBaseNameA,HttpQueryInfoA, StrToIntA,gethostbyname
+           bugfix: _stricmp should have been cdecl
+           
 11.15.12 - added logging of last 10 instructions executed (debug shell j command)
          - added SetEndofFile, SetSystemTime hooks
          
