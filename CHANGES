@@ -1,5 +1,9 @@
 		Changelog for libemu
 
+1.18.13  - findsc mode update/bugfix + % complete output
+         - findsc mode now supports -dump which will give more context/debugging output for findsc mode.
+         - NtQueryInformationFile partial implementation (FileInfoClass), bugfix GetEnvVarA
+
 11.30.12 - new hooks: LookupPrivilegeValueA,OpenProcessToken,EnumProcesses,GetModuleBaseNameA,HttpQueryInfoA, StrToIntA,gethostbyname
            bugfix: _stricmp should have been cdecl
            

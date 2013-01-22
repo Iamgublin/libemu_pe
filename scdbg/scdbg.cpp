@@ -98,6 +98,12 @@ struct result{
 	uint32_t offset;
 	int steps;
 	int org_i;
+	int parse_error;
+	int step_error;
+	int foundExport;
+	uint32_t eip_log[10];
+	int overLimit;
+	int inDllMemory;
 };
 
 struct signature{
@@ -453,7 +459,7 @@ void sigChecks(void){
 //			   DARKPINK=5, DARKYELLOW=6, GRAY=7, DARKGRAY=8, 
 //             BLUE=9, GREEN=10, TEAL=11, RED=12, PINK=13, YELLOW=14, WHITE=15 };
 
-enum colors{ mwhite=15, mgreen=10, mred=12, myellow=14, mblue=9, mpurple=5 };
+enum colors{ mwhite=15, mgreen=10, mred=12, myellow=14, mblue=9, mpurple=5, mgrey=7, mdkgrey=8 };
 
 void end_color(void){
 	if(opts.no_color) return;
@@ -1917,6 +1923,7 @@ void set_hooks(struct emu_env *env){
 	ADDHOOK(HttpQueryInfoA);
 	ADDHOOK(StrToIntA);
 	ADDHOOK(gethostbyname);
+	ADDHOOK(ZwQueryInformationFile);
 	
 }
 
@@ -2034,18 +2041,48 @@ int handle_seh(struct emu *e,int last_good_eip){
 
 }
 
-int mini_run(int limit){
 
-	int steps=0;
+uint32_t mini_run(uint32_t limit, struct result *r, bool debug){
 
-	while (emu_cpu_parse(cpu) != -1)
+	uint32_t steps=0, lastGoodEip=0;
+	r->parse_error = 0;
+	r->step_error = 0;
+	r->foundExport = 0;
+	r->overLimit =0;
+	r->inDllMemory =0;
+
+	while (1)
 	{
-		if ( emu_cpu_step(cpu) == -1 ) break;
-        if(steps >= limit) break;
-		/*if(!cpu->repeat_current_instr)*/ steps++;
-		if( isDllMemAddress(cpu->eip) ) break;  //bails on dll mem addr (we dont have hooks set cause no output wanted, if end eip = an api address good sign!)
+		if ( emu_cpu_parse(cpu)== -1 ){r->parse_error=1; break;}
+		if ( emu_cpu_step(cpu) == -1 ){r->step_error=1; break;}
+
+		lastGoodEip = cpu->eip;
+		if(debug) logEip(lastGoodEip);
+
+		if(steps >= limit){r->overLimit=1; break;}
+		steps++; //can not use if(!cpu->repeat_current_instr) test bcause a huge loop = app hang
+		
+		struct emu_env_w32_dll_export *ex = emu_env_w32_eip_check(env); //this can display hook output if hooks were set..more precise than isdllmemaddress..
+		
+		if ( ex != NULL){
+			cpu->eip = lastGoodEip;
+			r->foundExport=1;
+			break;
+		}
+
+		if( isDllMemAddress(cpu->eip) ){
+			r->inDllMemory=1;
+			break;  //bails on dll mem addr (we dont have hooks set cause no output wanted, if end eip = an api address good sign!)
+		}
+
 		if( cpu->instr.opc == 0 ) break; //we will consider 0000 add [eax], eax as invalid memory.. 
 	}
+	 
+	r->steps = steps;
+	r->final_eip = cpu->eip;
+	if(debug) memcpy(&r->eip_log, eip_log, eip_log_sz * 4);
+
+	//if(debug) printf("%x ", lastGoodEip);
 	return steps;
 }
 
@@ -2069,7 +2106,7 @@ int find_max(struct result results[], int cnt){
 
 int find_sc(void){ //loose brute force let user decide...
 	
-	uint32_t i, ret, s, j ;    
+	uint32_t i, ret, s, j, start_time, end_time;    
 	uint32_t limit = 250000;
     char buf[20];
     uint32_t last_offset= -2, last_step_cnt=0;
@@ -2077,6 +2114,10 @@ int find_sc(void){ //loose brute force let user decide...
 	struct result sorted[11];
 	int regs[] = {0,0,0,0,0x12fe00,0x12fff0,0,0};
 	char buf255[255];
+	
+	bool debug = opts.hexdump_file; //not worth its own cmdline option, so reuse this one...(-dump with -findsc = this special debug mode for findsc function...)
+	if(opts.hexdump_file) opts.hexdump_file = false; //makes not sense to use after running -findsc anyway...
+	if(debug) limit = limit * 5;
 
 	j=0;
 	regs[0]=0;
@@ -2084,32 +2125,54 @@ int find_sc(void){ //loose brute force let user decide...
 	memset(&results,0,sizeof(struct result)*41);
 	int r_cnt = -1;
 
+	if(!opts.automationRun ){
+		start_color(colors::myellow);
+		printf("Testing %d offsets  |  Percent Complete:    ", opts.size - opts.offset);
+		start_time = GetTickCount();
+	}
+
 	for(i=opts.offset; i < opts.size ; i++){
+
+		if(i%10==0 && !opts.automationRun){
+			int pcent = (100*i)/opts.size;
+			printf("\b\b\b%02d%%", pcent);
+			fflush(stdout);
+		}
 
 		if( ctrl_c_count > 0 ){
 			printf("Control-C detected aborting run, currently at offset 0x%x\n", i);
 			break;
 		}
 		
-		/*if( i == 0x20){
+		/*if( i == 0x10a){
 			i = i; //for debugging breakpoint 
 		}*/
 
-		emu_memory_write_block(mem, opts.baseAddress, opts.scode,  opts.size);
+		emu_cpu_free(cpu);    //  \__not sure why need these next two to prevent bug...
+		cpu = emu_cpu_new(e); //  /
+		
+		init_emu();
+		//emu_memory_write_block(mem, opts.baseAddress, opts.scode,  opts.size);
+		
+		//if(debug){set_hooks(env); start_color(colors::mgreen); printf("| off=%x ", i); end_color();}
+
 		for (j=0;j<8;j++) cpu->reg[j] = regs[j];
+
+		struct result tmpr;
+		memset(&tmpr, 0, sizeof(struct result));
 
 		if( opts.scode[i] != 0 ){
 			cpu->eip = opts.baseAddress + i;
-			s = mini_run(limit); //   v-- start offset must be at least 10 bytes away from final eip rva - (excludes tight loops from garbage)
+			s = mini_run(limit,&tmpr,debug); //   v-- start offset must be at least 10 bytes away from final eip rva - (excludes tight loops from garbage)
+			//if(debug) printf("s=%x pe=%d se=%d ", s, parse_error, step_error);
 			if(s > opts.min_steps && abs(opts.baseAddress + i - cpu->eip ) > 10 /*&& cpu->eip > (opts.baseAddress + i + opts.min_steps)*/ ){
 				if(last_step_cnt >= s && (last_offset+1) == i ){ //try not to spam
 					last_offset++;
 				}else{
 					r_cnt++;
 					if(r_cnt > 40) break;
-					results[r_cnt].final_eip = cpu->eip;
+					results[r_cnt] = tmpr;
 					results[r_cnt].offset = i;
-					results[r_cnt].steps  = s;
 					results[r_cnt].org_i  = i;
 					last_offset = i;
 					last_step_cnt = s;
@@ -2123,6 +2186,12 @@ int find_sc(void){ //loose brute force let user decide...
 
 	}
 
+	if(!opts.automationRun ){
+		end_time = GetTickCount();
+		printf("  |  Completed in %d ms\n", (end_time - start_time) );
+		end_color();
+	}
+
 	if( r_cnt == -1 ){
 		printf("No shellcode detected..\n");
 		return -1;
@@ -2131,6 +2200,7 @@ int find_sc(void){ //loose brute force let user decide...
 	if( opts.automationRun ){
 		s = find_max(results,40);
 		if(s == -1) return -1;
+		printf("Starting at offset: %x\n",results[s].offset);
 		return results[s].offset;
 	}
 	
@@ -2140,10 +2210,30 @@ int find_sc(void){ //loose brute force let user decide...
 		if(s == -1) break;
 		sorted[i] = results[s];
 		fulllookupAddress(results[s].final_eip, (char*)&buf255); 
+
+		if(debug)
+			start_color( colors::mwhite ) ;
+		else
+			start_color( ((i%3==0) ? colors::mgrey : colors::mdkgrey) ) ;
+		
 		if(results[s].steps == limit) 
 			printf("%d) offset=0x%-8x   steps=MAX    final_eip=%-8x   %s", i, results[s].offset, results[s].final_eip, buf255 );
 		 else 
-			printf("%d) offset= 0x%-8x   steps=%-8d   final_eip= %-8x   %s", i, results[s].offset , results[s].steps , results[s].final_eip, buf255 );
+			printf("%d) offset= 0x%-8x   steps=%-8d   final_eip= %-8x   %s", i, results[s].offset , results[s].steps , results[s].final_eip, buf255);
+		
+		end_color();
+
+		if(debug){
+			start_color(colors::mgreen);
+			printf("\n\tStepError: %d  ParseError %d  FoundExport %d  InDllMem: %d  Last10Inst:\n", results[s].step_error, results[s].parse_error, results[s].foundExport, results[s].inDllMemory); 
+			
+			for(int i=0;i < eip_log_sz;i++){
+				if(results[s].eip_log[i] == 0) break; 
+				disasm_addr_simple(results[s].eip_log[i]);
+			}
+
+			end_color();
+		}
 
 		if(opts.disasm_mode > 0){
 			real_hexdump(opts.scode + results[s].offset, opts.disasm_mode, -1, true);
@@ -2162,9 +2252,13 @@ int find_sc(void){ //loose brute force let user decide...
 	}
 
 	opts.disasm_mode = 0;
-	ret = read_int("\nEnter index:",(char*)&buf);
+	ret = read_int("\nSelect index to execute:",(char*)&buf);
     if(ret < 0 ) return -1;
 	if(ret > (i-1) ) return -1; // i = number of results in sorted..
+
+	emu_cpu_free(cpu);     
+	cpu = emu_cpu_new(e);  
+
 	return sorted[ret].offset;
 
 }
@@ -2961,7 +3055,7 @@ void parse_opts(int argc, char* argv[] ){
 				*sz = '\0';
 				sz++;
 				size = strtol(sz, NULL, 16);
-				base = strtol(ag, NULL, 16);
+				base = strtoul(ag, NULL, 16);
 				printf("VirtualAlloc(base=%x, size=%x) (endsAt %x)\n", base, size, base+size);
 				char* tmp = (char*)malloc(size);
 				memset(tmp,0,size);
@@ -3360,6 +3454,12 @@ void HandleDirMode(char* folder){
 	int i=0;
 
 	if(strlen(folder) > 300) return;
+
+	if(opts.report){
+		sprintf(cmdline, "%s\\report.txt", folder);
+		if(FileExists(cmdline)) unlink(cmdline);
+	}
+
 	sprintf(cmdline, "%s\\%s", folder, "*.sc");
 
 	hSearch = FindFirstFile(cmdline, &FileData); 

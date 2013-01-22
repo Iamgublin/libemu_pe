@@ -370,6 +370,7 @@ int32_t	__stdcall hook_GetModuleHandleA(struct emu_env_w32 *win, struct emu_env_
 	}
 
 	printf("%x\tGetModuleHandleA(%s)\n",eip_save,  dllname);
+	if (found_dll == 0) printf("\tUnknown Dll - Not implemented by libemu\n");
 
 	emu_string_free(s_filename);
 	emu_cpu_eip_set(cpu, eip_save);
@@ -1241,7 +1242,7 @@ int32_t	__stdcall hook_LoadLibraryA(struct emu_env_w32 *win, struct emu_env_w32_
 	}
 
 	printf("%x\t%s(%s)\n",eip_save, func, dllname);
-	if(found_dll == 0) printf("\tNot implemented by libemu\n");
+	if(found_dll == 0) printf("\tUnknown Dll - Not implemented by libemu\n");
 
 	emu_string_free(dllstr);
 	emu_cpu_eip_set(cpu, eip_save);
@@ -3097,6 +3098,7 @@ int32_t	__stdcall hook_GetEnvironmentVariableA(struct emu_env_w32 *win, struct e
 
 	int sl = strlen(out);
 	if(sl < size) emu_memory_write_block(mem, buf, out, sl);
+	emu_memory_write_byte(mem, buf+sl,0);
 		
 	printf("%x\tGetEnvironmentVariableA(name=%s, buf=%x, size=%x) = %s\n", eip_save, var, buf, size, out );
 
@@ -4389,6 +4391,52 @@ typedef struct hostent { 16 or 0x10 bytes )
 	emu_memory_write_block(mem, 0x1014, &dummy[0], 4*4);
 	
 	emu_string_free(s);
+	cpu->reg[eax] = ret;
+	emu_cpu_eip_set(cpu, eip_save);
+	return 0;
+}
+
+int32_t	__stdcall hook_ZwQueryInformationFile(struct emu_env_w32 *win, struct emu_env_w32_dll_export *ex)
+{
+/* 
+	NTSTATUS ZwQueryInformationFile(
+	  _In_   HANDLE FileHandle,
+	  _Out_  PIO_STATUS_BLOCK IoStatusBlock,
+	  _Out_  PVOID FileInformation,
+	  _In_   ULONG Length,
+	  _In_   FILE_INFORMATION_CLASS FileInformationClass -> http://msdn.microsoft.com/en-us/library/windows/hardware/ff728840%28v=vs.85%29.aspx
+	);
+
+	// 9 = FileNameInformation,
+	typedef struct _FILE_NAME_INFORMATION {
+	  ULONG FileNameLength;
+	  WCHAR FileName[1];
+	} FILE_NAME_INFORMATION, *PFILE_NAME_INFORMATION;
+
+*/
+	int ret = 0; //STATUS_SUCCESS ;
+	uint32_t eip_save  = popd();
+	uint32_t fHandle   = popd();
+	uint32_t iosb      = popd();
+	uint32_t finfo     = popd();
+	uint32_t length    = popd();
+	uint32_t infoClass = popd();
+	
+	printf("%x\tZwQueryInformationFile(fhand: %x, finfo: %x, len: %x, infoClass: %x ) = %x\n", eip_save, fHandle, finfo, length, infoClass, ret);
+
+	if(infoClass==9 && opts.fopen_fpath != 0){
+		int orgLen = strlen(opts.fopen_fpath);
+		int wSz = (orgLen+4)*2;
+		void* wBuf = SafeMalloc( wSz );
+		int lv_Len = MultiByteToWideChar(CP_ACP, 0, opts.fopen_fpath, -1, (LPWSTR)wBuf, wSz);
+		if(lv_Len != 0 && finfo != 0 && length >= wSz){
+			printf("\tWriting %d bytes to FileNameInformation buffer to emu memory...\n", lv_Len);
+			emu_memory_write_dword(mem, finfo, wSz);
+			emu_memory_write_block(mem, finfo+4, wBuf, wSz);
+		}
+		free(wBuf);
+	}
+
 	cpu->reg[eax] = ret;
 	emu_cpu_eip_set(cpu, eip_save);
 	return 0;
