@@ -4442,3 +4442,37 @@ int32_t	__stdcall hook_ZwQueryInformationFile(struct emu_env_w32 *win, struct em
 	return 0;
 }
 
+int32_t	__stdcall hook_ZwSetInformationProcess(struct emu_env_w32 *win, struct emu_env_w32_dll_export *ex)
+{
+/* 
+	NTSTATUS (NTAPI *ZwSetInformationProcess)(
+		IN HANDLE hProcess, 
+		IN ULONG ProcessInfoClass,    ProcessExecuteFlags = 0x22 (to disable DEP)
+		IN PVOID ProcessInfo,         MEM_EXECUTE_OPTION_ENABLE = 2 
+		IN ULONG ProcessInfoLength
+	);
+
+*/
+	int ret = 0; //STATUS_SUCCESS ;
+	uint32_t eip_save  = popd();
+	uint32_t hProc     = popd();
+	uint32_t infoClass = popd();
+	uint32_t pArg      = popd();
+	uint32_t length    = popd();
+	
+	uint32_t v=0;
+	emu_memory_read_dword(mem,pArg, &v);
+
+	printf("%x\tZwSetInformationProcess(hProc: %x, class: %x, info: %x)   ", eip_save, hProc, infoClass, v);
+
+	if(infoClass=0x22){
+		printf(" class=ProcessExecuteFlags");
+		if(v==2) printf(" DEP Disabled");
+	}
+
+	printf("\n");
+
+	cpu->reg[eax] = ret;
+	emu_cpu_eip_set(cpu, eip_save);
+	return 0;
+}

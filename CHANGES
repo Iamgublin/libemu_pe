@@ -1,5 +1,13 @@
 		Changelog for libemu
 
+2.18.13  - add versions to known dlls (displayed in dbgshell .pl dllmap)
+         - added /raw  - Raw Patch Mode: load fpath into mem at 0xBase (not PE aware can use multiple times)   
+		 - added /poke - Write 0xValue at 0xBase (can use multiple times) 
+		 - undocumented /rop mode added (can use with /offset)
+		      - will have to load target dll opcodes with /raw and used IAT entries with /poke
+		 - added several rop signatures
+		 - new hook ZwSetInformationProcess 
+		 
 1.18.13  - findsc mode update/bugfix + % complete output
          - findsc mode now supports -dump which will give more context/debugging output for findsc mode.
          - NtQueryInformationFile partial implementation (FileInfoClass), bugfix GetEnvVarA

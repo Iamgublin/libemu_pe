@@ -266,18 +266,21 @@ struct emu_env_w32_known_dll known_dlls[] =
 {
 	{ 
 		/*.dllname =*/ "process",    //peb entry for the main process..
+		/*.version */ "1.0",
 		/*.baseaddress =*/ 0x400000,
 		/*.imagesize =*/ 0x4000, 
 	}, 
 	{
 		/*.dllname =*/ "ntdll", 
+		/*.version */ "5.1.2600.5755",
 		/*.baseaddress =*/ 0x7C900000, 
 		/*.imagesize =*/ 0xB2000,
 		/*.exports =*/ ntdll_exports,
 		/*.memory_segments =*/ ntdll_segments,
 	}, 
 	{
-		/*.dllname =*/ "kernel32",  
+		/*.dllname =*/ "kernel32", 
+		/*.version */ "5.1.2600.5781",
 		/*.baseaddress =*/ 0x7C800000, 
 		/*.imagesize =*/ 0xf6000, 
 		/*.exports =*/ kernel32_exports, 
@@ -285,6 +288,7 @@ struct emu_env_w32_known_dll known_dlls[] =
 	}, 
 	{
 		/*.dllname =*/ "ws2_32",
+		/*.version */ "5.1.2600.5512",
 		/*.baseaddress =*/ 0x71AB0000,
 		/*.imagesize =*/ 0x17000,
 		/*.exports =*/ ws2_32_exports,
@@ -292,6 +296,7 @@ struct emu_env_w32_known_dll known_dlls[] =
 	},
 	{
 		/*.dllname =*/ "msvcrt",
+		/*.version */ "7.0.2600.5512",
 		/*.baseaddress =*/ 0x77C10000,
 		/*.imagesize =*/ 0x58000,
 		/*.exports =*/ msvcrt_exports,
@@ -299,6 +304,7 @@ struct emu_env_w32_known_dll known_dlls[] =
 	},
 	{
 		/*.dllname =*/ "shell32", 
+		/*.version */ "6.0.2900.6018",
 		/*.baseaddress =*/ 0x7C9C0000,
 		/*.imagesize =*/ 0x817000,
 		/*.exports =*/ shell32_exports,
@@ -306,6 +312,7 @@ struct emu_env_w32_known_dll known_dlls[] =
 	}, /*ends at 7D1D7000 */
 	{
 		/*.dllname =*/ "shdocvw",
+		/*.version */ "6.0.2900.5512",
 		/*.baseaddress =*/ 0x7E290000,
 		/*.imagesize =*/ 0x171000,
 		/*.exports =*/ shdocvw_exports,
@@ -313,6 +320,7 @@ struct emu_env_w32_known_dll known_dlls[] =
 	}, /*ends at 7E401000 */
 	{
 		/*.dllname =*/ "advapi32",
+		/*.version */ "5.1.2600.5755",
 		/*.baseaddress =*/ 0x77DD0000,
 		/*.imagesize =*/ 0x9B000,
 		/*.exports =*/ advapi32_exports,
@@ -320,6 +328,7 @@ struct emu_env_w32_known_dll known_dlls[] =
 	}, 
 	{
 		/*.dllname =*/ "shlwapi", 
+		/*.version */ "6.0.2900.5912",
 		/*.baseaddress =*/ 0x77F60000, 
 		/*.imagesize =*/ 0x76000,
 		/*.exports =*/ shlwapi_exports,
@@ -327,6 +336,7 @@ struct emu_env_w32_known_dll known_dlls[] =
 	},  
 	{
 		/*.dllname =*/ "urlmon",
+		/*.version */ "7.0.6000.17096",
 		/*.baseaddress =*/ 0x78130000,
 		/*.imagesize =*/ 0x128000,
 		/*.exports =*/ urlmon_exports,
@@ -334,6 +344,7 @@ struct emu_env_w32_known_dll known_dlls[] =
 	}, 
 	{
 		/*.dllname =*/ "user32", 
+		/*.version */ "5.1.2600.5512",
 		/*.baseaddress =*/ 0x7E410000,
 		/*.imagesize =*/ 0x00091000,
 		/*.exports =*/ user32_exports,
@@ -341,6 +352,7 @@ struct emu_env_w32_known_dll known_dlls[] =
 	}, /*ends at 7E4A1000 */
 	{
 		/*.dllname =*/ "wininet", 
+		/*.version */ "7.0.6000.17093",
 		/*.baseaddress =*/ 0x3D930000,
 		/*.imagesize =*/ 0xD1000,
 		/*.exports =*/ wininet_exports,
@@ -348,6 +360,7 @@ struct emu_env_w32_known_dll known_dlls[] =
 	}, 
 	{
 		/*.dllname =*/ "psapi", 
+		/*.version */ "5.1.2600.5512",
 		/*.baseaddress =*/ 0x76BF0000,
 		/*.imagesize =*/ 0xB000,
 		/*.exports =*/ psapi_exports,
@@ -506,6 +519,7 @@ int32_t emu_env_w32_load_dll(struct emu_env_w32 *env, char *dllname)
 			//----------------------------
 
 			dll->dllname = strdup(known_dlls[i].dllname);
+			dll->version = strdup(known_dlls[i].version);
 			dll->baseaddr = known_dlls[i].baseaddress;
 			dll->imagesize = known_dlls[i].imagesize;
 			int j;

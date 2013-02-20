@@ -36,7 +36,7 @@ struct emu_env_w32_dll_export;
 struct emu_env_w32_dll
 {
 	char 		*dllname;
-
+	char        *version;
 	char 		*image;
 	uint32_t	imagesize;
 
@@ -64,6 +64,7 @@ struct emu_env_w32_known_dll_segment
 struct emu_env_w32_known_dll
 {
 	const char *dllname;
+	const char *version;
 	uint32_t 	baseaddress;
 	uint32_t	imagesize;
 	struct emu_env_w32_dll_export *exports;

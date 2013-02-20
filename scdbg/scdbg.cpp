@@ -125,9 +125,11 @@ struct emu_env *env = 0;
 void debugCPU(struct emu *e, bool showdisasm);
 void disasm_block(int offset, int size);
 int fulllookupAddress(int eip, char* buf255);
+int file_length(FILE* fp);
 void init_emu(void);
 int disasm_addr_simple(int);
 void LoadPatch(char* fpath);
+void loadraw_patch(uint32_t base, char* fpath);
 void HandleDirMode(char* folder);
 void nl(void);
 bool isDllMemAddress(uint32_t eip);
@@ -163,6 +165,28 @@ bool ov_basedll_name = false;
 uint32_t ov_decode_self_addr[11] = {0,0,0,0,0,0,0,0,0,0,0};
 
 extern uint32_t next_alloc;
+
+//enum Color { DARKBLUE = 1, DARKGREEN=2, DARKTEAL=3, DARKRED=4, 
+//			   DARKPINK=5, DARKYELLOW=6, GRAY=7, DARKGRAY=8, 
+//             BLUE=9, GREEN=10, TEAL=11, RED=12, PINK=13, YELLOW=14, WHITE=15 };
+
+enum colors{ mwhite=15, mgreen=10, mred=12, myellow=14, mblue=9, mpurple=5, mgrey=7, mdkgrey=8 };
+
+void end_color(void){
+	if(opts.no_color) return;
+	//printf("\033[0m"); 
+	SetConsoleTextAttribute(hConOut,7); 
+}
+void nl(void){ printf("\n"); }
+void restore_terminal(int arg)    { SetConsoleMode(hCon, orgt); }
+void atexit_restore_terminal(void){ SetConsoleMode(hCon, orgt); }
+
+void start_color(enum colors c){
+	//char* cc[] = {"\033[37;1m", "\033[32;1m", "\033[31;1m", "\033[33;1m", "\033[34;1m", "\033[35;1m"};
+	if(opts.no_color) return;
+	//printf("%s", cc[c]);
+    SetConsoleTextAttribute(hConOut, c);
+}
 
 //            0      1      2      3      4      5         6      7  
 int regs[] = {0,    0,      0,     0,  0x12fe00,0x12fff0  ,0,    0};
@@ -268,6 +292,14 @@ struct signature signatures[] =
 	{"scanner.hookcheck",               "\x80\x38\xE8\x74\x0A\x80\x38\xE9\x74\x05\x80\x38\xEB\x75\x11", 15},
     {"hasher.strcmp",                   "\x57\x51\x52\x56\x8b\x36\x03\x75\xfc\xfc\xf3\xa6", 12},
     {"macro.jmp+5",                     "\x83\xC2\x05\x8B\xFF\x55\x8B\xEC\xFF\xE2", 10},
+	{"rop.msvcrt.7.0.2600.5512.VirtAlloc",  "\x9A\x4D\xC3\x77\xCC\xAA\xC2\x77\x16\x1D\xC2\x77\x20\x11\xC1\x77\xF9\x2D\xC1\x77\x24\x55\xC3\x77", 24},
+	{"rop.msvcrt.7.0.2600.5512.VirtAlloc2", "\xD1\xC1\xC4\x77\xCC\xAA\xC2\x77\x92\xE3\xC4\x77\x0C\x11\xC1\x77\xF9\x2D\xC1\x77\xB4\x54\xC3\x77", 24},
+	{"rop.advapi32.5.1.2600.5755.ZwSetInformationProcess", "\x1F\x5C\xE2\x77\x04\x14\xDD\x77\x48\xD4\xDF\x77\xFF\xFF\xFF\xFF\x5F\x8A\xE1\x77", 20},
+	{"rop.icucnv36.PDF.MapViewOfFile", "\x29\x6F\x80\x4A\x00\x00\x8A\x4A\x96\x21\x80\x4A\x90\x1F\x80\x4A\x29\x6F\x80\x4A\xEF\x6C\x80\x4A", 24},
+	{"rop.msvcr71.Java.WhitePhosphorus", "\x49\xD7\x34\x7C\xAA\x58\x34\x7C\xFA\x39\x34\x7C\xC0\xFF\xFF\xFF\xB1\x1E\x35\x7C\x48\x46\x35\x7C\xEA\x30\x35\x7C\xC1\x4C\x34\x7C",32},
+	{"rop.msvcr71.Java.VirtualProtect","\x97\x7F\x34\x7C\x51\xA1\x37\x7C\x81\x8C\x37\x7C\x30\x5C\x34\x7C",16},
+	{"rop.mfc71u.v7.10.3077.0.VirtualProtect","\x0C\x9E\x25\x7C\xF0\x12\x25\x7C\xBC\xE7\x2F\x7C\x14\xF0\x26\x7C\x09\x08\x2C\x7C\x89\x99\x28\x7C\x0C\x9E\x25\x7C\x01\xB0\x32\x7C",32},
+	{"rop.msvcr70.v7.00.9466.0.VirtualProtect","\x3F\x06\x03\x7C\xA1\x58\x03\x7C\xFD\x90\x03\x7C\x4F\x3A\x02\x7C\xA1\x58\x03\x7C\x94\x5E\xFF\x83\xCD\x67\x01\x7C\xB7\x26\x01\x7C",32},
 	{NULL, NULL, 0},
 };
 
@@ -407,14 +439,27 @@ void showSigs(void){
 	while( signatures[i].siglen > 0 ){
 		printf("\t%s\r\n",signatures[i].name);
 		if(doDisasm){
-			emu_memory_write_block(mem,0x401000, signatures[i].sig, signatures[i].siglen);
-			emu_memory_write_dword(mem, 0x401000+signatures[i].siglen, 0);
-			emu_memory_write_dword(mem, 0x401000+signatures[i].siglen+4, 0);
-			while(size < signatures[i].siglen){
-				printf("\t\t");
-				size += disasm_addr_simple( 0x401000+size );
+			if(strstr(signatures[i].name,"rop.") == NULL){
+				emu_memory_write_block(mem,0x401000, signatures[i].sig, signatures[i].siglen);
+				emu_memory_write_dword(mem, 0x401000+signatures[i].siglen, 0);
+				emu_memory_write_dword(mem, 0x401000+signatures[i].siglen+4, 0);
+				while(size < signatures[i].siglen){
+					printf("\t\t");
+					size += disasm_addr_simple( 0x401000+size );
+				}
+				nl();
+			}else{
+				//display as dwords cant disasm
+				start_color(colors::mgreen);
+				while(size < signatures[i].siglen){
+					uint32_t v;
+					memcpy(&v,signatures[i].sig+size, 4);
+					printf("\t\t%x\n",v);
+					size += 4;
+				}
+				end_color();
+				nl();
 			}
-			nl();
 		}
 		i++;
 		size=0;
@@ -453,28 +498,6 @@ void sigChecks(void){
 		}
 	}
 	if(x==0) printf(" None\n");
-}
-
-//enum Color { DARKBLUE = 1, DARKGREEN=2, DARKTEAL=3, DARKRED=4, 
-//			   DARKPINK=5, DARKYELLOW=6, GRAY=7, DARKGRAY=8, 
-//             BLUE=9, GREEN=10, TEAL=11, RED=12, PINK=13, YELLOW=14, WHITE=15 };
-
-enum colors{ mwhite=15, mgreen=10, mred=12, myellow=14, mblue=9, mpurple=5, mgrey=7, mdkgrey=8 };
-
-void end_color(void){
-	if(opts.no_color) return;
-	//printf("\033[0m"); 
-	SetConsoleTextAttribute(hConOut,7); 
-}
-void nl(void){ printf("\n"); }
-void restore_terminal(int arg)    { SetConsoleMode(hCon, orgt); }
-void atexit_restore_terminal(void){ SetConsoleMode(hCon, orgt); }
-
-void start_color(enum colors c){
-	//char* cc[] = {"\033[37;1m", "\033[32;1m", "\033[31;1m", "\033[33;1m", "\033[34;1m", "\033[35;1m"};
-	if(opts.no_color) return;
-	//printf("%s", cc[c]);
-    SetConsoleTextAttribute(hConOut, c);
 }
 
 int __stdcall ctrl_c_handler(DWORD arg){
@@ -690,11 +713,11 @@ void symbol_lookup(char* symbol){
 		struct emu_env_w32_dll *dll = env->win->loaded_dlls[numdlls];
 		
 		if(dllmap_mode){
-			printf("\t%-8s Dll mapped at %x - %x\n", dll->dllname, dll->baseaddr , dll->baseaddr+dll->imagesize);
+			printf("\t%-8s Dll mapped at %x - %x  Version: %s\n", dll->dllname, dll->baseaddr , dll->baseaddr+dll->imagesize, dll->version);
 		}
 		else{
 			if(strcmp(dll->dllname, symbol)==0){
-				printf("\t%s Dll mapped at %x - %x\n", dll->dllname, dll->baseaddr , dll->baseaddr+dll->imagesize);
+				printf("\t%s Dll mapped at %x - %x  Version: %s\n", dll->dllname, dll->baseaddr , dll->baseaddr+dll->imagesize, dll->version);
 				return;
 			}
 			
@@ -772,6 +795,7 @@ int fulllookupAddress(int eip, char* buf255){
 
 	return 0;
 }
+
 
 bool find_apiTable(uint32_t offset, uint32_t size){
 	
@@ -1924,6 +1948,7 @@ void set_hooks(struct emu_env *env){
 	ADDHOOK(StrToIntA);
 	ADDHOOK(gethostbyname);
 	ADDHOOK(ZwQueryInformationFile);
+	ADDHOOK(ZwSetInformationProcess);
 	
 }
 
@@ -2667,6 +2692,8 @@ void show_help(void)
 		{"v",  NULL		 ,   "verbosity, can be used up to 4 times, ex. /v /v /vv"},
 		{"- /+", NULL ,      "increments or decrements GetFileSize, can be used multiple times"},
 		{"va", "0xBase-0xSize","VirtualAlloc memory at 0xBase of 0xSize"}, 
+		{"raw", "0xBase-fpath","Raw Patch Mode: load fpath into mem at 0xBase (not PE aware)"}, 
+		{"poke", "0xBase-0xValue","Write 0xValue at 0xBase"}, 
 	};
 
 	system("cls");
@@ -2773,6 +2800,7 @@ void parse_opts(int argc, char* argv[] ){
 	opts.noseh = false;
 	opts.min_steps = 200;
 	opts.norw = false;
+	opts.rop = false;
 
 	for(i=1; i < argc; i++){
 
@@ -2791,6 +2819,7 @@ void parse_opts(int argc, char* argv[] ){
 		if(sl==2 && strstr(buf,"/v") > 0 ){opts.verbose++; handled=true;}
 		if(sl==2 && strstr(buf,"/r") > 0 ){ opts.report = true; opts.mem_monitor = true;handled=true;}
 		if(sl==2 && strstr(buf,"/u") > 0 ){opts.steps = -1;handled=true;}
+		if(sl==4 && strstr(argv[i],"/rop") > 0 ){   opts.rop = true; handled=true;}
 		if(sl==5 && strstr(argv[i],"/norw") > 0 ){   opts.norw = true; handled=true;}
 		if(sl==6 && strstr(argv[i],"/noseh") > 0 ){   opts.noseh = true; handled=true;}
 		if(sl==3 && strstr(argv[i],"/nc") > 0 ){   opts.no_color = true; handled=true;}
@@ -3068,6 +3097,34 @@ void parse_opts(int argc, char* argv[] ){
 			}
 		}
 
+		if(sl==5 && strstr(argv[i],"/poke") > 0 ){
+			if(i+1 >= argc){
+				printf("Invalid option /poke must specify 0xBase-0xValue as next arg\n");
+				exit(0);
+			}
+			if ( strstr(argv[i+1], "-") != NULL)
+			{
+				i++;handled=true; //validated here, but handed in post_parse_opts after loadsc()
+			}else{
+				printf("Invalid option /poke must specify 0xBase:0xValue as next arg\n");
+				exit(0);
+			}
+		}
+
+		if(sl==4 && strstr(argv[i],"/raw") > 0 ){
+			if(i+1 >= argc){
+				printf("Invalid option /raw must specify 0xBase-fpath as next arg\n");
+				exit(0);
+			}
+			if ( strstr(argv[i+1], "-") != NULL)
+			{
+				i++;handled=true; //validated here, but handed in post_parse_opts after loadsc()
+			}else{
+				printf("Invalid option /raw must specify 0xBase-fpath as next arg\n");
+				exit(0);
+			}
+		}
+
 		if( !handled ){
 			start_color(myellow);
 			printf("Unknown Option %s\n\n", argv[i]);
@@ -3079,6 +3136,70 @@ void parse_opts(int argc, char* argv[] ){
 
 
 }
+
+void post_parse_opts(int argc, char* argv[] ){
+
+	int i;
+	int sl=0;
+	char buf[5];
+ 
+	for(i=1; i < argc; i++){
+	
+		sl = strlen(argv[i]);
+		if( argv[i][0] == '-') argv[i][0] = '/'; //standardize
+		 		
+	    if(sl==4 && strstr(argv[i],"/raw") > 0 ){
+			if(i+1 >= argc){
+				printf("Invalid option /raw must specify 0xBase-fpath as next arg\n");
+				exit(0);
+			}
+		    char *ag = strdup(argv[i+1]);
+			char *sz;
+			uint32_t base=0;
+			if (( sz = strstr(ag, "-")) != NULL)
+			{
+				*sz = '\0';
+				sz++;
+				base = strtoul(ag, NULL, 16);
+				loadraw_patch(base, sz);
+				//printf("RawLoad Patch at base=%x, path=%s\n", opts.rawLoadBase, opts.rawLoad);
+				i++;
+
+			}else{
+				printf("Invalid option /raw must specify 0xBase-fpath as next arg\n");
+				exit(0);
+			}
+		}
+
+		if(strstr(argv[i],"/poke") > 0 ){
+			if(i+1 >= argc){
+				printf("Invalid option /poke must specify 0xBase-0xValue as next arg\n");
+				exit(0);
+			}
+		    char *ag = strdup(argv[i+1]);
+			char *sz;
+			uint32_t value=0;
+			uint32_t base=0;
+			if (( sz = strstr(ag, "-")) != NULL)
+			{
+				*sz = '\0';
+				sz++;
+				value = strtol(sz, NULL, 16);
+				base = strtoul(ag, NULL, 16);
+				printf("Poke(base=%x, value=%x)\n", base, value);
+                emu_memory_write_dword(mem, base, value);
+				i++;
+			}else{
+				printf("Invalid option /poke must specify 0xBase-0xValue as next arg\n");
+				exit(0);
+			}
+		}
+
+
+	}
+
+}
+
 
 void loadsc(void){
 
@@ -3111,6 +3232,7 @@ void loadsc(void){
 	}
 
 }
+
 
 void min_window_size(void){
 	CONSOLE_SCREEN_BUFFER_INFO sb;
@@ -3232,6 +3354,8 @@ reinit:
 	loadsc();
 	init_emu();	
 	
+	post_parse_opts(argc,argv); //this allows multiple pokes and raw patch loads 
+	//if(opts.rawLoadBase!=0) loadraw_patch();
 	if(opts.patch_file != NULL) LoadPatch(opts.patch_file);
 
 	if(opts.getpc_mode){
@@ -3354,6 +3478,13 @@ reinit:
 	if(!opts.automationRun) printf("Using base offset: 0x%x\n", opts.baseAddress);
 	if(!opts.automationRun) if(opts.verbose>0) printf("Verbosity: %i\n", opts.verbose);
 
+	if(opts.rop){
+		cpu->reg[esp] = opts.baseAddress+opts.offset; //this is where they think the rop chain starts...
+		cpu->reg[ebp] = opts.baseAddress+opts.size;
+		opts.offset = opts.size + 1; //we are going to start the actual execution at a ret of our own...
+		emu_memory_write_byte(mem, opts.baseAddress + opts.offset, 0xC3); //write a ret as first instruction after loaded shellcode buffer. 
+	}
+
 	if(opts.offset > 0 && !opts.automationRun){
 		printf("Execution starts at file offset %x\n", opts.offset);
 		start_color(mgreen);
@@ -3368,6 +3499,32 @@ reinit:
 	if( IsDebuggerPresent() ) getch();
 	return opts.cur_step;
 	 
+}
+
+void loadraw_patch(uint32_t base, char* fpath){
+
+	FILE *fp;
+
+	if (fpath == NULL) return;
+	
+	fp = fopen(fpath, "rb");
+	if(fp==0){
+		start_color(myellow);
+		printf("RawLoad Failed to open file %s\n",fpath);
+		end_color();
+		exit(0);
+	}
+
+	uint32_t size = file_length(fp);
+	unsigned char* buf = (unsigned char*)SafeMalloc(size); 
+	fread(buf, 1, size, fp);
+	fclose(fp);
+
+	printf("RawLoad 0x%x bytes at 0x%x from file %s\n", size,base,fpath);
+	 
+	emu_memory_write_block(mem, base, buf, size);
+	free(buf);
+
 }
 
 void LoadPatch(char* fpath){

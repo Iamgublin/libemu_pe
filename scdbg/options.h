@@ -47,6 +47,7 @@ struct run_time_options
 	char* temp_dir;
 	int   min_steps;
 	bool  norw;
+	bool  rop;
 
 	struct
 	{
