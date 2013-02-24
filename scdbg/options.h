@@ -48,6 +48,7 @@ struct run_time_options
 	int   min_steps;
 	bool  norw;
 	bool  rop;
+	bool  nofile;
 
 	struct
 	{

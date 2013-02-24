@@ -484,6 +484,10 @@
 					RelativePath=".\libemu\include\stdint.h"
 					>
 				</File>
+				<File
+					RelativePath=".\libemu\include\winsyscalls.h"
+					>
+				</File>
 			</Filter>
 			<Filter
 				Name="src"

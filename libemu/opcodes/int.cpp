@@ -30,8 +30,17 @@
 #include "emu_memory.h"
 #include "emu_string.h"
 
+typedef int (*syscall_callback)(int callNumber,struct emu_cpu *c);
+extern syscall_callback SYSCALL_callback;
+
 int32_t instr_int_cd(struct emu_cpu *c, struct emu_cpu_instruction *i)
 {
+	uint8_t interrupt = *i->imm8;
+
+	if( (int)SYSCALL_callback != 0 && interrupt == 0x2e){
+		return SYSCALL_callback(0x2e,c); //needs to return -1 for fail or 0 for ok..
+	}
+	
 	if( *i->imm8 == 0x80 ) emu_strerror_set(c->emu, "Linux Shellcode Unsupported: Called Int 0x%x\n", *i->imm8);
 	  else emu_strerror_set(c->emu, "Unsupported instruction Interrupt 0x%x\n", *i->imm8);
 

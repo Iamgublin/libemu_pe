@@ -135,6 +135,7 @@ void nl(void);
 bool isDllMemAddress(uint32_t eip);
 extern char* SafeMalloc(int size);
 extern uint32_t popd(void);
+extern int SysCall_Handler(int callNumber, struct emu_cpu *c);
 
 uint32_t FS_SEGMENT_DEFAULT_OFFSET = 0x7ffdf000;
 
@@ -2694,9 +2695,10 @@ void show_help(void)
 		{"- /+", NULL ,      "increments or decrements GetFileSize, can be used multiple times"},
 		{"va", "0xBase-0xSize","VirtualAlloc memory at 0xBase of 0xSize"}, 
 		{"raw", "0xBase-fpath","Raw Patch Mode: load fpath into mem at 0xBase (not PE aware)"}, 
-		{"poke", "0xBase-0xValue","Write 32bit 0xValue at 0xBase"}, 
-		{"spoke", "0xBase-Str","String Poke: ex. 0x401000-0x9090EB15CCBB or \"0xBase-ascii string\")"}, 
+		{"wint", "0xBase-0xVal","Write 32bit integer 0xValue at 0xBase"}, 
+		{"wstr", "0xBase-Str","Write string at base ex. 0x401000-0x9090EB15CCBB or \"0xBase-ascii string\""}, 
 		{"dllmap", NULL ,     "show the name, base, size, and version of all built in dlls"},
+		{"nofile", NULL ,     "assumes you have loaded shellcode manually with -raw, -wstr, or -wint"},
 	};
 
 	system("cls");
@@ -2804,6 +2806,7 @@ void parse_opts(int argc, char* argv[] ){
 	opts.min_steps = 200;
 	opts.norw = false;
 	opts.rop = false;
+	opts.nofile = false;
 
 	for(i=1; i < argc; i++){
 
@@ -2845,6 +2848,7 @@ void parse_opts(int argc, char* argv[] ){
 		if(sl==2 && strstr(buf,"/?") > 0 ){ show_help();handled=true;}
 		if(sl==5 && strstr(argv[i],"/help") > 0 ){ show_help();handled=true;}
 		if(sl==7 && strstr(argv[i],"/dllmap") > 0 ){ nl(); symbol_lookup("dllmap");exit(0);}
+		if(sl==7 && strstr(argv[i],"/nofile") > 0 ){ opts.nofile = true;handled=true;}
 
 		if(sl==5 && strstr(argv[i],"/temp") > 0 ){
 			if(i+1 >= argc){
@@ -3101,30 +3105,30 @@ void parse_opts(int argc, char* argv[] ){
 			}
 		}
 
-		if(sl==5 && strstr(argv[i],"/poke") > 0 ){
+		if( (sl==5 && strstr(argv[i],"/poke") > 0) || (sl==5 && strstr(argv[i],"/wint") > 0) ){
 			if(i+1 >= argc){
-				printf("Invalid option /poke must specify 0xBase-0xValue as next arg\n");
+				printf("Invalid option /wint must specify 0xBase-0xValue as next arg\n");
 				exit(0);
 			}
 			if ( strstr(argv[i+1], "-") != NULL)
 			{
 				i++;handled=true; //validated here, but handed in post_parse_opts after loadsc()
 			}else{
-				printf("Invalid option /poke must specify 0xBase:0xValue as next arg\n");
+				printf("Invalid option /wint must specify 0xBase:0xValue as next arg\n");
 				exit(0);
 			}
 		}
 
-		if(sl==6 && strstr(argv[i],"/spoke") > 0 ){
+		if( (sl==6 && strstr(argv[i],"/spoke") > 0) || (sl==5 && strstr(argv[i],"/wstr") > 0) ){
 			if(i+1 >= argc){
-				printf("Invalid option /spoke must specify 0xBase-0xHexString or 0xBase-string as next arg\n");
+				printf("Invalid option /wstr must specify 0xBase-0xHexString or 0xBase-string as next arg\n");
 				exit(0);
 			}
 			if ( strstr(argv[i+1], "-") != NULL)
 			{
 				i++;handled=true; //validated here, but handed in post_parse_opts after loadsc()
 			}else{
-				printf("Invalid option /spoke must specify 0xBase-0xHexString or 0xBase-string as next arg\n");
+				printf("Invalid option /wstr must specify 0xBase-0xHexString or 0xBase-string as next arg\n");
 				exit(0);
 			}
 		}
@@ -3220,9 +3224,9 @@ void post_parse_opts(int argc, char* argv[] ){
 			}
 		}
 
-		if(strstr(argv[i],"/poke") > 0 ){
+		if( (sl==5 && strstr(argv[i],"/poke") > 0) || (sl==5 && strstr(argv[i],"/wint") > 0) ){
 			if(i+1 >= argc){
-				printf("Invalid option /poke must specify 0xBase-0xValue as next arg\n");
+				printf("Invalid option /wint must specify 0xBase-0xValue as next arg\n");
 				exit(0);
 			}
 		    char *ag = strdup(argv[i+1]);
@@ -3235,18 +3239,18 @@ void post_parse_opts(int argc, char* argv[] ){
 				sz++;
 				value = strtoul(sz, NULL, 16);
 				base = strtoul(ag, NULL, 16);
-				printf("Poke(base=%x, value=%x)\n", base, value);
+				//printf("Write Int base=%x, value=%x\n", base, value);
                 emu_memory_write_dword(mem, base, value);
 				i++;
 			}else{
-				printf("Invalid option /poke must specify 0xBase-0xValue as next arg\n");
+				printf("Invalid option /wint must specify 0xBase-0xValue as next arg\n");
 				exit(0);
 			}
 		}
 
-		if(strstr(argv[i],"/spoke") > 0 ){
+		if( (sl==6 && strstr(argv[i],"/spoke") > 0) || (sl==5 && strstr(argv[i],"/wstr") > 0) ){
 			if(i+1 >= argc){
-				printf("Invalid option /spoke must specify 0xBase-0xHexString or 0xBase-string as next arg\n");
+				printf("Invalid option /wstr must specify 0xBase-0xHexString or 0xBase-string as next arg\n");
 				exit(0);
 			}
 		    char *ag = strdup(argv[i+1]);
@@ -3269,10 +3273,10 @@ void post_parse_opts(int argc, char* argv[] ){
 					embedLength = strlen(sz);
 					emu_memory_write_block(mem, base, (void*)sz, embedLength);
 				}
-				printf("StringPoke wrote %d bytes at base %x\n", embedLength, base);
+				//printf("Write String wrote %d bytes at base %x\n", embedLength, base);
 				i++;
 			}else{
-				printf("Invalid option /spoke must specify 0xBase-0xHexString or 0xBase-string as next arg\n");
+				printf("Invalid option /wstr must specify 0xBase-0xHexString or 0xBase-string as next arg\n");
 				exit(0);
 			}
 		}
@@ -3286,7 +3290,7 @@ void loadsc(void){
 
 	FILE *fp;
 
-	if (opts.patch_file != NULL && opts.file_mode == false ){ 
+	if (opts.nofile || (opts.patch_file != NULL && opts.file_mode == false) ){ 
 		//create a default allocation to cover any assumptions
 		opts.scode = (unsigned char*) malloc(0x1000);
 		opts.size = 0x1000;
@@ -3381,20 +3385,19 @@ char* isCmdFile(char* path){
 	}
 
 	int size = file_length(fp);
-	char* buf = (char*)malloc(size); 
+	char* buf = (char*)malloc(size+10); 
+	memset(buf,0xCC,size+10);
 	fread(buf, 1,size, fp);
 	fclose(fp);
 
 	buf[size] = 0;
-
-	//char* eol = strstr(buf, "\r");
-	//if(eol==0) eol = strstr(buf, "\n");
-	//if(eol!=0) *eol = '\x0'; //null terminate buffer at first nl, so rest of file can be notes/comments
-
+	buf[size+1] = 0;
+	
 	//allow command lines to be broken up into multiple lines. 
 	//command portion of file terminates at first ; or # comment character found, (or eof if not)
 	char* eol = buf;
-	while(*eol){
+	
+	/*while(*eol){
 		if(*eol=='\r') *eol=' ';
 		if(*eol=='\n') *eol=' ';
 		if(*eol=='\t') *eol=' ';
@@ -3402,10 +3405,41 @@ char* isCmdFile(char* path){
 		if(*eol=='#'){ *eol=0; break;}
 		eol++;
 	}
-	
 	char* ret = strdup(buf);
 	free(buf);
+	*/ 
 	
+	
+	char* copyBuf = (char*)malloc(size+10); 
+	memset(copyBuf,0xCC,size+10);
+	char* t   = copyBuf;
+
+	while(*eol){
+		if(*eol!='\r' && *eol!='\n' && *eol!='\t'){
+			if(*eol == ';' || *eol=='#'){ //comment encountered scan till eof or eol
+				while(*eol){
+					if(*eol=='\r' || *eol=='\n') break; 
+					eol++;
+				}
+			}else{
+				*t = *eol;
+				t++;
+			}
+		}else{
+			if( *(char*)(t-1) != ' '){ //it was a newline, if last char in copy buf is not a space add one..
+				*t = ' ';
+				t++;
+			}
+		}
+		eol++;
+	} 
+	
+	*t = 0;
+
+	char* ret = strdup(copyBuf);
+	free(buf);
+	free(copyBuf); 
+
 	return ret;
 
 }
@@ -3453,7 +3487,8 @@ reinit:
 				if(!SetCurrentDirectory(GetParentFolder(argv[1]))) printf("error setting working directory for scmd file..%s\n", argv[1]);
 				char* tmp = SafeMalloc(strlen(scDbgDir) + strlen(cmdFile) + 50);
 				sprintf( (char*)tmp, "cmd /k %s %s", scDbgDir, cmdFile);
-				printf("scmd file found, running command line: %s\n\n", cmdFile);
+				//printf("scmd file found, running command line: %s\n\n", cmdFile);
+				printf("Running commands from scmd file: %s\n",argv[1]);
 				system(tmp);
 				exit(0);
 			}else{
@@ -3485,7 +3520,9 @@ reinit:
 		exit(0);
 	}
 
-	if(opts.file_mode == false && opts.patch_file == NULL)	show_help();
+	if(!opts.nofile){ //nofile is if they use -raw or -spoke to embed the code
+		if(opts.file_mode == false && opts.patch_file == NULL)	show_help();
+	}
 
 	loadsc();
 	init_emu();	
@@ -3536,6 +3573,7 @@ reinit:
 	}
 
 	emu_env_w32_set_hookDetect_monitor((uint32_t)HookDetector);
+    emu_env_w32_set_syscall_monitor((uint32_t)SysCall_Handler);
 
 	if(opts.mem_monitor || opts.report || opts.mem_monitor_dlls){
  		if(!opts.automationRun) if(opts.mem_monitor_dlls) printf("Memory monitor for dlls enabled..\n");

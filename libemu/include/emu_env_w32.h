@@ -85,6 +85,10 @@ int32_t emu_env_w32_export_new_hook(struct emu_env *env,
 //added dzzie 5.15.12
 void emu_env_w32_set_hookDetect_monitor(uint32_t lpfnCallback);
 
+//added dzzie 2.24.13
+void emu_env_w32_set_syscall_monitor(uint32_t lpfnCallback);
+char* emu_env_w32_getSyscall_service_name(uint32_t service);
+
 /**
  * Check if eip is within a loaded dll,
  *  - call the dll's export function

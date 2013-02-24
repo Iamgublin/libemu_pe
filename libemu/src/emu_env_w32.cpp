@@ -44,6 +44,7 @@ extern "C"{
 #include "emu_env_w32_dll_export.h"
 #include "env_w32_dll_export_hooks.h"
 #include "emu_log.h"
+#include "winsyscalls.h"
 
 #pragma warning (disable:4311)
 
@@ -77,6 +78,18 @@ extern const char psapi_76bf1170[];
 extern const char process_mz[]; //the main process needs an entry in peb, and also needs some MZ headers
 extern const char peb_data[];   //we use a static peb now, see ./support/pebBuilder for generator/test suite
 
+extern struct SCENTRY syscalls[];
+
+char* emu_env_w32_getSyscall_service_name(uint32_t service){
+	
+	int i=0;
+	while(syscalls[i].name != 0){
+		if( syscalls[i].x[OS_XP_SP3] == service ) return syscalls[i].name;
+		i++;
+	}
+	return NULL;
+}
+
 //typedef void (__stdcall *genericApi_callback)(emu_env_w32_dll_export*);
 //genericApi_callback generic_api_callback=0;
 
@@ -85,6 +98,13 @@ hd_callback HookDetection_callback=0;
 
 void emu_env_w32_set_hookDetect_monitor(uint32_t lpfnCallback){
 	HookDetection_callback = (hd_callback)lpfnCallback;
+}
+
+typedef int (*syscall_callback)(int callNumber,struct emu_cpu *c);
+syscall_callback SYSCALL_callback=0;
+
+void emu_env_w32_set_syscall_monitor(uint32_t lpfnCallback){
+	SYSCALL_callback = (syscall_callback)lpfnCallback;
 }
 
 struct emu_env_w32_known_dll_segment kernel32_segments[] = 

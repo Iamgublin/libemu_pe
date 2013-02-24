@@ -4476,3 +4476,16 @@ int32_t	__stdcall hook_ZwSetInformationProcess(struct emu_env_w32 *win, struct e
 	emu_cpu_eip_set(cpu, eip_save);
 	return 0;
 }
+
+int SysCall_Handler(int callNumber, struct emu_cpu *c){
+	
+	uint32_t service = c->reg[eax]; 
+	char* name = emu_env_w32_getSyscall_service_name(service);
+	if(name == NULL) name = "Unknown?";
+
+	printf("%x\tSysCall(Service: 0x%04x, Name: %s)\n", c->eip, service , name );
+
+	return -1; //unhandled will break
+	
+
+}
