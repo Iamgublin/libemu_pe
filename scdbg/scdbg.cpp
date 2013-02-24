@@ -292,14 +292,15 @@ struct signature signatures[] =
 	{"scanner.hookcheck",               "\x80\x38\xE8\x74\x0A\x80\x38\xE9\x74\x05\x80\x38\xEB\x75\x11", 15},
     {"hasher.strcmp",                   "\x57\x51\x52\x56\x8b\x36\x03\x75\xfc\xfc\xf3\xa6", 12},
     {"macro.jmp+5",                     "\x83\xC2\x05\x8B\xFF\x55\x8B\xEC\xFF\xE2", 10},
-	{"rop.msvcrt.7.0.2600.5512.VirtAlloc",  "\x9A\x4D\xC3\x77\xCC\xAA\xC2\x77\x16\x1D\xC2\x77\x20\x11\xC1\x77\xF9\x2D\xC1\x77\x24\x55\xC3\x77", 24},
-	{"rop.msvcrt.7.0.2600.5512.VirtAlloc2", "\xD1\xC1\xC4\x77\xCC\xAA\xC2\x77\x92\xE3\xC4\x77\x0C\x11\xC1\x77\xF9\x2D\xC1\x77\xB4\x54\xC3\x77", 24},
+	{"rop.msvcrt.7.0.2600.5512.VirtAlloc",     "\x9A\x4D\xC3\x77\xCC\xAA\xC2\x77\x16\x1D\xC2\x77\x20\x11\xC1\x77\xF9\x2D\xC1\x77\x24\x55\xC3\x77", 24},
+	{"rop.msvcrt.7.0.2600.5512.VirtAlloc2",    "\xD1\xC1\xC4\x77\xCC\xAA\xC2\x77\x92\xE3\xC4\x77\x0C\x11\xC1\x77\xF9\x2D\xC1\x77\xB4\x54\xC3\x77", 24},
 	{"rop.advapi32.5.1.2600.5755.ZwSetInformationProcess", "\x1F\x5C\xE2\x77\x04\x14\xDD\x77\x48\xD4\xDF\x77\xFF\xFF\xFF\xFF\x5F\x8A\xE1\x77", 20},
-	{"rop.icucnv36.PDF.MapViewOfFile", "\x29\x6F\x80\x4A\x00\x00\x8A\x4A\x96\x21\x80\x4A\x90\x1F\x80\x4A\x29\x6F\x80\x4A\xEF\x6C\x80\x4A", 24},
-	{"rop.msvcr71.Java.WhitePhosphorus", "\x49\xD7\x34\x7C\xAA\x58\x34\x7C\xFA\x39\x34\x7C\xC0\xFF\xFF\xFF\xB1\x1E\x35\x7C\x48\x46\x35\x7C\xEA\x30\x35\x7C\xC1\x4C\x34\x7C",32},
-	{"rop.msvcr71.Java.VirtualProtect","\x97\x7F\x34\x7C\x51\xA1\x37\x7C\x81\x8C\x37\x7C\x30\x5C\x34\x7C",16},
-	{"rop.mfc71u.v7.10.3077.0.VirtualProtect","\x0C\x9E\x25\x7C\xF0\x12\x25\x7C\xBC\xE7\x2F\x7C\x14\xF0\x26\x7C\x09\x08\x2C\x7C\x89\x99\x28\x7C\x0C\x9E\x25\x7C\x01\xB0\x32\x7C",32},
+	{"rop.icucnv36.PDF.MapViewOfFile",         "\x29\x6F\x80\x4A\x00\x00\x8A\x4A\x96\x21\x80\x4A\x90\x1F\x80\x4A\x29\x6F\x80\x4A\xEF\x6C\x80\x4A", 24},
+	{"rop.msvcr71.Java.WhitePhosphorus",       "\x49\xD7\x34\x7C\xAA\x58\x34\x7C\xFA\x39\x34\x7C\xC0\xFF\xFF\xFF\xB1\x1E\x35\x7C\x48\x46\x35\x7C\xEA\x30\x35\x7C\xC1\x4C\x34\x7C",32},
+	{"rop.msvcr71.Java.VirtualProtect",        "\x97\x7F\x34\x7C\x51\xA1\x37\x7C\x81\x8C\x37\x7C\x30\x5C\x34\x7C",16},
+	{"rop.mfc71u.v7.10.3077.0.VirtualProtect", "\x0C\x9E\x25\x7C\xF0\x12\x25\x7C\xBC\xE7\x2F\x7C\x14\xF0\x26\x7C\x09\x08\x2C\x7C\x89\x99\x28\x7C\x0C\x9E\x25\x7C\x01\xB0\x32\x7C",32},
 	{"rop.msvcr70.v7.00.9466.0.VirtualProtect","\x3F\x06\x03\x7C\xA1\x58\x03\x7C\xFD\x90\x03\x7C\x4F\x3A\x02\x7C\xA1\x58\x03\x7C\x94\x5E\xFF\x83\xCD\x67\x01\x7C\xB7\x26\x01\x7C",32},
+	{"rop.cryptocme2.PDF.abysssec",            "\xAF\x90\x00\x10\xF8\x0B\x0C\x0C\xEA\x0F\x01\x10\x87\xCD\x09\x10",16},
 	{NULL, NULL, 0},
 };
 
@@ -1155,7 +1156,7 @@ void real_hexdump(unsigned char* str, int len, int offset, bool hexonly){
 	if(!hexonly) printf(nl);
 	
 	if(offset >=0){
-		printf("        0  1  2  3  4  5  6  7   8  9  A  B  C  D  E  F\n");
+		printf("          0  1  2  3  4  5  6  7   8  9  A  B  C  D  E  F\n");
 		printf("%04x   ", offset);
 	}
 
@@ -2693,7 +2694,9 @@ void show_help(void)
 		{"- /+", NULL ,      "increments or decrements GetFileSize, can be used multiple times"},
 		{"va", "0xBase-0xSize","VirtualAlloc memory at 0xBase of 0xSize"}, 
 		{"raw", "0xBase-fpath","Raw Patch Mode: load fpath into mem at 0xBase (not PE aware)"}, 
-		{"poke", "0xBase-0xValue","Write 0xValue at 0xBase"}, 
+		{"poke", "0xBase-0xValue","Write 32bit 0xValue at 0xBase"}, 
+		{"spoke", "0xBase-Str","String Poke: ex. 0x401000-0x9090EB15CCBB or \"0xBase-ascii string\")"}, 
+		{"dllmap", NULL ,     "show the name, base, size, and version of all built in dlls"},
 	};
 
 	system("cls");
@@ -2841,6 +2844,7 @@ void parse_opts(int argc, char* argv[] ){
 		if(sl==2 && strstr(buf,"/h") > 0 ){ show_help();handled=true;}
 		if(sl==2 && strstr(buf,"/?") > 0 ){ show_help();handled=true;}
 		if(sl==5 && strstr(argv[i],"/help") > 0 ){ show_help();handled=true;}
+		if(sl==7 && strstr(argv[i],"/dllmap") > 0 ){ nl(); symbol_lookup("dllmap");exit(0);}
 
 		if(sl==5 && strstr(argv[i],"/temp") > 0 ){
 			if(i+1 >= argc){
@@ -3111,6 +3115,21 @@ void parse_opts(int argc, char* argv[] ){
 			}
 		}
 
+		if(sl==6 && strstr(argv[i],"/spoke") > 0 ){
+			if(i+1 >= argc){
+				printf("Invalid option /spoke must specify 0xBase-0xHexString or 0xBase-string as next arg\n");
+				exit(0);
+			}
+			if ( strstr(argv[i+1], "-") != NULL)
+			{
+				i++;handled=true; //validated here, but handed in post_parse_opts after loadsc()
+			}else{
+				printf("Invalid option /spoke must specify 0xBase-0xHexString or 0xBase-string as next arg\n");
+				exit(0);
+			}
+		}
+
+
 		if(sl==4 && strstr(argv[i],"/raw") > 0 ){
 			if(i+1 >= argc){
 				printf("Invalid option /raw must specify 0xBase-fpath as next arg\n");
@@ -3135,6 +3154,36 @@ void parse_opts(int argc, char* argv[] ){
 	}
 
 
+}
+
+char* strlower(char* input){
+	char* alwaysWritable = (char*)malloc(strlen(input)+1);
+	char* p = alwaysWritable;
+	strcpy(alwaysWritable, input);
+	while(*p){*p = tolower(*p);p++;}
+	return alwaysWritable;
+}
+
+int HexToBin(char* input, int* output){
+
+	int sl =  strlen(input) / 2;
+	void *buf = malloc(sl+1);
+
+	char *lower = strlower(input);
+	char *h = lower; /* this will walk through the hex string */
+	unsigned char *b = (unsigned char*)buf; /* point inside the buffer */
+
+	/* offset into this string is the numeric value */
+	char xlate[] = "0123456789abcdef";
+
+	for ( ; *h; h += 2, ++b) /* go by twos through the hex string */
+	   *b = ((strchr(xlate, *h) - xlate) * 16) /* multiply leading digit by 16 */
+		   + ((strchr(xlate, *(h+1)) - xlate));
+
+	free(lower);
+	*output = (int)buf;
+	return sl;
+		
 }
 
 void post_parse_opts(int argc, char* argv[] ){
@@ -3184,7 +3233,7 @@ void post_parse_opts(int argc, char* argv[] ){
 			{
 				*sz = '\0';
 				sz++;
-				value = strtol(sz, NULL, 16);
+				value = strtoul(sz, NULL, 16);
 				base = strtoul(ag, NULL, 16);
 				printf("Poke(base=%x, value=%x)\n", base, value);
                 emu_memory_write_dword(mem, base, value);
@@ -3195,6 +3244,38 @@ void post_parse_opts(int argc, char* argv[] ){
 			}
 		}
 
+		if(strstr(argv[i],"/spoke") > 0 ){
+			if(i+1 >= argc){
+				printf("Invalid option /spoke must specify 0xBase-0xHexString or 0xBase-string as next arg\n");
+				exit(0);
+			}
+		    char *ag = strdup(argv[i+1]);
+			char *sz;
+			void *embed;
+			int embedLength=0;
+			uint32_t base=0;
+			if (( sz = strstr(ag, "-")) != NULL)
+			{
+				*sz = '\0';
+				sz++;
+				base = strtoul(ag, NULL, 16);
+
+				if(sz[1] == 'x'){//its a hexstring
+					sz+=2;
+					embedLength = HexToBin(sz,  (int*)&embed);
+					emu_memory_write_block(mem, base, embed, embedLength);
+					free(embed);
+				}else{ //its just a regular string to directly embed..
+					embedLength = strlen(sz);
+					emu_memory_write_block(mem, base, (void*)sz, embedLength);
+				}
+				printf("StringPoke wrote %d bytes at base %x\n", embedLength, base);
+				i++;
+			}else{
+				printf("Invalid option /spoke must specify 0xBase-0xHexString or 0xBase-string as next arg\n");
+				exit(0);
+			}
+		}
 
 	}
 
@@ -3284,6 +3365,51 @@ int HookDetector(char* fxName){
 	
 }
 
+char* isCmdFile(char* path){
+	
+	int sl = strlen(path);
+	char* tmp = path + (sl-5);
+
+	if( strstr(tmp, ".scmd") == 0 ) return 0;
+
+	FILE *fp;	
+	fp = fopen(path, "rb");
+
+	if(fp==0){
+		printf("Failed to open file %s\n",path);
+		exit(0);
+	}
+
+	int size = file_length(fp);
+	char* buf = (char*)malloc(size); 
+	fread(buf, 1,size, fp);
+	fclose(fp);
+
+	buf[size] = 0;
+
+	//char* eol = strstr(buf, "\r");
+	//if(eol==0) eol = strstr(buf, "\n");
+	//if(eol!=0) *eol = '\x0'; //null terminate buffer at first nl, so rest of file can be notes/comments
+
+	//allow command lines to be broken up into multiple lines. 
+	//command portion of file terminates at first ; or # comment character found, (or eof if not)
+	char* eol = buf;
+	while(*eol){
+		if(*eol=='\r') *eol=' ';
+		if(*eol=='\n') *eol=' ';
+		if(*eol=='\t') *eol=' ';
+		if(*eol==';'){ *eol=0; break;}
+		if(*eol=='#'){ *eol=0; break;}
+		eol++;
+	}
+	
+	char* ret = strdup(buf);
+	free(buf);
+	
+	return ret;
+
+}
+
 int main(int argc, char *argv[])
 {
 	int i=0;
@@ -3320,17 +3446,27 @@ reinit:
 	
 	if(argc==2){ //check to see if its a drag and drop of file or folder on exe
 		
-		if(!SetCurrentDirectory(GetParentFolder(argv[0])))
-			printf("error setting working directory for drag and drop mode..exe=%s\n", argv[0]);
-
-		if( FileExists(argv[1]) ){ 	
-			GetShortPathName(argv[1], pth, 500);
-			sprintf( (char*)cmd, "cmd /k scdbg.exe -f %s", pth);
-			system(cmd);
-			exit(0);
+		if( FileExists(argv[1]) ){
+			char* cmdFile = isCmdFile(argv[1]);
+			if(cmdFile !=0){
+				char* scDbgDir = argv[0];
+				if(!SetCurrentDirectory(GetParentFolder(argv[1]))) printf("error setting working directory for scmd file..%s\n", argv[1]);
+				char* tmp = SafeMalloc(strlen(scDbgDir) + strlen(cmdFile) + 50);
+				sprintf( (char*)tmp, "cmd /k %s %s", scDbgDir, cmdFile);
+				printf("scmd file found, running command line: %s\n\n", cmdFile);
+				system(tmp);
+				exit(0);
+			}else{
+				if(!SetCurrentDirectory(GetParentFolder(argv[0]))) printf("error setting working directory for drag and drop mode..exe=%s\n", argv[0]);
+				GetShortPathName(argv[1], pth, 500);
+				sprintf( (char*)cmd, "cmd /k scdbg.exe -f %s", pth);
+				system(cmd);
+				exit(0);
+			}
 		}
 	
 		if( FolderExists(argv[1]) ){
+			if(!SetCurrentDirectory(GetParentFolder(argv[0]))) printf("error setting working directory for drag and drop mode..exe=%s\n", argv[0]);
 			GetShortPathName(argv[1], pth, 500);
 			sprintf( (char*)cmd, "cmd /k scdbg.exe -dir %s", pth);
 			system(cmd);
@@ -3486,9 +3622,21 @@ reinit:
 	}
 
 	if(opts.offset > 0 && !opts.automationRun){
-		printf("Execution starts at file offset %x\n", opts.offset);
+		if(opts.rop) printf("ROP Mode: First return address set to be %x\n", cpu->reg[esp]); 
+		 else printf("Execution starts at file offset %x\n", opts.offset);
 		start_color(mgreen);
-		disasm_block(opts.baseAddress+opts.offset, 5);
+		if(opts.rop){
+			uint32_t bytes_read;
+			nl();
+			printf("VirtAddress | Return Address | Stack Position\n");
+			printf("---------------------------------------------\n");
+			for(i=0;i<=5;i++){
+				if(emu_memory_read_dword(mem, cpu->reg[esp]+(i*4), &bytes_read) == -1) break;
+				printf("%08x\t %08x\t [esp+%x]\n", cpu->reg[esp]+(i*4), bytes_read, i*4);  
+			}
+		}else{
+			disasm_block(opts.baseAddress+opts.offset, 5);
+		}
 		end_color();
 		nl(); 
 	}

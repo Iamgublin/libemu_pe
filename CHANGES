@@ -7,6 +7,9 @@
 		      - will have to load target dll opcodes with /raw and used IAT entries with /poke
 		 - added several rop signatures
 		 - new hook ZwSetInformationProcess 
+		 - added ability to process .scmd files. Drag and drop them on icon and it will run contents as cmdline.
+		 - added -dllmap command line option
+		 - added string poke (-spoke) command to write binary (0xHexChars) or ascii strings to memory
 		 
 1.18.13  - findsc mode update/bugfix + % complete output
          - findsc mode now supports -dump which will give more context/debugging output for findsc mode.
