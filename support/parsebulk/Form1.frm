@@ -78,7 +78,7 @@ Begin VB.Form Form1
       View            =   3
       LabelEdit       =   1
       LabelWrap       =   -1  'True
-      HideSelection   =   -1  'True
+      HideSelection   =   0   'False
       FullRowSelect   =   -1  'True
       GridLines       =   -1  'True
       _Version        =   393217
@@ -127,7 +127,7 @@ Begin VB.Form Form1
       View            =   3
       LabelEdit       =   1
       LabelWrap       =   -1  'True
-      HideSelection   =   -1  'True
+      HideSelection   =   0   'False
       FullRowSelect   =   -1  'True
       GridLines       =   -1  'True
       _Version        =   393217
@@ -151,7 +151,7 @@ Begin VB.Form Form1
       View            =   3
       LabelEdit       =   1
       LabelWrap       =   -1  'True
-      HideSelection   =   -1  'True
+      HideSelection   =   0   'False
       FullRowSelect   =   -1  'True
       GridLines       =   -1  'True
       _Version        =   393217
@@ -175,7 +175,7 @@ Begin VB.Form Form1
       View            =   3
       LabelEdit       =   1
       LabelWrap       =   -1  'True
-      HideSelection   =   -1  'True
+      HideSelection   =   0   'False
       FullRowSelect   =   -1  'True
       GridLines       =   -1  'True
       _Version        =   393217
@@ -199,7 +199,7 @@ Begin VB.Form Form1
       View            =   3
       LabelEdit       =   1
       LabelWrap       =   -1  'True
-      HideSelection   =   -1  'True
+      HideSelection   =   0   'False
       FullRowSelect   =   -1  'True
       GridLines       =   -1  'True
       _Version        =   393217
@@ -223,7 +223,7 @@ Begin VB.Form Form1
       View            =   3
       LabelEdit       =   1
       LabelWrap       =   -1  'True
-      HideSelection   =   -1  'True
+      HideSelection   =   0   'False
       FullRowSelect   =   -1  'True
       GridLines       =   -1  'True
       _Version        =   393217
@@ -247,7 +247,7 @@ Begin VB.Form Form1
       View            =   3
       LabelEdit       =   1
       LabelWrap       =   -1  'True
-      HideSelection   =   -1  'True
+      HideSelection   =   0   'False
       FullRowSelect   =   -1  'True
       GridLines       =   -1  'True
       _Version        =   393217
@@ -271,7 +271,7 @@ Begin VB.Form Form1
       View            =   3
       LabelEdit       =   1
       LabelWrap       =   -1  'True
-      HideSelection   =   -1  'True
+      HideSelection   =   0   'False
       FullRowSelect   =   -1  'True
       GridLines       =   -1  'True
       _Version        =   393217
@@ -295,7 +295,7 @@ Begin VB.Form Form1
       View            =   3
       LabelEdit       =   1
       LabelWrap       =   -1  'True
-      HideSelection   =   -1  'True
+      HideSelection   =   0   'False
       FullRowSelect   =   -1  'True
       GridLines       =   -1  'True
       _Version        =   393217

@@ -1,5 +1,9 @@
 		Changelog for libemu
 
+3.25.13  - new hooks: fprintf, exit, GetLocalTime, ExitWindowsEx 
+					  SetFileAttributesA, GetLastError
+		   bugfix: fread (cdecl)
+
 2.18.13  - add versions to known dlls (displayed in dbgshell .pl dllmap)
          - added /raw  - Raw Patch Mode: load fpath into mem at 0xBase (not PE aware can use multiple times)   
 		 - added /poke - Write 0xValue at 0xBase (can use multiple times) 

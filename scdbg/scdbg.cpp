@@ -1951,7 +1951,12 @@ void set_hooks(struct emu_env *env){
 	ADDHOOK(gethostbyname);
 	ADDHOOK(ZwQueryInformationFile);
 	ADDHOOK(ZwSetInformationProcess);
-	
+	ADDHOOK(fprintf);
+	ADDHOOK(exit);
+	ADDHOOK(GetLocalTime);
+	ADDHOOK(ExitWindowsEx);
+	ADDHOOK(SetFileAttributesA);
+	ADDHOOK(GetLastError);
 }
 
 /* we just cant really support every shellcode can we :( 
@@ -2666,7 +2671,7 @@ void show_help(void)
 		{"disasm", "int" ,   "Disasm int lines (can be used with /foff)"},
 		{"dump", NULL,       "view hexdump (can be used with /foff)"},
 		{"e", "int"	     ,   "verbosity on error (3 = debug shell)"},
-		{"findsc", NULL ,    "detect possible shellcode buffers (brute force)"},
+		{"findsc", NULL ,    "detect possible shellcode buffers (brute force) (-dump shows more inf)"},
 		{"fopen", "file" ,   "Opens a handle to <file> for use with GetFileSize() scanners"},		
 		{"foff", "hexnum" ,  "starts execution at file offset (also supports virtual addresses)"},
 		{"h",  NULL		 ,   "show this help"},
@@ -3264,7 +3269,7 @@ void post_parse_opts(int argc, char* argv[] ){
 				sz++;
 				base = strtoul(ag, NULL, 16);
 
-				if(sz[1] == 'x'){//its a hexstring
+				if(sz[0] == '0' && sz[1] == 'x'){//its a hexstring
 					sz+=2;
 					embedLength = HexToBin(sz,  (int*)&embed);
 					emu_memory_write_block(mem, base, embed, embedLength);

@@ -41,6 +41,7 @@ Function LoadRaw(Data) As Boolean
     
     If FileExists(LogPath) Then
         scLog = ReadFile(LogPath)
+        scLog = Replace(scLog, "GetProcAddress(URLDownload", "")
         
         If InStr(scLog, "URLDownload") > 0 Then
             a = InStr(scLog, "URLDownload")

@@ -152,6 +152,21 @@ void loadargs(int count, uint32_t ary[]){
 	}
 }
 
+int getFormatParameterCount(emu_string *s){ //test me (unused)...
+	
+	int sz=0;
+	for(int i=0; i < s->size;i++){
+		if(s->data[i] == '\0') break; 
+		if(s->data[i] == '%' && s->data[i+1] == '%'){
+			i++; //skip next as it is escaped shouldnt hit end of string as its not a <= loop and %\0 wouldnt be a legit format string anyway
+		}else if(s->data[i] == '%'){	
+			sz++;
+		}
+	}
+
+	return sz;
+}
+
 //now by default drops files to the shellcode parent dir unless overridden w -temp
 char* SafeTempFile(void){ 
 	char  ext[20];
@@ -1678,6 +1693,29 @@ int32_t	__stdcall hook_fclose(struct emu_env_w32 *win, struct emu_env_w32_dll_ex
 	return 0;
 }
 
+int32_t	__stdcall hook_fprintf(struct emu_env_w32 *win, struct emu_env_w32_dll_export *ex)
+{
+	/* 	cdecl int fprintf ( FILE * stream, const char * format, ... ); */
+	uint32_t eip_save = popd();
+	uint32_t stream = get_arg(0);
+	uint32_t p_fmat = get_arg(4);
+	
+	struct emu_string *fmat = emu_string_new();
+	emu_memory_read_string(mem, p_fmat, fmat, 1256);
+
+	/*int sz = getFormatParameterCount(fmat); //cdecl unneeded...
+	while(sz--){
+		popd();
+	}*/
+
+	printf("%x\tfprintf(h=%x, %s)\n",eip_save, stream, fmat->data);
+
+	set_ret(fmat->size); 
+    emu_cpu_eip_set(cpu, eip_save);
+	emu_string_free(fmat);
+	return 0;
+}
+
 int32_t	__stdcall hook_fopen(struct emu_env_w32 *win, struct emu_env_w32_dll_export *ex)
 {
 	/*
@@ -1928,6 +1966,17 @@ int32_t	__stdcall hook_ExitProcess(struct emu_env_w32 *win, struct emu_env_w32_d
 	/* VOID ExitThread(DWORD dwExitCode); */
 	uint32_t eip_save = popd();
 	uint32_t exitcode = popd();
+	printf("%x\t%s(%i)\n", eip_save, ex->fnname, exitcode);
+	set_ret(0);
+	emu_cpu_eip_set(cpu, eip_save);
+	opts.steps = 0;
+	return 0;
+}
+
+int32_t	__stdcall hook_exit(struct emu_env_w32 *win, struct emu_env_w32_dll_export *ex)
+{   /* cdecl void exit (int status); */
+	uint32_t eip_save = popd();
+	uint32_t exitcode = get_arg(0);
 	printf("%x\t%s(%i)\n", eip_save, ex->fnname, exitcode);
 	set_ret(0);
 	emu_cpu_eip_set(cpu, eip_save);
@@ -2998,11 +3047,11 @@ int32_t	__stdcall hook_fread(struct emu_env_w32 *win, struct emu_env_w32_dll_exp
 		size_t fread ( void * ptr, size_t size, size_t count, FILE * stream );. 
 	*/
 
-	uint32_t eip_save = popd();
-	uint32_t lpData = popd();
-	uint32_t size = popd();
-    uint32_t count = popd();
-	uint32_t hFile = popd();
+	uint32_t eip_save = popd(); 
+	uint32_t lpData = get_arg(0);   // untested! bugfix was popd() but is cdecl 3.20.13
+	uint32_t size = get_arg(4);
+    uint32_t count = get_arg(8);
+	uint32_t hFile = get_arg(12);
 
 	uint32_t rv = count;
 	uint32_t realSize = (size * count);
@@ -4381,7 +4430,7 @@ typedef struct hostent { 16 or 0x10 bytes )
 					//}
 				} else /*if (remoteHost->h_addrtype == AF_INET6)*/{
 					ip = *(uint32_t*)remoteHost->h_addr_list[0];
-					printf(" = address %x\n");
+					printf(" = address %x\n",ip);
 				}
 		 }
 		 if(ip!=0) dummy[2] = ip;
@@ -4476,6 +4525,79 @@ int32_t	__stdcall hook_ZwSetInformationProcess(struct emu_env_w32 *win, struct e
 	emu_cpu_eip_set(cpu, eip_save);
 	return 0;
 }
+
+int32_t	__stdcall hook_GetLocalTime(struct emu_env_w32 *win, struct emu_env_w32_dll_export *ex)
+{
+/* 
+	void WINAPI GetLocalTime( _Out_  LPSYSTEMTIME lpSystemTime);
+*/
+	int ret = 0; 
+	uint32_t eip_save  = popd();
+	uint32_t pArg      = popd();
+
+	SYSTEMTIME st;
+	GetLocalTime(&st);
+	 
+	emu_memory_write_block(mem,pArg,&st, sizeof(SYSTEMTIME));
+
+	printf("%x\tGetLocalTime(%x)\n", eip_save, pArg);
+
+	emu_cpu_eip_set(cpu, eip_save);
+	return 0;
+}
+
+int32_t	__stdcall hook_ExitWindowsEx(struct emu_env_w32 *win, struct emu_env_w32_dll_export *ex)
+{
+/* 
+	BOOL WINAPI ExitWindowsEx( _In_  UINT uFlags, _In_  DWORD dwReason);
+*/
+	int ret = 0; 
+	uint32_t eip_save  = popd();
+	uint32_t a1      = popd();
+	uint32_t a2      = popd();
+
+	printf("%x\tExitWindowsEx(%x,%x)\n", eip_save, a1,a2);
+
+	emu_cpu_eip_set(cpu, eip_save);
+	return 0;
+}
+
+int32_t	__stdcall hook_SetFileAttributesA(struct emu_env_w32 *win, struct emu_env_w32_dll_export *ex)
+{
+/* 
+	BOOL WINAPI SetFileAttributes(
+  _In_  LPCTSTR lpFileName,
+  _In_  DWORD dwFileAttributes
+);
+*/
+	int ret = 0; 
+	uint32_t eip_save      = popd();
+	struct emu_string* f   = popstring();
+	uint32_t a             = popd();
+
+	printf("%x\tSetFileAttributesA(%s,%x)\n", eip_save, f->data ,a);
+
+	set_ret(0);
+	emu_string_free(f);
+	emu_cpu_eip_set(cpu, eip_save);
+	return 0;
+}
+
+int32_t	__stdcall hook_GetLastError(struct emu_env_w32 *win, struct emu_env_w32_dll_export *ex)
+{
+
+	uint32_t eip_save      = popd();
+	printf("%x\tGetLastError()\n", eip_save);
+	set_ret(0);
+	emu_cpu_eip_set(cpu, eip_save);
+	return 0;
+}
+
+
+
+
+
+
 
 int SysCall_Handler(int callNumber, struct emu_cpu *c){
 	
