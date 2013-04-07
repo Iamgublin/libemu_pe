@@ -34,6 +34,7 @@
 #include <stdarg.h>
 #include <errno.h>
 #include <Shlobj.h>
+#include <time.h>
 #include "emu.h"
 #include "emu_memory.h"
 #include "emu_cpu.h"
@@ -2212,12 +2213,15 @@ int32_t	__stdcall hook_malloc(struct emu_env_w32 *win, struct emu_env_w32_dll_ex
 		size = MAX_ALLOC; //dzzie
 	}
 
-	uint32_t addr;
-	if (emu_memory_alloc(mem, &addr, size) == -1)
-		set_ret(0);
-	else
-		set_ret(addr);
-
+	uint32_t baseMemAddress = next_alloc;
+	set_next_alloc(size); // so dump knows about it...
+		
+	void *buf = malloc(size);
+	memset(buf,0,size);
+	emu_memory_write_block(mem,baseMemAddress,buf, size);
+	free(buf);
+	 
+	set_ret(baseMemAddress);
 	printf("%x\tmalloc(%x)\n",eip_save,size);	
     emu_cpu_eip_set(cpu, eip_save);
 	return 0;
@@ -4593,10 +4597,208 @@ int32_t	__stdcall hook_GetLastError(struct emu_env_w32 *win, struct emu_env_w32_
 	return 0;
 }
 
+int32_t	__stdcall hook_IsDebuggerPresent(struct emu_env_w32 *win, struct emu_env_w32_dll_export *ex)
+{
 
+	uint32_t eip_save      = popd();
+	printf("%x\tIsDebuggerPresent()\n", eip_save);
+	set_ret(0);
+	emu_cpu_eip_set(cpu, eip_save);
+	return 0;
+}
 
+int32_t	__stdcall hook_ZwQueryInformationProcess(struct emu_env_w32 *win, struct emu_env_w32_dll_export *ex)
+{
+/* 
+	NTSTATUS WINAPI ZwQueryInformationProcess(
+	  _In_       HANDLE ProcessHandle,
+	  _In_       PROCESSINFOCLASS ProcessInformationClass,
+	  _Out_      PVOID ProcessInformation,
+	  _In_       ULONG ProcessInformationLength,
+	  _Out_opt_  PULONG ReturnLength
+);
 
+*/
+	int ret = 0; //STATUS_SUCCESS ;
+	uint32_t eip_save  = popd();
+	uint32_t hProc     = popd();
+	uint32_t infoClass = popd();
+	uint32_t pArg      = popd();
+	uint32_t length    = popd();
+	uint32_t out_length= popd();
+	
+	uint32_t v=0;
+	emu_memory_read_dword(mem,pArg, &v);
 
+	char *name = "Unknown"; //0 Retrieves a pointer to a PEB structure that can be used to determine whether the specified process is being debugged
+    //ProcessDebugPort 7  Retrieves a DWORD_PTR value that is the port number of the debugger for the process. A nonzero value indicates that the process is being run under the control of a ring 3 debugger.
+    //ProcessWow64Information 26 is running in the WOW64?  
+	//ProcessImageFileName 27 Retrieves a UNICODE_STRING value containing the name of the image file for the process.
+
+	if(infoClass==0) name = "ProcessBasicInformation";
+	if(infoClass==7) name = "ProcessDebugPort";
+	if(infoClass==26) name = "ProcessWow64Information";
+	if(infoClass==27) name = "ProcessImageFileName";
+	
+	printf("%x\tZwQueryInformationProcess(hProc: %x, class: %x (%s), info: %x)   ", eip_save, hProc, infoClass, name, pArg);
+	
+	if(infoClass==7) {
+		emu_memory_write_dword(mem,pArg,0);
+		ret = 0;
+	}
+
+	printf("\n");
+
+	cpu->reg[eax] = ret;
+	emu_cpu_eip_set(cpu, eip_save);
+	return 0;
+}
+
+int32_t	__stdcall hook_OpenFileMappingA(struct emu_env_w32 *win, struct emu_env_w32_dll_export *ex)
+{
+	/*
+	HANDLE WINAPI OpenFileMapping(
+	  _In_  DWORD dwDesiredAccess,
+	  _In_  BOOL bInheritHandle,
+	  _In_  LPCTSTR lpName
+	);
+	*/
+	uint32_t eip_save = popd();
+	uint32_t access = popd();
+	uint32_t inherit = popd();
+	struct emu_string* lpName = popstring();
+	uint32_t rv = 0;
+	uint32_t hFile = 0;
+
+	/*if(opts.interactive_hooks == 1){
+		
+		if(opts.fopen_fpath == NULL){
+			printf("\tYou can use /fopen <file> to do interactive mode for OpenFileMapping\n");
+		}else{
+			//handle from GetFileSizeScanner...We need a specific type of handle for this though
+			//hFile = (uint32_t)CreateFile(opts.fopen_fpath, GENERIC_READ,FILE_SHARE_READ,NULL,OPEN_EXISTING,FILE_ATTRIBUTE_NORMAL,NULL); 
+			//if( hFile == -1 ) hFile = (uint32_t)opts.h_fopen; 
+		}
+		 
+		//rv = (uint32_t)OpenFileMapping();
+	} */
+	
+	printf("%x\tOpenFileMappingA(%x, %s) = %x\n", eip_save,access, emu_string_char(lpName),rv);
+
+	emu_string_free(lpName);
+	set_ret(rv);
+	emu_cpu_eip_set(cpu, eip_save);
+	return 0;
+}
+
+int32_t	__stdcall hook_time(struct emu_env_w32 *win, struct emu_env_w32_dll_export *ex)
+{
+	//cdecl msvcrt.time
+	uint32_t eip_save = popd();
+	uint32_t pTime = get_arg(0);
+
+	time_t now;
+	uint32_t ret = time(&now);
+
+	printf("%x\ttime(%x)\n", eip_save, pTime);
+	if(pTime!=0) emu_memory_write_block(mem,pTime,&now,sizeof(time_t));
+
+	set_ret(0);
+	emu_cpu_eip_set(cpu, eip_save);
+	return 0;
+}
+
+int32_t	__stdcall hook_srand(struct emu_env_w32 *win, struct emu_env_w32_dll_export *ex)
+{
+	//cdecl msvcrt. void srand (unsigned int seed);
+	uint32_t eip_save = popd();
+	uint32_t seed = get_arg(0);
+
+	printf("%x\t%s(%x)\n", eip_save, ex->fnname ,seed);
+	srand(seed);
+
+	set_ret(0);
+	emu_cpu_eip_set(cpu, eip_save);
+	return 0;
+}
+
+int32_t	__stdcall hook_rand(struct emu_env_w32 *win, struct emu_env_w32_dll_export *ex)
+{
+	//cdecl msvcrt. void srand (unsigned int seed);
+	uint32_t eip_save = popd();
+	uint32_t ret = rand();
+
+	printf("%x\t%s() = %x\n", eip_save, ex->fnname ,ret);
+	
+	set_ret(ret);
+	emu_cpu_eip_set(cpu, eip_save);
+	return 0;
+}
+
+int32_t	__stdcall hook_inet_addr(struct emu_env_w32 *win, struct emu_env_w32_dll_export *ex)
+{
+	/*unsigned long inet_addr(_In_  const char *cp); does dns lookup and returns ip */
+
+	uint32_t eip_save = popd();
+	struct emu_string* lpName = popstring();
+
+	uint32_t ret = inet_addr("127.0.0.1");
+
+	printf("%x\t%s(%s) = ", eip_save, ex->fnname, lpName->data );
+	
+	if(opts.interactive_hooks){
+		ret = inet_addr(lpName->data);
+		printf(" = %x\n", ret);
+	}else{
+		printf(" (Use interactive hooks to lookup real ip, using localhost)\n");
+	}
+
+	set_ret(ret);
+	emu_cpu_eip_set(cpu, eip_save);
+	return 0;
+}
+
+int32_t	__stdcall hook_wsprintfA(struct emu_env_w32 *win, struct emu_env_w32_dll_export *ex)
+{
+	/* 	
+		int __cdecl wsprintf(
+		  _Out_  LPTSTR lpOut,
+		  _In_   LPCTSTR lpFmt,
+		  _In_    ...
+		);
+	*/
+	uint32_t eip_save = popd();
+	uint32_t lpOut = get_arg(0);
+	uint32_t lpFmt = get_arg(4);
+	
+	struct emu_string *fmat = emu_string_new();
+	emu_memory_read_string(mem, lpFmt, fmat, 1256);
+
+	printf("%x\t%s(buf=%x, fmat=%s",eip_save, ex->fnname, lpOut, fmat->data);
+
+	int sz = getFormatParameterCount(fmat); 
+	if(sz > 0) printf(" args(%x)=[",sz);
+
+	int params[10];
+	if(sz > 10) sz = 10;
+	
+	for(int i=0; i < sz; i++){
+		params[i] = get_arg(8+(i*4));
+		printf("%x" , params[i]);
+		if(i+1 != sz) printf(","); else printf("] ");
+	}
+
+	printf(")\n");
+
+	char ret[150];
+	sz = sprintf(ret,"wsprintfA_%x", eip_save);
+	emu_memory_write_block(mem,lpOut, ret, sz+1);
+	set_ret(sz); 
+
+    emu_cpu_eip_set(cpu, eip_save);
+	emu_string_free(fmat);
+	return 0;
+}
 
 
 int SysCall_Handler(int callNumber, struct emu_cpu *c){

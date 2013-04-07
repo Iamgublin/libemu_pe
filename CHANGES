@@ -1,5 +1,8 @@
 		Changelog for libemu
 
+4.5.13   - new hooks: IsDebuggerPresent,ZwQueryInformationProcess,OpenFileMappingA,time,srand,rand,inet_addr,wsprintfA
+		 - bugfix: malloc now logs allocations to include with /d dump option.
+		 
 3.25.13  - new hooks: fprintf, exit, GetLocalTime, ExitWindowsEx 
 					  SetFileAttributesA, GetLastError
 		   bugfix: fread (cdecl)

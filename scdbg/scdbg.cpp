@@ -1957,6 +1957,16 @@ void set_hooks(struct emu_env *env){
 	ADDHOOK(ExitWindowsEx);
 	ADDHOOK(SetFileAttributesA);
 	ADDHOOK(GetLastError);
+	ADDHOOK(IsDebuggerPresent);
+	ADDHOOK(ZwQueryInformationProcess);
+	ADDHOOK(OpenFileMappingA);
+	ADDHOOK(time);
+	ADDHOOK(srand);
+	ADDHOOK(rand);
+	ADDHOOK(inet_addr);
+	ADDHOOK(wsprintfA);
+
+
 }
 
 /* we just cant really support every shellcode can we :( 
