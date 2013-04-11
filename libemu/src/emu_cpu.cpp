@@ -76,6 +76,19 @@ static void init_prefix_map(void)
 	prefix_map[0xf3] = PREFIX_F3;
 }
 
+uint32_t emu_cpu_implemented_inst_cnt(void){
+	
+	uint32_t cnt=0;
+	for(int i=0;i<0x100;i++){
+		struct emu_cpu_instruction_info  ii1 = ii_onebyte[i]; 
+		struct emu_cpu_instruction_info  ii2 = ii_twobyte[i]; 
+		if(ii1.function != 0) cnt++;
+		if(ii2.function != 0) cnt++;
+	}
+	return cnt;
+
+}
+
 /**
  * int type min/max for signed/unsigned int to 32bits size 
  *  
@@ -881,6 +894,11 @@ int32_t emu_cpu_step(struct emu_cpu *c)
 		{
 			emu_memory_segment_select(c->mem, s_fs);
 		}
+		
+		if( c->instr.cpu.prefixes & PREFIX_ES_OVR ) // <-- that was no fun to find! dzzie 4.10.13 
+		{
+			emu_memory_segment_select(c->mem, s_es);
+		}
 
 		if(implemented_prefix_check(c, &c->instr.cpu) == -1) return -1; //dz 5.17.11
 		ret = c->cpu_instr_info->function(c, &c->instr.cpu);
@@ -889,6 +907,12 @@ int32_t emu_cpu_step(struct emu_cpu *c)
 		{
 			emu_memory_segment_select(c->mem, s_cs);
 		}
+
+		if( c->instr.cpu.prefixes & PREFIX_ES_OVR ) //dzzie 4.10.13 
+		{
+			emu_memory_segment_select(c->mem, s_cs);
+		}
+
 	}
 	else
 	{

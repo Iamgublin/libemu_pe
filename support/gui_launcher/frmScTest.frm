@@ -3,7 +3,7 @@ Begin VB.Form frmScTest
    Caption         =   "scDbg - libemu Shellcode Logger Launch Interface"
    ClientHeight    =   7485
    ClientLeft      =   60
-   ClientTop       =   345
+   ClientTop       =   630
    ClientWidth     =   10140
    LinkTopic       =   "Form3"
    ScaleHeight     =   7485
@@ -244,7 +244,6 @@ Begin VB.Form frmScTest
    End
    Begin VB.Menu mnuPopup 
       Caption         =   "mnuPopup"
-      Visible         =   0   'False
       Begin VB.Menu mnuMore 
          Caption         =   "Show Help"
          Index           =   0
@@ -308,6 +307,14 @@ Begin VB.Form frmScTest
       Begin VB.Menu mnuMore 
          Caption         =   "Get Source (Linux/Cygwin)"
          Index           =   15
+      End
+      Begin VB.Menu mnuMore 
+         Caption         =   "-"
+         Index           =   16
+      End
+      Begin VB.Menu mnuMore 
+         Caption         =   "Disasm Buffer (uses start offset)"
+         Index           =   17
       End
    End
 End
@@ -545,6 +552,7 @@ End Function
 
 Private Sub Form_Load()
 
+    mnuPopup.Visible = False
     chkApiTable.Value = GetMySetting("apiscan", 0)
     chkCreateDump.Value = GetMySetting("createdump", 0)
     chkInteractiveHooks.Value = GetMySetting("interactive", 0)
@@ -607,6 +615,7 @@ Private Sub Label6_Click(Index As Integer)
 
 End Sub
 
+
 Private Sub mnuMore_Click(Index As Integer)
 
     homedir = GetShortName(fso.GetParentFolder(sctest))
@@ -644,7 +653,13 @@ Private Sub mnuMore_Click(Index As Integer)
         Case 13: cmd = "cmd /c start http://www.youtube.com/watch?v=qkDPUF3bf6E"
         Case 14: cmd = "cmd /c start https://github.com/dzzie/VS_LIBEMU"
         Case 15: cmd = "cmd /c start https://github.com/dzzie/SCDBG"
-        
+        Case 17:
+                If Not fso.FileExists(txtLoadedFile) Then
+                    MsgBox "No shellcode file loaded yet.", vbInformation
+                    Exit Sub
+                End If
+                cmd = cmd & "-f " & GetShortName(txtLoadedFile) & " -disasm 200 -foff " & txtStartOffset.Text
+                
     End Select
     
     lastcmdline = cmd

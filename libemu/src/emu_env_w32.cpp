@@ -667,7 +667,9 @@ int32_t emu_env_w32_export_new_hook_ordinal(struct emu_env *env,
 
 		if (strncmp(dll->dllname, dllname, strlen(dll->dllname)) == 0)
 		{
-			struct emu_hashtable_item *ehi = emu_hashtable_search(dll->exports_by_ordinal, (void *)ordinal);
+			struct emu_hashtable *eh = dll->exports_by_ordinal;
+			struct emu_hashtable_item *ehi = emu_hashtable_search(eh, (void *)ordinal);
+			
 			
 			if (ehi != NULL)
 			{

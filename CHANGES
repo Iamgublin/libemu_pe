@@ -1,5 +1,11 @@
-		Changelog for libemu
 
+---------------[  Changelog for libemu  ]---------------
+
+4.10.13  - 3 new opcodes: push/pop es, push fs. Added support for ES: override in emu_cpu_step
+           added: emu_memory_segment_setval/getval , emu_cpu_implemented_inst_cnt
+           added: .segs debug shell function,  gui_launcher.more.Disasm 
+           test: scdbg /wstr 0x401000-0x64A130000000060fa00731C026A13000000090  -vvv -nofile
+           
 4.5.13   - new hooks: IsDebuggerPresent,ZwQueryInformationProcess,OpenFileMappingA,time,srand,rand,inet_addr,wsprintfA
 		 - bugfix: malloc now logs allocations to include with /d dump option.
 		 

@@ -129,6 +129,6 @@ void emu_cpu_debugflag_unset(struct emu_cpu *c, uint8_t flag);
 
 //new export dzzie 
 uint32_t emu_disasm_addr(struct emu_cpu *c, uint32_t eip, char *str);
-
+uint32_t emu_cpu_implemented_inst_cnt(void); //4.10.13
 
 #endif /* HAVEEMU_CPU_H */

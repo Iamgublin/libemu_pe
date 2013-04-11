@@ -1474,12 +1474,20 @@ void show_debugshell_help(void){
 			"\t.pl - reverse lookup - get address for symbol (special: peb,dllmap,fs0)\n" 
 			"\t.api - scan memory for api table\n"
 			"\t.seh - shows current value at fs[0]\n"
+			"\t.segs - show values of segment registers\n"
 			"\t.reg - manually set register value\n"
 			"\t.poke1 - write a single byte to memory\n"
 			"\t.poke4 - write a 4 byte value to memory\n"
 			"\t.savemem - saves a memdump of specified range to file\n"
 			"\tq - quit\n\n"
 		  );
+}
+
+void show_segs(){
+	char* segs[] = {"cs" , "ss", "ds", "es", "fs", "gs" };
+	for(int i=0;i<6;i++){
+		printf("\t%s:%x\n",segs[i],emu_memory_segment_getval(mem, (emu_segment)i) );
+	}
 }
 
 void interactive_command(struct emu *e){
@@ -1546,6 +1554,7 @@ void interactive_command(struct emu *e){
 			if(i>0){
 				if(strcmp(tmp,"api")==0) doApiScan();
 				if(strcmp(tmp,"seh")==0) show_seh();
+				if(strcmp(tmp,"segs")==0) show_segs();
 				if(strcmp(tmp,"savemem")==0) savemem();
 				if(strcmp(tmp,"pl")==0){
 					i = read_string("Enter symbol to lookup address for: ", tmp);
@@ -2783,8 +2792,10 @@ void show_supported_hooks(void){
 		i++;
 		j=0;
 	}
-	//libemu 2.0 is 5/51
+	//libemu 2.0 is 5 dlls, 51 hooks, 234 opcodes
+	//cur:          12     187        244
 	printf("\r\n  Dlls: %d\r\n  Hooks: %d\r\n  Interactive: %d (yellow)\r\n *Proxied: %d\r\n", i, tot, iHooks, proxied);
+	printf("  Opcodes: %d\r\n", emu_cpu_implemented_inst_cnt() );
 	exit(0);
 }
 
@@ -3186,7 +3197,7 @@ char* strlower(char* input){
 int HexToBin(char* input, int* output){
 
 	int sl =  strlen(input) / 2;
-	void *buf = malloc(sl+1);
+	void *buf = malloc(sl+10);
 
 	char *lower = strlower(input);
 	char *h = lower; /* this will walk through the hex string */

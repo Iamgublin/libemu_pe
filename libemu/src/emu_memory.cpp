@@ -630,6 +630,17 @@ int32_t emu_memory_write_block(struct emu_memory *m, uint32_t addr, void *src, s
 
 }
 
+void emu_memory_segment_setval(struct emu_memory *m, enum emu_segment s, uint32_t val)
+{
+	m->segment_table[s] = val;
+}
+
+uint32_t emu_memory_segment_getval(struct emu_memory *m, enum emu_segment s)
+{
+	uint32_t ret = m->segment_table[s];
+	return ret;
+}
+
 void emu_memory_segment_select(struct emu_memory *m, enum emu_segment s)
 {
 	m->segment_current = s;

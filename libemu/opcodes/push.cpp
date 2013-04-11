@@ -43,7 +43,11 @@ int32_t instr_push_06(struct emu_cpu *c, struct emu_cpu_instruction *i)
 	 * Push ES		
 	 * PUSH ES
 	 */
-	UNIMPLEMENTED(c, NNY);
+	//UNIMPLEMENTED(c, NNY);
+
+	//dzzie 4.10.13
+	uint32_t dword = emu_memory_segment_getval(c->mem,s_es);
+	PUSH_DWORD(c, dword);
 
 	return 0;
 }
@@ -171,7 +175,12 @@ int32_t instr_push_0fa0(struct emu_cpu *c, struct emu_cpu_instruction *i)
 	 * Push FS       
 	 * PUSH FS    
 	 */
-	UNIMPLEMENTED(c, NNY);
+	//UNIMPLEMENTED(c, NNY);
+
+	//dzzie 4.10.13
+	uint32_t dword = emu_memory_segment_getval(c->mem,s_fs);
+	PUSH_DWORD(c, dword);
+
 
 	return 0;
 }
