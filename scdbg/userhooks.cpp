@@ -4800,6 +4800,68 @@ int32_t	__stdcall hook_wsprintfA(struct emu_env_w32 *win, struct emu_env_w32_dll
 	return 0;
 }
 
+int32_t	__stdcall hook_RtlDecompressBuffer(struct emu_env_w32 *win, struct emu_env_w32_dll_export *ex)
+{
+	typedef DWORD ( _stdcall *RtlDecompressBuffer )(
+	                    IN ULONG    CompressionFormat,
+	                    OUT PVOID   DestinationBuffer,
+	                    IN ULONG    DestinationBufferLength,
+	                    IN PVOID    SourceBuffer,
+	                    IN ULONG    SourceBufferLength,
+	                    OUT PULONG  pDestinationSize );
+
+    RtlDecompressBuffer fRtlDecompressBuffer;
+	uint32_t ret = 0; //STATUS_SUCCESS
+	
+	uint32_t eip_save = popd();
+	uint32_t fmat = popd();
+	uint32_t ubuf = popd();
+	uint32_t usz = popd();
+	uint32_t cbuf = popd();
+	uint32_t csz = popd();
+	uint32_t fsz = popd();
+
+	printf("%x\t%s(fmat=%x,ubuf=%x, usz=%x, cbuf=%x, csz=%x) ", eip_save, ex->fnname, fmat, ubuf, usz,cbuf, csz );
+	
+	if(opts.interactive_hooks){
+		uint32_t szOut=0;
+		void *rUbuf = SafeMalloc(usz);
+		void *rCBuf = SafeMalloc(csz);
+		emu_memory_read_block(mem,cbuf,rCBuf,csz);
+		fRtlDecompressBuffer = (RtlDecompressBuffer) GetProcAddress(GetModuleHandle("ntdll.dll"), "RtlDecompressBuffer" );
+		if((int)fRtlDecompressBuffer==0){
+			printf("GetProcAddress Failed Skipping...\n");
+		}else{
+			ret = (*fRtlDecompressBuffer)(fmat,rUbuf,usz,rCBuf,csz, &szOut);   
+			if(szOut>0){
+				printf("(Outsz: %x)",szOut);
+				emu_memory_write_block(mem,ubuf,rUbuf,szOut);
+			}
+			emu_memory_write_dword(mem,fsz,szOut);
+			printf(" = %x\n", ret);
+		}
+		free(rUbuf);
+		free(rCBuf);
+	}else{
+		printf(" (supports -i)\n");
+	}
+
+	set_ret(ret);
+	emu_cpu_eip_set(cpu, eip_save);
+	return 0;
+}
+
+
+
+
+
+
+
+
+
+
+
+
 
 int SysCall_Handler(int callNumber, struct emu_cpu *c){
 	

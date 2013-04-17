@@ -1,6 +1,10 @@
 
----------------[  Changelog for libemu  ]---------------
+---------------[  Changelog for scdbg/libemu  ]---------------
 
+4.16.13  - RtlDecompressBuffer hook (supports -i)
+         - bugfix: peb tweak, ntdll mod name (harmony)
+         - step over shows addr, read_hex supports eip, dbgshell.dllmap
+         
 4.10.13  - 3 new opcodes: push/pop es, push fs. Added support for ES: override in emu_cpu_step
            added: emu_memory_segment_setval/getval , emu_cpu_implemented_inst_cnt
            added: .segs debug shell function,  gui_launcher.more.Disasm 

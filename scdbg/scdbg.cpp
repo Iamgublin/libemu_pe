@@ -311,7 +311,8 @@ bool isInteractive(char* api){
 				    "_lclose","_lwrite","_hwrite","CloseHandle","CreateFileA","WaitForSingleObject",
 					"WriteFile","accept","bind","closesocket","connect","listen","recv","send",
 					"sendto","socket","WSASocketA","CreateFileMappingA","FindFirstFileA",
-					"fread","ExpandEnvironmentStringsA","lstrlenA","lstrcmpiA","lstrcatA","strcat", NULL };
+					"fread","ExpandEnvironmentStringsA","lstrlenA","lstrcmpiA","lstrcatA","strcat",
+					"RtlDecompressBuffer", NULL };
 
 	int i=0;
 	while( iApi[i] != NULL ){
@@ -327,7 +328,8 @@ bool isProxied(char* api){
 	char* iApi[] = {"CryptReleaseContext","CryptDestroyHash","CryptGetHashParam","CryptHashData",
 					"CryptCreateHash","CryptAcquireContextA","CryptAcquireContextW","GetCommandLineA","GetSystemTime",
 					"GetTempPathA","GetTempFileNameA","strstr","SHGetFolderPathA","SHGetSpecialFolderPathA",
-					"ExpandEnvironmentStringsA","lstrlenA","lstrcmpiA","lstrcatA","strcat", NULL };
+					"ExpandEnvironmentStringsA","lstrlenA","lstrcmpiA","lstrcatA","strcat",
+					"RtlDecompressBuffer",NULL };
 
 	int i=0;
 	while( iApi[i] != NULL ){
@@ -1341,6 +1343,8 @@ unsigned int read_hex(char* prompt, char* buf){
 		}
 	}
 
+	if(strstr(buf, "eip") > 0 ) base = cpu->eip;
+
 	if(base==0){
 		base = strtol(buf, NULL, 16); //support negative numbers..
 		if(base == INT32_MAX) base = strtoul(buf, NULL, 16); //but in this case assume unsigned val entered
@@ -1385,6 +1389,8 @@ unsigned int read_int(char* prompt, char* buf){
 			}
 		}
 	}
+	
+	if(strstr(buf, "eip") > 0 ) base = cpu->eip;
 
 	if(base==0) base = atoi(buf);
 	printf("%d\n",base);
@@ -1476,6 +1482,7 @@ void show_debugshell_help(void){
 			"\t.seh - shows current value at fs[0]\n"
 			"\t.segs - show values of segment registers\n"
 			"\t.reg - manually set register value\n"
+			"\t.dllmap - show dll map\n"
 			"\t.poke1 - write a single byte to memory\n"
 			"\t.poke4 - write a 4 byte value to memory\n"
 			"\t.savemem - saves a memdump of specified range to file\n"
@@ -1539,9 +1546,9 @@ void interactive_command(struct emu *e){
 			if(previous_eip >= opts.baseAddress && previous_eip <= (opts.baseAddress + opts.size) ){
 				opts.step_over_bp = previous_eip + get_instr_length(previous_eip);
 				opts.verbose = 0;
-				/*start_color(myellow);
+				start_color(myellow);
 				printf("Step over will break at %x\n", opts.step_over_bp);
-				end_color();*/
+				end_color();
 				break;
 			}
 			else{
@@ -1556,6 +1563,7 @@ void interactive_command(struct emu *e){
 				if(strcmp(tmp,"seh")==0) show_seh();
 				if(strcmp(tmp,"segs")==0) show_segs();
 				if(strcmp(tmp,"savemem")==0) savemem();
+				if(strcmp(tmp,"dllmap")==0) symbol_lookup("dllmap");
 				if(strcmp(tmp,"pl")==0){
 					i = read_string("Enter symbol to lookup address for: ", tmp);
 					symbol_lookup(tmp);
@@ -1974,7 +1982,7 @@ void set_hooks(struct emu_env *env){
 	ADDHOOK(rand);
 	ADDHOOK(inet_addr);
 	ADDHOOK(wsprintfA);
-
+    ADDHOOK(RtlDecompressBuffer);
 
 }
 

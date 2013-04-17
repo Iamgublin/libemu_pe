@@ -35,7 +35,6 @@ Begin VB.Form Form1
       _ExtentX        =   24262
       _ExtentY        =   7646
       _Version        =   393217
-      Enabled         =   -1  'True
       ScrollBars      =   2
       TextRTF         =   $"Form1.frx":0000
       BeginProperty Font {0BE35203-8F91-11CE-9DE3-00AA004BB851} 
@@ -135,7 +134,7 @@ again:
         Me.Refresh
     End If
     
-    offset = offset + 16
+    'offset = offset + 16 '<--hexdump already increments _byref_ offset on its own..
 If Not EOF(f) Then GoTo again
     
     Close f
