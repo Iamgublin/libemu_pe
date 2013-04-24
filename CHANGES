@@ -1,6 +1,8 @@
 
 ---------------[  Changelog for scdbg/libemu  ]---------------
-
+4.24.13  - W api support for GetTempFileName, GetTempPath, URLDownloadToFile
+         - new hook: RtlZeroMemory (supports /hex), swprintf
+         
 4.16.13  - RtlDecompressBuffer hook (supports -i)
          - bugfix: peb tweak, ntdll mod name (harmony)
          - step over shows addr, read_hex supports eip, dbgshell.dllmap

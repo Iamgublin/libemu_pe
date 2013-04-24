@@ -1803,7 +1803,10 @@ void set_hooks(struct emu_env *env){
     ADDHOOK(lstrcatA);
     ADDHOOK(CreateProcessA);
 	ADDHOOK(strrchr);
-	
+	ADDHOOK(GetTempPathA);
+    ADDHOOK(GetTempFileNameA);
+    ADDHOOK(URLDownloadToFileA);
+
 	//these dont follow the macro pattern..mostly redirects/multitasks
 	emu_env_w32_export_new_hook(env, "LoadLibraryExA",  hook_LoadLibraryA, NULL);
 	emu_env_w32_export_new_hook(env, "LoadLibraryW",  hook_LoadLibraryA, NULL);
@@ -1822,6 +1825,10 @@ void set_hooks(struct emu_env *env){
     emu_env_w32_export_new_hook(env, "RtlMoveMemory", hook_memcpy, NULL); //kernel32. found first...
     emu_env_w32_export_new_hook(env, "CopyMemory", hook_memcpy, NULL);
     emu_env_w32_export_new_hook(env, "CreateProcessW", hook_CreateProcessA, NULL);
+	emu_env_w32_export_new_hook(env, "GetTempPathW", hook_GetTempPathA, NULL);
+    emu_env_w32_export_new_hook(env, "GetTempFileNameW", hook_GetTempFileNameA, NULL);
+	emu_env_w32_export_new_hook(env, "URLDownloadToFileW", hook_URLDownloadToFileA, NULL);
+	
 
 	//-----handled by the generic stub 2 string
 	emu_env_w32_export_new_hook(env, "InternetOpenA", hook_GenericStub2String, NULL);
@@ -1871,7 +1878,6 @@ void set_hooks(struct emu_env *env){
 	ADDHOOK(VirtualProtectEx);
 	ADDHOOK(SetFilePointer);
 	ADDHOOK(ReadFile);
-	ADDHOOK(GetTempFileNameA);
 	ADDHOOK(GetModuleFileNameA);
 	ADDHOOK(DialogBoxIndirectParamA);
 	ADDHOOK(ZwQueryVirtualMemory);
@@ -1880,7 +1886,6 @@ void set_hooks(struct emu_env *env){
 	ADDHOOK(WriteProcessMemory);
 	ADDHOOK(CreateRemoteThread);
 	ADDHOOK(MultiByteToWideChar);
-	ADDHOOK(URLDownloadToFileA);
 	ADDHOOK(_execv);
 	ADDHOOK(fclose);
 	ADDHOOK(fopen);
@@ -1890,7 +1895,6 @@ void set_hooks(struct emu_env *env){
 	ADDHOOK(_lwrite);
 	ADDHOOK(_hwrite);
 	ADDHOOK(GetTickCount);
-	ADDHOOK(GetTempPathA);
 	ADDHOOK(WinExec);
 	ADDHOOK(Sleep);
 	ADDHOOK(DeleteFileA);
@@ -1983,6 +1987,8 @@ void set_hooks(struct emu_env *env){
 	ADDHOOK(inet_addr);
 	ADDHOOK(wsprintfA);
     ADDHOOK(RtlDecompressBuffer);
+	ADDHOOK(RtlZeroMemory);
+	ADDHOOK(swprintf);
 
 }
 

@@ -1186,20 +1186,24 @@ int32_t	__stdcall hook_GetTempFileNameA(struct emu_env_w32 *win, struct emu_env_
 	);
 */
 	uint32_t eip_save = popd();
-	struct emu_string* lpPathName = popstring();
-	struct emu_string* lpPrefixString = popstring();
+	struct emu_string* lpPathName = isWapi(ex->fnname) ? popwstring() : popstring();
+	struct emu_string* lpPrefixString = isWapi(ex->fnname) ? popwstring() : popstring();
 	uint32_t unique = popd();
 	uint32_t out_buf = popd();
 
 	char* realBuf = (char*)malloc(256);
 	uint32_t ret = GetTempFileName(lpPathName->data, lpPrefixString->data, unique, realBuf); 
 	
-	printf("%x\tGetTempFileName(path=%s, prefix=%x, unique=%x, buf=%x) = %X\n", eip_save, 
+	printf("%x\t%s(path=%s, prefix=%x, unique=%x, buf=%x) = %X\n", eip_save, ex->fnname, 
 			 lpPathName->data, lpPrefixString->emu_offset, unique, out_buf, ret);
 
 	if(ret!=0){
 		printf("\t Path = %s\n", realBuf);
-		emu_memory_write_block(mem, out_buf, realBuf, strlen(realBuf));
+		emu_memory_write_block(mem, out_buf, realBuf, strlen(realBuf)+1);
+	}
+
+	if( isWapi(ex->fnname) ){
+		emu_memory_write_word(mem, out_buf+strlen(realBuf), 0);
 	}
 	
 	free(realBuf);
@@ -1598,6 +1602,7 @@ int32_t	__stdcall hook_MultiByteToWideChar(struct emu_env_w32 *win, struct emu_e
 		//just write the ascii string to the unicode buf, they are probably just gonna 
 		//pass it back to our hook. work an experiment to see if it causes problems or not
 		emu_memory_write_block(mem, dst, s_src->data, s_src->size);
+		emu_memory_write_word(mem,dst+s_src->size+1,0);
 	}
 
 	/*
@@ -1637,12 +1642,12 @@ HRESULT URLDownloadToFile(
 */
 	uint32_t eip_save = popd();
 	uint32_t p_caller = popd();
-	struct emu_string *url = popstring();
-	struct emu_string *filename = popstring();
+	struct emu_string *url = isWapi(ex->fnname) ? popwstring() : popstring();
+	struct emu_string *filename = isWapi(ex->fnname) ? popwstring() : popstring();
 	uint32_t reserved = popd();
 	uint32_t statuscallbackfn = popd();
 
-	printf("%x\tURLDownloadToFile(%s, %s)\n",eip_save, url->data , filename->data);
+	printf("%x\t%s(%s, %s)\n",eip_save, ex->fnname, url->data , filename->data);
 
 	cpu->reg[eax] = 0;
 	emu_string_free(url);
@@ -1902,8 +1907,13 @@ int32_t	__stdcall hook_GetTempPathA(struct emu_env_w32 *win, struct emu_env_w32_
 	
 	if( (ret+1) > bufferlength) ret = 0;
 	if(ret!=0) emu_memory_write_block(mem, p_buffer, realBuf, ret+1);
+	
+	if( isWapi(ex->fnname) ){ //kind of a hack since we dont really return unicode data still must terminate as if..
+		emu_memory_write_byte(mem,p_buffer+ret+1, 0);
+		ret+=2;
+	}
 
-	printf("%x\tGetTempPath(len=%x, buf=%x) = %x\n",eip_save, bufferlength, p_buffer, ret);
+	printf("%x\t%s(len=%x, buf=%x) = %x\n",eip_save, ex->fnname, bufferlength, p_buffer, ret);
 	
 	free(realBuf);
 	set_ret(ret);
@@ -2180,7 +2190,7 @@ int32_t	__stdcall hook_GetProcAddress(struct emu_env_w32 *win, struct emu_env_w3
 	}else{
 		char buf[255]={0};
 		fulllookupAddress(cpu->reg[eax], &buf[0]); 
-		printf("%x\tGetProcAddress(%s.0x%x) - %s by ordinal\n",eip_save, dllFromAddress(module), ordinal, buf);
+		printf("%x\tGetProcAddress(%s.0x%x) - %s \n",eip_save, dllFromAddress(module), ordinal, buf);
 	}
 
 	if(module == 0 || cpu->reg[eax] == 0 ) printf("\tLookup not found: module base=%x dllName=%s\n", module, dllFromAddress(module) );  
@@ -4852,9 +4862,77 @@ int32_t	__stdcall hook_RtlDecompressBuffer(struct emu_env_w32 *win, struct emu_e
 }
 
 
+int32_t	__stdcall hook_RtlZeroMemory(struct emu_env_w32 *win, struct emu_env_w32_dll_export *ex)
+{
+	/*VOID RtlZeroMemory(
+	  _Out_  VOID UNALIGNED *Destination,
+	  _In_   SIZE_T Length
+	);*/
+
+	uint32_t eip_save = popd();
+	uint32_t dest = popd();
+	uint32_t leng = popd();
+
+	printf("%x\t%s(0x%x,0x%x)\n", eip_save, ex->fnname, dest, leng );
+	
+	if(opts.show_hexdumps){
+		char* tmp = SafeMalloc(leng);
+		emu_memory_read_block(mem,dest,tmp,leng);
+		start_color(colors::myellow);
+		printf("\tShellcode is about to zero the current memory:\n");
+		end_color();
+		hexdump((unsigned char*)tmp,leng);
+		free(tmp);
+	}
+
+	for(uint32_t i=0; i< leng; i++){
+		emu_memory_write_byte(mem,dest+i,0);
+	}
+
+	emu_cpu_eip_set(cpu, eip_save);
+	return 0;
+}
 
 
+int32_t	__stdcall hook_swprintf(struct emu_env_w32 *win, struct emu_env_w32_dll_export *ex)
+{
+	/* 	
+		int __cdecl swprintf ( wchar_t * ws, size_t len, const wchar_t * format, ... );
+	*/
+	uint32_t eip_save = popd();
+	uint32_t lpOut = get_arg(0);
+    uint32_t leng = get_arg(4);
+	uint32_t lpFmt = get_arg(8);
+	
+	struct emu_string *fmat = emu_string_new();
+	emu_memory_read_wide_string(mem, lpFmt, fmat, 1256);
 
+	printf("%x\t%s(buf=%x, fmat=%s",eip_save, ex->fnname, lpOut, fmat->data);
+
+	int sz = getFormatParameterCount(fmat); 
+	if(sz > 0) printf(" args(%x)=[",sz);
+
+	int params[10];
+	if(sz > 10) sz = 10;
+	
+	for(int i=0; i < sz; i++){
+		params[i] = get_arg(8+(i*4));
+		printf("%x" , params[i]);
+		if(i+1 != sz) printf(","); else printf("] ");
+	}
+
+	printf(")\n");
+
+	char ret[150];
+	sz = sprintf(ret,"swprintf_%x", eip_save);
+	emu_memory_write_block(mem,lpOut, ret, sz+1);
+	emu_memory_write_dword(mem,lpOut+sz+1,0);
+	set_ret(sz); 
+
+    emu_cpu_eip_set(cpu, eip_save);
+	emu_string_free(fmat);
+	return 0;
+}
 
 
 
