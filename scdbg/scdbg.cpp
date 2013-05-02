@@ -1989,6 +1989,8 @@ void set_hooks(struct emu_env *env){
     ADDHOOK(RtlDecompressBuffer);
 	ADDHOOK(RtlZeroMemory);
 	ADDHOOK(swprintf);
+	ADDHOOK(RtlDosPathNameToNtPathName_U);
+	ADDHOOK(ZwOpenFile);
 
 }
 
@@ -2690,7 +2692,7 @@ void show_help(void)
 
 	struct help_info help_infos[] =
 	{
-		{"f", "fpath"    ,   "load shellcode from file specified."},
+		{"f", "fpath"    ,   "load shellcode from file supports: binary,%%u encoded or \\x encoded)"},
 		{"api", NULL  ,      "scan memory and try to find API table"},
 		{"auto", NULL  ,     "running as part of an automation run"},
 		{"ba", "hexnum"  ,   "break above - breaks if eip > hexnum"},
@@ -2737,6 +2739,8 @@ void show_help(void)
 		{"wstr", "0xBase-Str","Write string at base ex. 0x401000-0x9090EB15CCBB or \"0xBase-ascii string\""}, 
 		{"dllmap", NULL ,     "show the name, base, size, and version of all built in dlls"},
 		{"nofile", NULL ,     "assumes you have loaded shellcode manually with -raw, -wstr, or -wint"},
+		{"bswap", NULL ,     "byte swaps -f and -wstr input buffers"},
+		{"eswap", NULL ,     "endian swaps -f and -wstr input buffers"},
 	};
 
 	system("cls");
@@ -2813,6 +2817,37 @@ void show_supported_hooks(void){
 	exit(0);
 }
 
+void byteSwap(unsigned char* buf, uint32_t sz, char* id){
+	
+	printf("Byte Swapping %s input buffer..\n", id);
+	unsigned char a,b;
+	for(int i=0; i < sz-1; i+=2){
+		a = buf[i];
+        b = buf[i+1];
+        buf[i] = b;
+		buf[i+1] = a;
+	}
+
+}
+
+void endianSwap(unsigned char* buf, uint32_t sz, char* id){
+	
+	printf("Endian Swapping %s input buffer..", id);
+	
+	uint32_t mod = sz % 4;
+	if(mod!=0) printf("size %% 4 != 0, wont swap last %d bytes..", mod);
+	nl();
+
+	uint32_t a;
+	for(int i=0; i < sz-3; i+=4){
+		memcpy(&a, (void*)&buf[i],4);
+        a = htonl(a);
+        memcpy((void*)&buf[i],&a,4);
+	}
+
+}
+
+
 /*
 	this func may be a bit verbose and ugly, but I cant crash it or get it to bug out
 	so I cant gather the will to change it. plus I have no shame 
@@ -2847,6 +2882,8 @@ void parse_opts(int argc, char* argv[] ){
 	opts.norw = false;
 	opts.rop = false;
 	opts.nofile = false;
+    opts.eSwap = false;
+	opts.bSwap = false;
 
 	for(i=1; i < argc; i++){
 
@@ -2865,6 +2902,8 @@ void parse_opts(int argc, char* argv[] ){
 		if(sl==2 && strstr(buf,"/v") > 0 ){opts.verbose++; handled=true;}
 		if(sl==2 && strstr(buf,"/r") > 0 ){ opts.report = true; opts.mem_monitor = true;handled=true;}
 		if(sl==2 && strstr(buf,"/u") > 0 ){opts.steps = -1;handled=true;}
+		if(sl==6 && strstr(argv[i],"/eswap") > 0 ){   opts.eSwap = true; handled=true;}
+		if(sl==6 && strstr(argv[i],"/bswap") > 0 ){   opts.bSwap = true; handled=true;}
 		if(sl==4 && strstr(argv[i],"/rop") > 0 ){   opts.rop = true; handled=true;}
 		if(sl==5 && strstr(argv[i],"/norw") > 0 ){   opts.norw = true; handled=true;}
 		if(sl==6 && strstr(argv[i],"/noseh") > 0 ){   opts.noseh = true; handled=true;}
@@ -3212,6 +3251,7 @@ int HexToBin(char* input, int* output){
 
 	int sl =  strlen(input) / 2;
 	void *buf = malloc(sl+10);
+    memset(buf,0,sl+10);
 
 	char *lower = strlower(input);
 	char *h = lower; /* this will walk through the hex string */
@@ -3307,6 +3347,8 @@ void post_parse_opts(int argc, char* argv[] ){
 				if(sz[0] == '0' && sz[1] == 'x'){//its a hexstring
 					sz+=2;
 					embedLength = HexToBin(sz,  (int*)&embed);
+					if(opts.bSwap) byteSwap((unsigned char*)embed,embedLength,"/wstr");
+					if(opts.eSwap) endianSwap((unsigned char*)embed,embedLength,"/wstr");
 					emu_memory_write_block(mem, base, embed, embedLength);
 					free(embed);
 				}else{ //its just a regular string to directly embed..
@@ -3325,6 +3367,25 @@ void post_parse_opts(int argc, char* argv[] ){
 
 }
 
+uint32_t stripChars(unsigned char* buf_in, int *output, uint32_t sz, char* chars){
+	uint32_t out=0;
+	int copy,c;
+	unsigned char d;
+	unsigned char* buf_out = (unsigned char*)malloc(sz);
+	for(int i=0; i<sz; i++){
+		copy = 1;
+		c = 0;
+		d = (unsigned char)buf_in[i];
+		while(chars[c] != 0){
+			if(d==chars[c]){ copy=0; break; } 
+			c++;
+		}
+		if(copy) (unsigned char)buf_out[out++] = d;
+	}
+	
+	*output = (int)buf_out;
+	return out;
+}
 
 void loadsc(void){
 
@@ -3334,6 +3395,7 @@ void loadsc(void){
 		//create a default allocation to cover any assumptions
 		opts.scode = (unsigned char*) malloc(0x1000);
 		opts.size = 0x1000;
+		memset(opts.scode, 0, opts.size); 
 		return;
 	}
 	
@@ -3345,7 +3407,8 @@ void loadsc(void){
 		exit(0);
 	}
 	opts.size = file_length(fp);
-	opts.scode = (unsigned char*)malloc(opts.size); 
+	opts.scode = (unsigned char*)malloc(opts.size+10); 
+	memset(opts.scode, 0, opts.size+10);
 	fread(opts.scode, 1, opts.size, fp);
 	fclose(fp);
 	if(!opts.automationRun) printf("Loaded %x bytes from file %s\n", opts.size, opts.sc_file);
@@ -3354,6 +3417,43 @@ void loadsc(void){
 		printf("No shellcode loaded must use either /f or /S options\n");
 		show_help();
 		return;
+	}
+
+	int tmp;
+	int tmp2;
+    int j=0;
+
+	for(j=0; j<opts.size; j++){ //scan the buffer and ignore possible white space and quotes...
+		unsigned char jj = opts.scode[j];
+		if(jj != ' ' && jj != '\r' && jj != '\n' && jj != '"' && jj != '\t' && jj != '\'') break;
+	}
+	if(j >= opts.size-1) j = 0;
+
+	if(opts.scode[j] == '%' && opts.scode[j+1] == 'u'){
+		start_color(colors::myellow);
+		printf("Detected %%u encoding input format converting...\n");
+		end_color();
+		opts.size = stripChars((unsigned char*)opts.scode, &tmp, opts.size, "\n\r\t,%u\";\' "); 
+		free(opts.scode);
+		opts.size = HexToBin((char*)tmp, &tmp2);
+		opts.scode = (unsigned char*)tmp2;
+		byteSwap(opts.scode, opts.size, "%u encoded"); 
+	}else if(opts.scode[j] == '%' && opts.scode[j+3] == '%'){
+		start_color(colors::myellow);
+		printf("Detected %% hex input format converting...\n");
+		end_color();
+		opts.size = stripChars((unsigned char*)opts.scode, &tmp, opts.size, "\n\r\t,%\";\' "); 
+		free(opts.scode);
+		opts.size = HexToBin((char*)tmp, &tmp2);
+		opts.scode = (unsigned char*)tmp2;		
+	}else if(opts.scode[j] == '\\' && opts.scode[j+1] == 'x'){
+		start_color(colors::myellow);
+		printf("Detected \\x encoding input format converting...\n");
+		end_color();
+		opts.size = stripChars((unsigned char*)opts.scode, &tmp, opts.size,"\n\r\t,\\x\";\' " ); 
+		free(opts.scode);
+		opts.size = HexToBin((char*)tmp, &tmp2);
+		opts.scode = (unsigned char*)tmp2;
 	}
 
 }
@@ -3564,9 +3664,15 @@ reinit:
 		if(opts.file_mode == false && opts.patch_file == NULL)	show_help();
 	}
 
-	loadsc();
-	init_emu();	
+	loadsc();	
 	
+	if(!opts.nofile){ 
+		if(opts.bSwap) byteSwap(opts.scode,opts.size, "main");
+		if(opts.eSwap) endianSwap(opts.scode,opts.size, "main");
+	}
+
+	init_emu();
+
 	post_parse_opts(argc,argv); //this allows multiple pokes and raw patch loads 
 	//if(opts.rawLoadBase!=0) loadraw_patch();
 	if(opts.patch_file != NULL) LoadPatch(opts.patch_file);
@@ -3853,6 +3959,7 @@ void HandleDirMode(char* folder){
 	
 	system("cls");
 	printf("\n\n  Processing all sc files in %s\n\n", folder);
+	printf("  Min steps: %d\n\n", opts.min_steps);
 
 	while(1){ 
 		printf("  %s", FileData.cFileName); 
@@ -3871,10 +3978,10 @@ void HandleDirMode(char* folder){
 		int retval = system(cmdline);
 		printf("\tSteps: %-8x", retval);
 
-		if( retval < 200){
+		if( retval < opts.min_steps ){
 			printf(" -findsc:");
 
-			sprintf(cmdline, "scdbg -auto -findsc -f %s ", shortname);
+			sprintf(cmdline, "scdbg -auto -findsc -f %s -min %d ", shortname, opts.min_steps);
 			if(opts.verbose > 0) strcat(cmdline, "-r");
 			if(opts.steps == -1) strcat(cmdline, "-u");
 
@@ -3887,6 +3994,38 @@ void HandleDirMode(char* folder){
 			printf(" %x", retval);
 		}
 		
+		if( retval < opts.min_steps){
+			printf("\t-bSwap:");
+
+			sprintf(cmdline, "scdbg -auto -findsc -bswap -f %s -min %d ", shortname, opts.min_steps);
+			if(opts.verbose > 0) strcat(cmdline, "-r");
+			if(opts.steps == -1) strcat(cmdline, "-u");
+
+			if(opts.report) 
+				sprintf(cmdline+strlen(cmdline), " >> %s\\report.txt", folder);
+			else
+				sprintf(cmdline+strlen(cmdline), " > %s.txt", shortname);
+
+			retval = system(cmdline);
+			printf(" %x", retval);
+		}
+
+		if( retval < opts.min_steps){
+			printf("\t-eswap:");
+
+			sprintf(cmdline, "scdbg -auto -findsc -eswap -f %s -min %d ", shortname, opts.min_steps);
+			if(opts.verbose > 0) strcat(cmdline, "-r");
+			if(opts.steps == -1) strcat(cmdline, "-u");
+
+			if(opts.report) 
+				sprintf(cmdline+strlen(cmdline), " >> %s\\report.txt", folder);
+			else
+				sprintf(cmdline+strlen(cmdline), " > %s.txt", shortname);
+
+			retval = system(cmdline);
+			printf(" %x", retval);
+		}
+
 		if( !opts.report ){ //restore the file name from shortpath 
 			strcat(shortname, ".txt");
 			sprintf(longPath, "%s\\%s.txt", folder, FileData.cFileName);

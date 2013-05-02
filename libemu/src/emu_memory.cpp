@@ -370,6 +370,20 @@ int32_t emu_memory_read_dword(struct emu_memory *m, uint32_t addr, uint32_t *dwo
 #endif
 }
 
+unsigned char* emu_memory_read_block_a(struct emu_memory *m, uint32_t addr, size_t len)
+{
+	unsigned char* tmp = (unsigned char*)malloc(len+10);
+
+	if(tmp==NULL){
+		printf("emu_memory_read_block_a Failed to alloc memory...");
+		exit(0);
+	}
+
+    memset(tmp, 0, len+10);
+	int32_t r = emu_memory_read_block(m,addr,tmp,len);
+	return tmp;
+}
+
 int32_t emu_memory_read_block(struct emu_memory *m, uint32_t addr, void *dest, size_t len)
 {
 	uint32_t oaddr = addr; /* save original addr for recursive call */

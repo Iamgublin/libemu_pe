@@ -4934,6 +4934,60 @@ int32_t	__stdcall hook_swprintf(struct emu_env_w32 *win, struct emu_env_w32_dll_
 	return 0;
 }
 
+int32_t	__stdcall hook_RtlDosPathNameToNtPathName_U(struct emu_env_w32 *win, struct emu_env_w32_dll_export *ex)
+{
+	/* 	
+		extern (Windows) static bool RtlDosPathNameToNtPathName_U(
+			in const(wchar)* DosPathName, 
+			out UnicodeString NtPathName,
+			out const(wchar)* NtFileNamePart, 
+			out CurDir DirectoryInfo);
+
+			UnicodeString{ length - 4, sPtr - 4 }
+	*/
+
+	uint32_t eip_save = popd();
+	struct emu_string* path = popwstring();
+	uint32_t a = popd();
+	uint32_t b = popd();
+	uint32_t c  = popd();
+	
+	printf("%x\t%s(%s, %x,%x,%x)\n",eip_save, ex->fnname, path->data,a,b,c);
+
+	set_ret(1); 
+    emu_cpu_eip_set(cpu, eip_save);
+	emu_string_free(path);
+	return 0;
+}
+
+int32_t	__stdcall hook_ZwOpenFile(struct emu_env_w32 *win, struct emu_env_w32_dll_export *ex)
+{
+	/* 	
+		NTSTATUS ZwOpenFile(
+		  _Out_  PHANDLE FileHandle,
+		  _In_   ACCESS_MASK DesiredAccess,
+		  _In_   POBJECT_ATTRIBUTES ObjectAttributes,
+		  _Out_  PIO_STATUS_BLOCK IoStatusBlock,
+		  _In_   ULONG ShareAccess,
+		  _In_   ULONG OpenOptions
+		);
+
+	*/
+
+	uint32_t eip_save = popd();
+	uint32_t a = popd();
+	uint32_t b = popd();
+	uint32_t c  = popd();
+	uint32_t d  = popd();
+	uint32_t e  = popd();
+	uint32_t f  = popd();
+
+	printf("%x\t%s(%x,%x,%x,%x,%x,%x)\n",eip_save, ex->fnname, a,b,c,d,e,f);
+
+	set_ret(1); 
+    emu_cpu_eip_set(cpu, eip_save);
+	return 0;
+}
 
 
 

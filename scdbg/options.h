@@ -49,6 +49,8 @@ struct run_time_options
 	bool  norw;
 	bool  rop;
 	bool  nofile;
+    bool  bSwap;
+	bool  eSwap;
 
 	struct
 	{

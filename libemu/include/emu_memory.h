@@ -54,6 +54,7 @@ int32_t emu_memory_read_word(struct emu_memory *m, uint32_t addr, uint16_t *word
 int32_t emu_memory_read_dword(struct emu_memory *m, uint32_t addr, uint32_t *dword);
 int32_t emu_memory_read_string(struct emu_memory *m, uint32_t addr, struct emu_string *s, uint32_t maxsize);
 int32_t emu_memory_read_wide_string(struct emu_memory *m, uint32_t addr, struct emu_string *s, uint32_t maxsize); //dz 6.24.11
+unsigned char* emu_memory_read_block_a(struct emu_memory *m, uint32_t addr, size_t len); //dz 4.25.13
 
 /* write access */
 int32_t emu_memory_write_byte(struct emu_memory *m, uint32_t addr, uint8_t byte);

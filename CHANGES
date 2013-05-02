@@ -1,7 +1,14 @@
 
 ---------------[  Changelog for scdbg/libemu  ]---------------
+
+5.2.13   - added support for %u, %, and \x input file formats using -f 
+         - 2 new hooks: RtlDosPathNameToNtPathName_U, ZwOpenFile
+         - new options: /bswap , /eswap - byte swap or endian swap -f and -wstr buffers
+         -   -dir mode will auto try these options as well, -findsc mode still manual..
+         -   -dir mode now honors -min
+
 4.24.13  - W api support for GetTempFileName, GetTempPath, URLDownloadToFile
-         - new hook: RtlZeroMemory (supports /hex), swprintf
+         - new hooks: RtlZeroMemory (supports /hex), swprintf, RtlDosPathNameToNtPathName_U, ZwOpenFile
          
 4.16.13  - RtlDecompressBuffer hook (supports -i)
          - bugfix: peb tweak, ntdll mod name (harmony)
