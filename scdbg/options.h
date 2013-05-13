@@ -51,6 +51,7 @@ struct run_time_options
 	bool  nofile;
     bool  bSwap;
 	bool  eSwap;
+	char* convert_outPath;
 
 	struct
 	{

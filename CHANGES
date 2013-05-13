@@ -1,6 +1,8 @@
 
 ---------------[  Changelog for scdbg/libemu  ]---------------
 
+5.13.13  - added -conv option to save %u, bswap, eswap converted buffer to disk
+
 5.2.13   - added support for %u, %, and \x input file formats using -f 
          - 2 new hooks: RtlDosPathNameToNtPathName_U, ZwOpenFile
          - new options: /bswap , /eswap - byte swap or endian swap -f and -wstr buffers

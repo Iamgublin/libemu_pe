@@ -2692,7 +2692,7 @@ void show_help(void)
 
 	struct help_info help_infos[] =
 	{
-		{"f", "fpath"    ,   "load shellcode from file supports: binary,%%u encoded or \\x encoded)"},
+		{"f", "fpath"    ,   "load shellcode from file - supports: binary, %u or \\x encoded)"},
 		{"api", NULL  ,      "scan memory and try to find API table"},
 		{"auto", NULL  ,     "running as part of an automation run"},
 		{"ba", "hexnum"  ,   "break above - breaks if eip > hexnum"},
@@ -2741,6 +2741,7 @@ void show_help(void)
 		{"nofile", NULL ,     "assumes you have loaded shellcode manually with -raw, -wstr, or -wint"},
 		{"bswap", NULL ,     "byte swaps -f and -wstr input buffers"},
 		{"eswap", NULL ,     "endian swaps -f and -wstr input buffers"},
+		{"conv", "path" , "outputs converted shellcode to file (%u,\\x,bswap,eswap..)"},
 	};
 
 	system("cls");
@@ -2884,6 +2885,7 @@ void parse_opts(int argc, char* argv[] ){
 	opts.nofile = false;
     opts.eSwap = false;
 	opts.bSwap = false;
+	opts.convert_outPath = 0;
 
 	for(i=1; i < argc; i++){
 
@@ -2967,6 +2969,15 @@ void parse_opts(int argc, char* argv[] ){
 				exit(0);
 			}
 			opts.patch_file = strdup(argv[i+1]);
+			i++;handled=true;
+		}
+
+		if(sl==8 && strstr(argv[i],"/convert") > 0 ){
+			if(i+1 >= argc){
+				printf("Invalid option /convert must specify a file path as next arg\n");
+				exit(0);
+			}
+			opts.convert_outPath = strdup(argv[i+1]);
 			i++;handled=true;
 		}
 
@@ -3669,6 +3680,19 @@ reinit:
 	if(!opts.nofile){ 
 		if(opts.bSwap) byteSwap(opts.scode,opts.size, "main");
 		if(opts.eSwap) endianSwap(opts.scode,opts.size, "main");
+	}
+
+	if(opts.convert_outPath != 0){
+		start_color(colors::myellow);
+		if(opts.nofile){printf("/convert can not be used with /nofile\n");exit(0);}
+		printf("Dumping converted buffer to file %s\n", opts.convert_outPath);
+		FILE* fp = fopen(opts.convert_outPath, "wb");
+		if(!fp){printf("Failed.."); exit(0);};
+		fwrite(opts.scode, 1, opts.size, fp);
+		fclose(fp);
+		printf("File written successfully...\n");
+		end_color();
+		exit(0);
 	}
 
 	init_emu();
