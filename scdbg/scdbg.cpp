@@ -2183,7 +2183,7 @@ int find_sc(void){ //loose brute force let user decide...
 	char buf255[255];
 	
 	bool debug = opts.hexdump_file; //not worth its own cmdline option, so reuse this one...(-dump with -findsc = this special debug mode for findsc function...)
-	if(opts.hexdump_file) opts.hexdump_file = false; //makes not sense to use after running -findsc anyway...
+	if(opts.hexdump_file) opts.hexdump_file = false; //makes no sense to use after running -findsc anyway...
 	if(debug) limit = limit * 5;
 
 	j=0;
@@ -2198,6 +2198,8 @@ int find_sc(void){ //loose brute force let user decide...
 		start_time = GetTickCount();
 	}
 
+	//printf("opts.offset = %d\n", opts.offset);
+	
 	for(i=opts.offset; i < opts.size ; i++){
 
 		if(i%10==0 && !opts.automationRun){
@@ -2820,7 +2822,7 @@ void show_supported_hooks(void){
 
 void byteSwap(unsigned char* buf, uint32_t sz, char* id){
 	
-	printf("Byte Swapping %s input buffer..\n", id);
+	if(strlen(id) > 0) printf("Byte Swapping %s input buffer..\n", id);
 	unsigned char a,b;
 	for(int i=0; i < sz-1; i+=2){
 		a = buf[i];
@@ -2833,7 +2835,7 @@ void byteSwap(unsigned char* buf, uint32_t sz, char* id){
 
 void endianSwap(unsigned char* buf, uint32_t sz, char* id){
 	
-	printf("Endian Swapping %s input buffer..", id);
+	if(strlen(id) > 0) printf("Endian Swapping %s input buffer..", id);
 	
 	uint32_t mod = sz % 4;
 	if(mod!=0) printf("size %% 4 != 0, wont swap last %d bytes..", mod);
@@ -2972,9 +2974,9 @@ void parse_opts(int argc, char* argv[] ){
 			i++;handled=true;
 		}
 
-		if(sl==8 && strstr(argv[i],"/convert") > 0 ){
+		if(sl==5 && strstr(argv[i],"/conv") > 0 ){
 			if(i+1 >= argc){
-				printf("Invalid option /convert must specify a file path as next arg\n");
+				printf("Invalid option /conv must specify a file path as next arg\n");
 				exit(0);
 			}
 			opts.convert_outPath = strdup(argv[i+1]);
@@ -3684,7 +3686,6 @@ reinit:
 
 	if(opts.convert_outPath != 0){
 		start_color(colors::myellow);
-		if(opts.nofile){printf("/convert can not be used with /nofile\n");exit(0);}
 		printf("Dumping converted buffer to file %s\n", opts.convert_outPath);
 		FILE* fp = fopen(opts.convert_outPath, "wb");
 		if(!fp){printf("Failed.."); exit(0);};
@@ -3702,10 +3703,43 @@ reinit:
 	if(opts.patch_file != NULL) LoadPatch(opts.patch_file);
 
 	if(opts.getpc_mode){
+		
+		uint32_t orgStartOffset = opts.offset; //let them start -findsc where they want...
+
 		opts.offset = find_sc();
-		if( opts.offset == -1) return -1;
-		opts.getpc_mode = false;
-		goto reinit; //this gives us a full reinitilization of the whole envirnoment for the run..had a weird bug otherwise..
+		
+		if( opts.offset != -1){
+				opts.getpc_mode = false;
+				goto reinit; //this gives us a full reinitilization of the whole envirnoment for the run..had a weird bug otherwise..
+		}
+
+		printf("\nTrying -bswap...\n");
+		byteSwap(opts.scode, opts.size, "-findsc");
+		opts.offset = orgStartOffset;
+
+		opts.offset = find_sc();
+
+		if( opts.offset != -1){
+			opts.bSwap = true;
+			opts.getpc_mode = false;
+			goto reinit; //full reinitilization of the whole envirnoment 
+		}
+
+		printf("\nTrying -eswap...\n");
+		byteSwap(opts.scode, opts.size, ""); //back to normal...
+		endianSwap(opts.scode,opts.size, "-findsc");
+        opts.offset = orgStartOffset;
+
+		opts.offset = find_sc();
+
+		if( opts.offset != -1){
+			opts.eSwap = true;
+			opts.getpc_mode = false;
+			goto reinit; //full reinitilization of the whole envirnoment 
+		}
+
+		return -1;
+
 	}
 
 	if( opts.automationRun ){
@@ -4018,7 +4052,8 @@ void HandleDirMode(char* folder){
 			printf(" %x", retval);
 		}
 		
-		if( retval < opts.min_steps){
+		//redundant now that -findsc supports -bswap and -eswap on its own..
+		/*if( retval < opts.min_steps){
 			printf("\t-bSwap:");
 
 			sprintf(cmdline, "scdbg -auto -findsc -bswap -f %s -min %d ", shortname, opts.min_steps);
@@ -4048,7 +4083,7 @@ void HandleDirMode(char* folder){
 
 			retval = system(cmdline);
 			printf(" %x", retval);
-		}
+		}*/
 
 		if( !opts.report ){ //restore the file name from shortpath 
 			strcat(shortname, ".txt");
