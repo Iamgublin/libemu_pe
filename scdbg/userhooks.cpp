@@ -1087,7 +1087,12 @@ int32_t	__stdcall hook_ReadFile(struct emu_env_w32 *win, struct emu_env_w32_dll_
 		}
 	}
 
-	if(!opts.norw) printf("%x\tReadFile(hFile=%x, buf=%x, numBytes=%x) = %x\n", eip_save, hfile, lpBuffer, numBytes, rv);
+	bool isSpam = strcmp(win->lastApiCalled, "ReadFile") == 0 ? true : false;
+
+	if(!isSpam && !opts.norw)
+		printf("%x\tReadFile(hFile=%x, buf=%x, numBytes=%x) = %x\n", eip_save, hfile, lpBuffer, numBytes, rv);
+	
+	if(isSpam && win->lastApiHitCount == 2) printf("\tHiding repetitive ReadFile calls\n");
 
 	if(lpNumBytes != 0) emu_memory_write_dword(mem, lpNumBytes, numBytes);
 
@@ -1299,7 +1304,7 @@ int32_t	__stdcall hook_GetModuleFileNameA(struct emu_env_w32 *win, struct emu_en
 
 	i = strlen(ret);
 
-	printf("%x\tGetModuleFilenameA(hmod=%x, buf=%x, sz=%x) = %s\n",eip_save, hmod, lpfname, nsize, ret);
+	printf("%x\t%s(hmod=%x, buf=%x, sz=%x) = %s\n",eip_save, ex->fnname,  hmod, lpfname, nsize, ret);
 
 	if(i > 0 && i < nsize){
 		emu_memory_write_block(mem, lpfname, &ret, i);
@@ -4990,7 +4995,29 @@ int32_t	__stdcall hook_ZwOpenFile(struct emu_env_w32 *win, struct emu_env_w32_dl
 }
 
 
+int32_t	__stdcall hook_MoveFileA(struct emu_env_w32 *win, struct emu_env_w32_dll_export *ex)
+{
+	/* 	
+		BOOL WINAPI MoveFile(
+		  _In_  LPCTSTR lpExistingFileName,
+		  _In_  LPCTSTR lpNewFileName
+		);
 
+	*/
+
+	uint32_t eip_save = popd();
+	struct emu_string* path = isWapi(ex->fnname) ?  popwstring() : popstring();
+	struct emu_string* path_new = isWapi(ex->fnname) ?  popwstring() : popstring();
+	
+	
+	printf("%x\t%s(%s, %s)\n",eip_save, ex->fnname, path->data, path_new->data);
+
+	set_ret(1); 
+    emu_cpu_eip_set(cpu, eip_save);
+	emu_string_free(path);
+	emu_string_free(path_new);
+	return 0;
+}
 
 
 

@@ -1806,6 +1806,8 @@ void set_hooks(struct emu_env *env){
 	ADDHOOK(GetTempPathA);
     ADDHOOK(GetTempFileNameA);
     ADDHOOK(URLDownloadToFileA);
+	ADDHOOK(MoveFileA);
+    ADDHOOK(GetModuleFileNameA);
 
 	//these dont follow the macro pattern..mostly redirects/multitasks
 	emu_env_w32_export_new_hook(env, "LoadLibraryExA",  hook_LoadLibraryA, NULL);
@@ -1828,6 +1830,8 @@ void set_hooks(struct emu_env *env){
 	emu_env_w32_export_new_hook(env, "GetTempPathW", hook_GetTempPathA, NULL);
     emu_env_w32_export_new_hook(env, "GetTempFileNameW", hook_GetTempFileNameA, NULL);
 	emu_env_w32_export_new_hook(env, "URLDownloadToFileW", hook_URLDownloadToFileA, NULL);
+	emu_env_w32_export_new_hook(env, "MoveFileW", hook_MoveFileA, NULL);
+	emu_env_w32_export_new_hook(env, "GetModuleFileNameW", hook_GetModuleFileNameA, NULL);
 	
 
 	//-----handled by the generic stub 2 string
@@ -1878,7 +1882,6 @@ void set_hooks(struct emu_env *env){
 	ADDHOOK(VirtualProtectEx);
 	ADDHOOK(SetFilePointer);
 	ADDHOOK(ReadFile);
-	ADDHOOK(GetModuleFileNameA);
 	ADDHOOK(DialogBoxIndirectParamA);
 	ADDHOOK(ZwQueryVirtualMemory);
 	ADDHOOK(GetEnvironmentVariableA);
