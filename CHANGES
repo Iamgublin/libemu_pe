@@ -1,6 +1,8 @@
 
 ---------------[  Changelog for scdbg/libemu  ]---------------
 
+7.14.13  - hook fseek, ability to load raw hex blobs as input with -f
+
 5.30.13  - 3 hooks: MoveFileA/W, GetModuleFileNameW, anti-spam added to ReadFile
 
 5.13.13  - added -conv option to save %u, bswap, eswap converted buffer to disk

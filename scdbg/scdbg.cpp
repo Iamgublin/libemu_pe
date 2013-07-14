@@ -1994,6 +1994,7 @@ void set_hooks(struct emu_env *env){
 	ADDHOOK(swprintf);
 	ADDHOOK(RtlDosPathNameToNtPathName_U);
 	ADDHOOK(ZwOpenFile);
+	ADDHOOK(fseek);
 
 }
 
@@ -2697,7 +2698,7 @@ void show_help(void)
 
 	struct help_info help_infos[] =
 	{
-		{"f", "fpath"    ,   "load shellcode from file - supports: binary, %u or \\x encoded)"},
+		{"f", "fpath"    ,   "load shellcode from file - accepts binary, %u, \\x, %x, hex blob"},
 		{"api", NULL  ,      "scan memory and try to find API table"},
 		{"auto", NULL  ,     "running as part of an automation run"},
 		{"ba", "hexnum"  ,   "break above - breaks if eip > hexnum"},
@@ -2711,7 +2712,7 @@ void show_help(void)
 		{"disasm", "int" ,   "Disasm int lines (can be used with /foff)"},
 		{"dump", NULL,       "view hexdump (can be used with /foff)"},
 		{"e", "int"	     ,   "verbosity on error (3 = debug shell)"},
-		{"findsc", NULL ,    "detect possible shellcode buffers (brute force) (-dump shows more inf)"},
+		{"findsc", NULL ,    "detect possible shellcode buffers (brute force) (supports -dump, -disasm)"},
 		{"fopen", "file" ,   "Opens a handle to <file> for use with GetFileSize() scanners"},		
 		{"foff", "hexnum" ,  "starts execution at file offset (also supports virtual addresses)"},
 		{"h",  NULL		 ,   "show this help"},
@@ -3439,7 +3440,7 @@ void loadsc(void){
 	int tmp2;
     int j=0;
 
-	for(j=0; j<opts.size; j++){ //scan the buffer and ignore possible white space and quotes...
+	for(j=0; j<opts.size; j++){ //scan the buffer and ignore possible leading white space and quotes...
 		unsigned char jj = opts.scode[j];
 		if(jj != ' ' && jj != '\r' && jj != '\n' && jj != '"' && jj != '\t' && jj != '\'') break;
 	}
@@ -3467,6 +3468,28 @@ void loadsc(void){
 		printf("Detected \\x encoding input format converting...\n");
 		end_color();
 		opts.size = stripChars((unsigned char*)opts.scode, &tmp, opts.size,"\n\r\t,\\x\";\' " ); 
+		free(opts.scode);
+		opts.size = HexToBin((char*)tmp, &tmp2);
+		opts.scode = (unsigned char*)tmp2;
+	}else if(isxdigit(opts.scode[j]) && isxdigit(opts.scode[j+1]) && isxdigit(opts.scode[j+2]) && isxdigit(opts.scode[j+3]) ){
+		bool allHex = true;
+		unsigned char* tmp3 = (unsigned char*)SafeMalloc(opts.size);
+		memcpy(tmp3,opts.scode, opts.size);
+		uint32_t newSize = stripChars(tmp3, &tmp, opts.size,"\n\r\t,\\ \";\'" ); 
+		unsigned char* c = (unsigned char*)tmp;
+		for(int i=0;i < newSize; i++){
+			if(!isxdigit(c[i])) allHex = false; 
+			if(!allHex){
+				//printf("failed at offset %x/%x value: %d memoffset %x\n", i,opts.size, c[i], &c[i]);
+				break;
+			}
+		}
+		free(tmp3);
+		if(!allHex) return;
+		start_color(colors::myellow);
+		printf("Detected straight hex encoding input format converting...\n");
+		end_color();
+		opts.size = stripChars((unsigned char*)opts.scode, &tmp, opts.size,"\n\r\t,\\ \";\'" ); 
 		free(opts.scode);
 		opts.size = HexToBin((char*)tmp, &tmp2);
 		opts.scode = (unsigned char*)tmp2;

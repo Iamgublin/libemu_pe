@@ -1704,6 +1704,26 @@ int32_t	__stdcall hook_fclose(struct emu_env_w32 *win, struct emu_env_w32_dll_ex
 	return 0;
 }
 
+int32_t	__stdcall hook_fseek(struct emu_env_w32 *win, struct emu_env_w32_dll_export *ex)
+{
+	/* 	cdecl int fseek ( FILE * stream, long int offset, int origin ); */
+	uint32_t eip_save = popd();
+	uint32_t h = get_arg(0);
+	uint32_t off = get_arg(4);
+	uint32_t org = get_arg(8);
+
+	printf("%x\tfseek(h=%x, off=%x, org=%x)\n",eip_save, h, off, org);
+	
+	uint32_t ret = 0;
+	if( opts.interactive_hooks != 0 ){
+		ret = fseek((FILE*)h,off,org);
+	}
+	
+	set_ret(ret);
+    emu_cpu_eip_set(cpu, eip_save);
+	return 0;
+}
+
 int32_t	__stdcall hook_fprintf(struct emu_env_w32 *win, struct emu_env_w32_dll_export *ex)
 {
 	/* 	cdecl int fprintf ( FILE * stream, const char * format, ... ); */
