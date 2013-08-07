@@ -2,7 +2,7 @@
 This project is a port of the GCC libemu project to compile with 
 Visual Studio 2008
 
-Some features have no been ported over and may not be. 
+Some features have not been ported over and may not be. 
 
 Stripped features include: profile, graphing, getpc mode
 

@@ -1995,6 +1995,8 @@ void set_hooks(struct emu_env *env){
 	ADDHOOK(RtlDosPathNameToNtPathName_U);
 	ADDHOOK(ZwOpenFile);
 	ADDHOOK(fseek);
+	ADDHOOK(gethostname);
+	ADDHOOK(SendARP);
 
 }
 
@@ -3446,11 +3448,11 @@ void loadsc(void){
 	}
 	if(j >= opts.size-1) j = 0;
 
-	if(opts.scode[j] == '%' && opts.scode[j+1] == 'u'){
+	if( (opts.scode[j] == '%' && opts.scode[j+1] == 'u') || (opts.scode[j] == '\\' && opts.scode[j+1] == 'u') ){
 		start_color(colors::myellow);
 		printf("Detected %%u encoding input format converting...\n");
 		end_color();
-		opts.size = stripChars((unsigned char*)opts.scode, &tmp, opts.size, "\n\r\t,%u\";\' "); 
+		opts.size = stripChars((unsigned char*)opts.scode, &tmp, opts.size, "\n\r\t,%u\";\' +\\"); 
 		free(opts.scode);
 		opts.size = HexToBin((char*)tmp, &tmp2);
 		opts.scode = (unsigned char*)tmp2;
@@ -3459,7 +3461,7 @@ void loadsc(void){
 		start_color(colors::myellow);
 		printf("Detected %% hex input format converting...\n");
 		end_color();
-		opts.size = stripChars((unsigned char*)opts.scode, &tmp, opts.size, "\n\r\t,%\";\' "); 
+		opts.size = stripChars((unsigned char*)opts.scode, &tmp, opts.size, "\n\r\t,%\";\' +"); 
 		free(opts.scode);
 		opts.size = HexToBin((char*)tmp, &tmp2);
 		opts.scode = (unsigned char*)tmp2;		

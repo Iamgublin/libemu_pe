@@ -1,6 +1,10 @@
 
 ---------------[  Changelog for scdbg/libemu  ]---------------
 
+8.5.13   - newdll: iphlpapi, hooks: SendARP,gethostname
+           added support for \u and strip + on converter
+           tweak logging behavior of connect hook.
+
 7.14.13  - hook fseek, ability to load raw hex blobs as input with -f
 
 5.30.13  - 3 hooks: MoveFileA/W, GetModuleFileNameW, anti-spam added to ReadFile

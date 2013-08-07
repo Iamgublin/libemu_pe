@@ -84,6 +84,7 @@ uint32_t next_alloc = 0x00600000; //these increment so we dont walk on old alloc
 uint32_t safe_stringbuf = 0x2531D0; //after the peb just empty space
 CONTEXT last_set_context; 
 int last_set_context_handle=0;
+char *default_host_name = "JOHN_PC1";
 
 char* SafeMalloc(int size){
 	char* buf = (char*)malloc(size);
@@ -2486,14 +2487,21 @@ int32_t	__stdcall hook_connect(struct emu_env_w32 *win, struct emu_env_w32_dll_e
 	struct sockaddr sa;
 	emu_memory_read_block(emu_memory_get(win->emu), p_name, &sa, sizeof(struct sockaddr));
 	
+	//we want this displayed before the connect attempt, showing org data, and overrides if used..8.5.13
+	printf("%x\tconnect(h=%x, host: %s , port: %d ) = %x\n",eip_save, s, get_client_ip(&sa), get_client_port(&sa), cpu->reg[eax]  );
+
 	if (opts.override.host != NULL ){
 		struct sockaddr_in *si = (struct sockaddr_in *)&sa;
 		si->sin_addr.s_addr = inet_addr(opts.override.host);
-	}
-
-	if (opts.override.port > 0){
-		struct sockaddr_in *si = (struct sockaddr_in *)&sa;;
-		si->sin_port = htons(opts.override.port);
+		start_color(colors::myellow);
+		if (opts.override.port > 0){
+			struct sockaddr_in *si = (struct sockaddr_in *)&sa;;
+			si->sin_port = htons(opts.override.port);
+			printf("\tOverriding to: %s:%d\n",opts.override.host, opts.override.port);
+		}else{
+			printf("\tOverriding to: %s\n",opts.override.host);
+		}
+		end_color();
 	}
 
 	if (namelen != sizeof(struct sockaddr)) namelen = sizeof(struct sockaddr);
@@ -2503,8 +2511,6 @@ int32_t	__stdcall hook_connect(struct emu_env_w32 *win, struct emu_env_w32_dll_e
 	}else{
 		set_ret( connect((SOCKET)s, &sa, namelen) );
 	}
-
-	printf("%x\tconnect(h=%x, host: %s , port: %d ) = %x\n",eip_save, s, get_client_ip(&sa), get_client_port(&sa), cpu->reg[eax]  );
 
 	emu_cpu_eip_set(cpu, eip_save);
 	return 0;
@@ -4451,29 +4457,35 @@ typedef struct hostent { 16 or 0x10 bytes )
 	dummy[2] = 0x0100007f;
 	dummy[3] = 0;
 
-	if(opts.interactive_hooks){
-		 printf("\tInteractive mode lookup for: %s ", s->data );
-	     struct hostent *remoteHost = gethostbyname(s->data); 
-		 struct in_addr addr;
-		 uint32_t ip=0;
-		 int i=0;
-		 if (remoteHost == NULL) {
-				printf(" - failed\n");
-	  	 }else{
-				if (remoteHost->h_addrtype == AF_INET) {
-					//while (remoteHost->h_addr_list[i] != 0) {
-						if(ip==0) ip = *(uint32_t*)remoteHost->h_addr_list[i];
-						addr.s_addr = *(u_long *) remoteHost->h_addr_list[i];
-						printf(" - address %s (%x)\n", inet_ntoa(addr), addr.s_addr);
-						i++;
-					//}
-				} else /*if (remoteHost->h_addrtype == AF_INET6)*/{
-					ip = *(uint32_t*)remoteHost->h_addr_list[0];
-					printf(" = address %x\n",ip);
-				}
-		 }
-		 if(ip!=0) dummy[2] = ip;
+	//if(strcmp(s->data, default_host_name) == 0){
+		//strcpy(s->data,"test.com"); /*debug test..JOHN_PC1 == 8*/ }
+
+	if(strcmp(s->data, default_host_name) != 0){
+		if(opts.interactive_hooks){
+			 printf("\tInteractive mode lookup for: %s ", s->data );
+			 struct hostent *remoteHost = gethostbyname(s->data); 
+			 struct in_addr addr;
+			 uint32_t ip=0;
+			 int i=0;
+			 if (remoteHost == NULL) {
+					printf(" - failed\n");
+  			 }else{
+					if (remoteHost->h_addrtype == AF_INET) {
+						//while (remoteHost->h_addr_list[i] != 0) {
+							if(ip==0) ip = *(uint32_t*)remoteHost->h_addr_list[i];
+							addr.s_addr = *(u_long *) remoteHost->h_addr_list[i];
+							printf(" - address %s (%x)\n", inet_ntoa(addr), addr.s_addr);
+							i++;
+						//}
+					} else /*if (remoteHost->h_addrtype == AF_INET6)*/{
+						ip = *(uint32_t*)remoteHost->h_addr_list[0];
+						printf(" = address %x\n",ip);
+					}
+			 }
+			 if(ip!=0) dummy[2] = ip;
+		}
 	}
+	 
 	 
 	emu_memory_write_block(mem, 0x1000, &h, sizeof(hostent));
 	emu_memory_write_block(mem, 0x1014, &dummy[0], 4*4);
@@ -5039,6 +5051,83 @@ int32_t	__stdcall hook_MoveFileA(struct emu_env_w32 *win, struct emu_env_w32_dll
 	return 0;
 }
 
+
+
+int32_t	__stdcall hook_gethostname(struct emu_env_w32 *win, struct emu_env_w32_dll_export *ex)
+{
+	/* 	
+		int gethostname(
+		  _Out_  char *name,
+		  _In_   int namelen
+		);
+	*/
+
+	uint32_t eip_save = popd();
+	uint32_t lpName = popd();
+	uint32_t sz = popd();
+	uint32_t copySz = 0;
+	
+	printf("%x\t%s(%x, %x) = %s\n",eip_save, ex->fnname, lpName, sz, default_host_name);
+	
+	copySz = strlen(default_host_name);
+	if(copySz > sz) copySz = sz-1;
+	emu_memory_write_block(mem,lpName,default_host_name,copySz+1);
+
+	set_ret(0); //Success 
+    emu_cpu_eip_set(cpu, eip_save);
+	return 0;
+}
+
+int32_t	__stdcall hook_SendARP(struct emu_env_w32 *win, struct emu_env_w32_dll_export *ex)
+{
+	/* 	
+	    test me more sometime...
+
+		DWORD SendARP(
+		  _In_     IPAddr DestIP,
+		  _In_     IPAddr SrcIP,
+		  _Out_    PULONG pMacAddr,
+		  _Inout_  PULONG PhyAddrLen
+		);
+	*/
+
+	uint32_t eip_save = popd();
+	uint32_t destIP = popd();
+	uint32_t srcIP = popd();
+	uint32_t pMacAddr = popd();
+	uint32_t PhyAddrLen = popd();
+	
+	uint32_t copySz = 0;
+	uint32_t sz = 0;
+    char *defaultMAC = "DE-AD-BE-EF-S4-17";
+
+	in_addr ia;
+	char dst[20];
+	char src[20];
+	memset(dst,0,20);
+	memset(src,0,20);
+
+	memcpy(&ia,&destIP,4);
+	char* tmp = inet_ntoa(ia);
+	if(tmp!=0) strncpy(dst,tmp, 20);
+
+	memcpy(&ia,&srcIP,4);
+	tmp = inet_ntoa(ia);
+	if(tmp!=0) strncpy(src,tmp, 20);
+
+	emu_memory_read_dword(mem,PhyAddrLen, &sz);
+
+	printf("%x\t%s(%s, %s, %x, %x) = %s\n",eip_save, ex->fnname, dst,src,pMacAddr,sz, defaultMAC );
+	
+	copySz = strlen(defaultMAC);
+	if(copySz > sz) copySz = sz-1;
+	emu_memory_write_block(mem,pMacAddr,defaultMAC,copySz+1);
+	emu_memory_write_dword(mem,PhyAddrLen,copySz+1);
+
+	set_ret((uint32_t)NO_ERROR);  
+    emu_cpu_eip_set(cpu, eip_save);
+	return 0;
+}
 
 
 

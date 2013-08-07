@@ -12,7 +12,7 @@
 
 #include <stddef.h> //offsetof
 
-	#define dllCount 13
+	#define dllCount 14
 //	#define dllCount 3
 
 //peb       0x00251ea0
@@ -29,6 +29,7 @@ struct emu_env_w32_known_dll known_dlls[] = //do not reorder the first three ent
 	{"ntdll", 0x7C900000, 0xB2000,}, 
 	{"kernel32",0x7C800000,0xf6000, }, 
 	{"ws2_32",0x71AB0000,0x17000,},
+	{"iphlpapi",0x76D60000,0x19000,},
 	{"msvcrt", 0x77C10000, 0x58000,},
 	{"shell32",  0x7C9C0000,0x817000,},
 	{"shdocvw",  0x7E290000, 0x171000,}, 
@@ -406,7 +407,7 @@ void main(int argc, char* argv[]){
 	uint32_t base = 0;
 
 	printf("pebbuilder.exe usage: no arguments = test mode\n");
-	printf("\t\t 1 arg = hex string specifying base address to build PEB for\n");
+	printf("\t\t 1 arg = hex string specifying base address to build PEB for (use 0x00251ea0)\n");
 	printf("\t\tOutput file peb.bin\n\n");
 
 	if(argc > 1){
@@ -415,7 +416,7 @@ void main(int argc, char* argv[]){
 			printf("Error converting %s to hex\n", argv[1]);
 			exit(0);
 		}
-		printf("Building PEB to embed at offset %x\n",  embed_at);
+		printf("Building PEB to embed at offset %x (scdbg expects 0x00251ea0)\n",  embed_at);
 		base = build_peb(embed_at, &peb_size);
 		
 		FILE* f = fopen("peb.bin","wb");
