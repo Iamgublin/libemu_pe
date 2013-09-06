@@ -5,6 +5,7 @@ Begin VB.Form frmScTest
    ClientLeft      =   60
    ClientTop       =   630
    ClientWidth     =   10140
+   Icon            =   "frmScTest.frx":0000
    LinkTopic       =   "Form3"
    ScaleHeight     =   7485
    ScaleWidth      =   10140
@@ -316,6 +317,10 @@ Begin VB.Form frmScTest
          Caption         =   "Disasm Buffer (uses start offset)"
          Index           =   17
       End
+      Begin VB.Menu mnuMore 
+         Caption         =   "Register .sc File Extension"
+         Index           =   18
+      End
    End
 End
 Attribute VB_Name = "frmScTest"
@@ -618,6 +623,8 @@ End Sub
 
 Private Sub mnuMore_Click(Index As Integer)
 
+    Dim homedir As String
+    
     homedir = GetShortName(fso.GetParentFolder(sctest))
     cmd = "cmd /k chdir /d " & homedir & "\ && "
     cmd = cmd & "mode con lines=45 cols=100 && """ & sctest & """ "
@@ -660,12 +667,25 @@ Private Sub mnuMore_Click(Index As Integer)
                 End If
                 cmd = cmd & "-f " & GetShortName(txtLoadedFile) & " -disasm 200 -foff " & txtStartOffset.Text
                 
+        Case 18:
+                homedir = homedir & "\gui_launcher.exe"
+                If Not fso.FileExists(homedir) Then Exit Sub
+                cmd = "cmd /c ftype Shellcode.Document=""" & homedir & """ %1 && assoc .sc=Shellcode.Document"
+                
     End Select
     
     lastcmdline = cmd
     
     On Error Resume Next
     Shell cmd, vbNormalFocus
+    
+    If Index = 18 Then 'register file type, set default icon..
+        Dim wsh As Object 'WshShell
+        Set wsh = CreateObject("WScript.Shell")
+        If Not wsh Is Nothing Then
+            wsh.RegWrite "HKCR\Shellcode.Document\DefaultIcon\", homedir & ",0"
+        End If
+    End If
     
 End Sub
 

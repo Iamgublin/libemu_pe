@@ -597,7 +597,23 @@ end_of_loop:
 End Sub
 
 Private Sub Command2_Click()
-    MsgBox "Not implemented yet run scdbg -dir [folder]", vbInformation
+       
+    exe = GetSetting("scdbg", "settings", "exe", "D:\_libemu\VS_LIBEMU\scdbg.exe")
+    If Not fso.FolderExists(Text1) Then
+        MsgBox "Folder doesnt exist"
+        Exit Sub
+    End If
+    
+    On Error Resume Next
+    
+    Dim wsh As New WshShell
+    Dim ts As TextStream
+    
+    wsh.CurrentDirectory = fso.GetParentFolder(exe)
+    Set ts = wsh.Exec(exe & " -dir """ & Text1 & """").StdOut
+    MsgBox ts.ReadAll
+    Command1_Click
+    
 End Sub
 
 Private Sub Command3_Click()
