@@ -1,6 +1,8 @@
 
 ---------------[  Changelog for scdbg/libemu  ]---------------
 
+9.13.13  - pop ds
+ 
 8.5.13   - newdll: iphlpapi, hooks: SendARP,gethostname
            added support for \u and strip + on converter
            tweak logging behavior of connect hook.

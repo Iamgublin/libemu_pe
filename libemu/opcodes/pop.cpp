@@ -70,7 +70,11 @@ int32_t instr_pop_1f(struct emu_cpu *c, struct emu_cpu_instruction *i)
 	 * Pop top of stack into DS; increment stack pointer   
 	 * POP DS  
 	 */
-	UNIMPLEMENTED(c, NNY);
+
+	//dzzie 4.13.13
+	uint32_t val=0;
+	POP_DWORD(c, &val);
+	emu_memory_segment_setval(c->mem,s_ds,val); 
 	
 	return 0;
 }

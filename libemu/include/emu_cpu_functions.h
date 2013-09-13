@@ -241,8 +241,8 @@ int32_t instr_leave(struct emu_cpu *c, struct emu_cpu_instruction *i);
 															  
 /* pop */
 int32_t instr_pop_07(struct emu_cpu *c, struct emu_cpu_instruction *i); //pop es dz 4.10.13 
-/*int32_t instr_pop_17(struct emu_cpu *c, struct instruction *i);
-int32_t instr_pop_1f(struct emu_cpu *c, struct instruction *i);*/
+//int32_t instr_pop_17(struct emu_cpu *c, struct instruction *i);
+int32_t instr_pop_1f(struct emu_cpu *c, struct emu_cpu_instruction *i); //pop ds dz 9.13.13
 int32_t instr_pop_5x(struct emu_cpu *c, struct emu_cpu_instruction *i);
 int32_t instr_popad_61(struct emu_cpu *c, struct emu_cpu_instruction *i);
 /*int32_t instr_pop_0fa1(struct emu_cpu *c, struct instruction *i);

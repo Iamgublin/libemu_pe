@@ -98,7 +98,7 @@ struct emu_cpu_instruction_info ii_onebyte[0x100] = {
 	/* 1c */ {instr_sbb_1c, "sbb", {0, 0, 0, II_IMM8, 0, 0, 0}},               
 	/* 1d */ {instr_sbb_1d, "sbb", {0, 0, 0, II_IMM, 0, 0, 0}},                
 	/* 1e */ {0, 0, {0, 0, 0, 0, 0, 0, 0, 0}},
-	/* 1f */ {0, 0, {0, 0, 0, 0, 0, 0, 0, 0}},
+	/* 1f */ {instr_pop_1f, "popds", {0, 0, 0, 0, 0, 0, 0, 0}},
 	/* 20 */ {instr_and_20, "and", {0, 0, II_MOD_REG_RM, 0, 0, 0, 0}},  
 	/* 21 */ {instr_and_21, "and", {0, 0, II_MOD_REG_RM, 0, 0, 0, 0}},  
 	/* 22 */ {instr_and_22, "and", {0, 0, II_MOD_REG_RM, 0, 0, 0, 0}},  
