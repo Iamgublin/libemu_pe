@@ -1784,55 +1784,47 @@ void set_hooks(struct emu_env *env){
 		extern int32_t	__stdcall hook_##name(struct emu_env_w32 *win, struct emu_env_w32_dll_export *ex);\
 		if(emu_env_w32_export_new_hook(env, #name, hook_##name, NULL) < 0) printf("Failed to setHook %s\n",#name);
 
-	ADDHOOK(LoadLibraryA);
-	ADDHOOK(URLDownloadToCacheFileA);
-	ADDHOOK(CreateProcessInternalA);
+	#define HOOKBOTH(name) \
+		extern int32_t	__stdcall hook_##name(struct emu_env_w32 *win, struct emu_env_w32_dll_export *ex);\
+		if(emu_env_w32_export_new_hook(env, #name"A", hook_##name, NULL) < 0) printf("Failed to setHook %s\n",#name"A");\
+		if(emu_env_w32_export_new_hook(env, #name"W", hook_##name, NULL) < 0) printf("Failed to setHook %s\n",#name"W");
+
+	//following support both Ascii and Wide api
+	HOOKBOTH(PathFileExists);
+	HOOKBOTH(LoadLibrary);
+	HOOKBOTH(GetTempPath);
+    HOOKBOTH(GetTempFileName);
+    HOOKBOTH(URLDownloadToFile);
+	HOOKBOTH(MoveFile);
+    HOOKBOTH(GetModuleFileName);
+	HOOKBOTH(URLDownloadToCacheFile);
+	HOOKBOTH(CreateProcessInternal);
+	HOOKBOTH(CryptAcquireContext);
+	HOOKBOTH(OpenService);
+	HOOKBOTH(RegOpenKeyEx);
+	HOOKBOTH(OpenSCManager);
+	HOOKBOTH(CreateFile);
+	HOOKBOTH(InternetSetOption);
+	HOOKBOTH(CreateProcess);
+
 	ADDHOOK(ExitProcess);
 	ADDHOOK(memset);
 	ADDHOOK(memcpy);
-	ADDHOOK(CryptAcquireContextA);
 	ADDHOOK(GetFileSize);
-	ADDHOOK(OpenServiceW);
-	ADDHOOK(RegOpenKeyExA);
-	ADDHOOK(OpenSCManagerW);
 	ADDHOOK(GlobalAlloc);
-	ADDHOOK(CreateFileA);
 	ADDHOOK(strstr);
 	ADDHOOK(strtoul);
-    ADDHOOK(InternetSetOptionA);
     ADDHOOK(lstrcatA);
-    ADDHOOK(CreateProcessA);
 	ADDHOOK(strrchr);
-	ADDHOOK(GetTempPathA);
-    ADDHOOK(GetTempFileNameA);
-    ADDHOOK(URLDownloadToFileA);
-	ADDHOOK(MoveFileA);
-    ADDHOOK(GetModuleFileNameA);
-
+	
 	//these dont follow the macro pattern..mostly redirects/multitasks
-	emu_env_w32_export_new_hook(env, "LoadLibraryExA",  hook_LoadLibraryA, NULL);
-	emu_env_w32_export_new_hook(env, "LoadLibraryW",  hook_LoadLibraryA, NULL);
-	emu_env_w32_export_new_hook(env, "URLDownloadToCacheFileW", hook_URLDownloadToCacheFileA, NULL);
-	emu_env_w32_export_new_hook(env, "CreateProcessInternalW", hook_CreateProcessInternalA, NULL);
+	emu_env_w32_export_new_hook(env, "LoadLibraryExA",  hook_LoadLibrary, NULL);
 	emu_env_w32_export_new_hook(env, "ExitThread", hook_ExitProcess, NULL);
-	emu_env_w32_export_new_hook(env, "CryptAcquireContextW", hook_CryptAcquireContextA, NULL);
 	emu_env_w32_export_new_hook(env, "GetFileSizeEx", hook_GetFileSize, NULL);
-	emu_env_w32_export_new_hook(env, "OpenServiceA", hook_OpenServiceW, NULL);
-	emu_env_w32_export_new_hook(env, "RegOpenKeyExW", hook_RegOpenKeyExA, NULL);
-	emu_env_w32_export_new_hook(env, "OpenSCManagerA", hook_OpenSCManagerW, NULL);
 	emu_env_w32_export_new_hook(env, "LocalAlloc", hook_GlobalAlloc, NULL);
-	emu_env_w32_export_new_hook(env, "CreateFileW", hook_CreateFileA, NULL);
-	emu_env_w32_export_new_hook(env, "InternetSetOptionW", hook_InternetSetOptionA, NULL);
 	emu_env_w32_export_new_hook(env, "strcat", hook_lstrcatA, NULL);
     emu_env_w32_export_new_hook(env, "RtlMoveMemory", hook_memcpy, NULL); //kernel32. found first...
-    emu_env_w32_export_new_hook(env, "CopyMemory", hook_memcpy, NULL);
-    emu_env_w32_export_new_hook(env, "CreateProcessW", hook_CreateProcessA, NULL);
-	emu_env_w32_export_new_hook(env, "GetTempPathW", hook_GetTempPathA, NULL);
-    emu_env_w32_export_new_hook(env, "GetTempFileNameW", hook_GetTempFileNameA, NULL);
-	emu_env_w32_export_new_hook(env, "URLDownloadToFileW", hook_URLDownloadToFileA, NULL);
-	emu_env_w32_export_new_hook(env, "MoveFileW", hook_MoveFileA, NULL);
-	emu_env_w32_export_new_hook(env, "GetModuleFileNameW", hook_GetModuleFileNameA, NULL);
-	
+    emu_env_w32_export_new_hook(env, "CopyMemory", hook_memcpy, NULL);	
 
 	//-----handled by the generic stub 2 string
 	emu_env_w32_export_new_hook(env, "InternetOpenA", hook_GenericStub2String, NULL);
@@ -3822,7 +3814,7 @@ reinit:
     }
 	//---- end memory monitor init 
 
-	if(!opts.automationRun)printf("Initilization Complete..\n");
+	if(!opts.automationRun)printf("Initialization Complete..\n");
 
 	if(opts.adjust_getfsize != 0) printf("Adjusting GetFileSize by %d\n", opts.adjust_getfsize);
 	

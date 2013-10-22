@@ -664,7 +664,7 @@ int32_t	__stdcall hook_GenericStub(struct emu_env_w32 *win, struct emu_env_w32_d
 }
 
 
-int32_t	__stdcall hook_CreateProcessInternalA(struct emu_env_w32 *win, struct emu_env_w32_dll_export *ex)
+int32_t	__stdcall hook_CreateProcessInternal(struct emu_env_w32 *win, struct emu_env_w32_dll_export *ex)
 {
 	uint32_t eip_save = popd();
 /*
@@ -800,7 +800,7 @@ int32_t	__stdcall hook_MapViewOfFile(struct emu_env_w32 *win, struct emu_env_w32
 	return 0;
 }
 
-int32_t	__stdcall hook_URLDownloadToCacheFileA(struct emu_env_w32 *win, struct emu_env_w32_dll_export *ex)
+int32_t	__stdcall hook_URLDownloadToCacheFile(struct emu_env_w32 *win, struct emu_env_w32_dll_export *ex)
 {
 	
 /*
@@ -1181,7 +1181,7 @@ int32_t	__stdcall hook_strtoul(struct emu_env_w32 *win, struct emu_env_w32_dll_e
 	return 0;
 }
 
-int32_t	__stdcall hook_GetTempFileNameA(struct emu_env_w32 *win, struct emu_env_w32_dll_export *ex)
+int32_t	__stdcall hook_GetTempFileName(struct emu_env_w32 *win, struct emu_env_w32_dll_export *ex)
 {
 /*	
 	UINT WINAPI GetTempFileName(
@@ -1221,7 +1221,7 @@ int32_t	__stdcall hook_GetTempFileNameA(struct emu_env_w32 *win, struct emu_env_
 	return 0;
 }
 
-int32_t	__stdcall hook_LoadLibraryA(struct emu_env_w32 *win, struct emu_env_w32_dll_export *ex)
+int32_t	__stdcall hook_LoadLibrary(struct emu_env_w32 *win, struct emu_env_w32_dll_export *ex)
 {
 /* 
    LoadLibraryA(LPCTSTR lpFileName); 
@@ -1275,7 +1275,7 @@ int32_t	__stdcall hook_LoadLibraryA(struct emu_env_w32 *win, struct emu_env_w32_
 	return 0;
 }
 
-int32_t	__stdcall hook_GetModuleFileNameA(struct emu_env_w32 *win, struct emu_env_w32_dll_export *ex)
+int32_t	__stdcall hook_GetModuleFileName(struct emu_env_w32 *win, struct emu_env_w32_dll_export *ex)
 {
 /*
 	DWORD WINAPI GetModuleFileName(
@@ -1634,7 +1634,7 @@ int32_t	__stdcall hook_MultiByteToWideChar(struct emu_env_w32 *win, struct emu_e
 }
 
 
-int32_t	__stdcall hook_URLDownloadToFileA(struct emu_env_w32 *win, struct emu_env_w32_dll_export *ex)
+int32_t	__stdcall hook_URLDownloadToFile(struct emu_env_w32 *win, struct emu_env_w32_dll_export *ex)
 {
 	
 /*
@@ -1916,7 +1916,7 @@ int32_t	__stdcall hook__lwrite(struct emu_env_w32 *win, struct emu_env_w32_dll_e
 	return 0;
 }
 
-int32_t	__stdcall hook_GetTempPathA(struct emu_env_w32 *win, struct emu_env_w32_dll_export *ex)
+int32_t	__stdcall hook_GetTempPath(struct emu_env_w32 *win, struct emu_env_w32_dll_export *ex)
 {
 	/*
 	DWORD WINAPI GetTempPath(
@@ -2033,7 +2033,7 @@ int32_t	__stdcall hook_CloseHandle(struct emu_env_w32 *win, struct emu_env_w32_d
 	return 0;
 }
 
-int32_t	__stdcall hook_CreateFileA(struct emu_env_w32 *win, struct emu_env_w32_dll_export *ex)
+int32_t	__stdcall hook_CreateFile(struct emu_env_w32 *win, struct emu_env_w32_dll_export *ex)
 {
 	/*
 		HANDLE CreateFile(
@@ -2091,7 +2091,7 @@ int32_t	__stdcall hook_CreateFileA(struct emu_env_w32 *win, struct emu_env_w32_d
 }
 
 
-int32_t	__stdcall hook_CreateProcessA(struct emu_env_w32 *win, struct emu_env_w32_dll_export *ex)
+int32_t	__stdcall hook_CreateProcess(struct emu_env_w32 *win, struct emu_env_w32_dll_export *ex)
 {
 /*BOOL CreateProcess( 
   LPCWSTR pszImageName, 
@@ -3202,7 +3202,7 @@ int32_t	__stdcall hook_GetEnvironmentVariableA(struct emu_env_w32 *win, struct e
 	return 0;
 }
 
-int32_t	__stdcall hook_CryptAcquireContextA(struct emu_env_w32 *win, struct emu_env_w32_dll_export *ex)
+int32_t	__stdcall hook_CryptAcquireContext(struct emu_env_w32 *win, struct emu_env_w32_dll_export *ex)
 {
 	/*
 		BOOL WINAPI CryptAcquireContext(
@@ -3533,7 +3533,7 @@ int32_t	__stdcall hook_InternetReadFile(struct emu_env_w32 *win, struct emu_env_
 	return 0;
 }
 
-int32_t	__stdcall hook_RegOpenKeyExA(struct emu_env_w32 *win, struct emu_env_w32_dll_export *ex)
+int32_t	__stdcall hook_RegOpenKeyEx(struct emu_env_w32 *win, struct emu_env_w32_dll_export *ex)
 {
 	/*
 		LONG WINAPI RegOpenKeyEx(
@@ -3560,7 +3560,7 @@ int32_t	__stdcall hook_RegOpenKeyExA(struct emu_env_w32 *win, struct emu_env_w32
 	return 0;
 }
 
-int32_t	__stdcall hook_OpenSCManagerW(struct emu_env_w32 *win, struct emu_env_w32_dll_export *ex)
+int32_t	__stdcall hook_OpenSCManager(struct emu_env_w32 *win, struct emu_env_w32_dll_export *ex)
 {
 	/*
 		SC_HANDLE WINAPI OpenSCManager(
@@ -3584,7 +3584,7 @@ int32_t	__stdcall hook_OpenSCManagerW(struct emu_env_w32 *win, struct emu_env_w3
 	return 0;
 }
 
-int32_t	__stdcall hook_OpenServiceW(struct emu_env_w32 *win, struct emu_env_w32_dll_export *ex)
+int32_t	__stdcall hook_OpenService(struct emu_env_w32 *win, struct emu_env_w32_dll_export *ex)
 {
 	/*
 		SC_HANDLE WINAPI OpenService(
@@ -3755,7 +3755,7 @@ int32_t	__stdcall hook_SetCurrentDirectoryA(struct emu_env_w32 *win, struct emu_
 
 }
 
-int32_t	__stdcall hook_InternetSetOptionA(struct emu_env_w32 *win, struct emu_env_w32_dll_export *ex)
+int32_t	__stdcall hook_InternetSetOption(struct emu_env_w32 *win, struct emu_env_w32_dll_export *ex)
 {
 	/*  
 		BOOL InternetSetOption(
@@ -5027,7 +5027,7 @@ int32_t	__stdcall hook_ZwOpenFile(struct emu_env_w32 *win, struct emu_env_w32_dl
 }
 
 
-int32_t	__stdcall hook_MoveFileA(struct emu_env_w32 *win, struct emu_env_w32_dll_export *ex)
+int32_t	__stdcall hook_MoveFile(struct emu_env_w32 *win, struct emu_env_w32_dll_export *ex)
 {
 	/* 	
 		BOOL WINAPI MoveFile(
@@ -5128,6 +5128,28 @@ int32_t	__stdcall hook_SendARP(struct emu_env_w32 *win, struct emu_env_w32_dll_e
     emu_cpu_eip_set(cpu, eip_save);
 	return 0;
 }
+
+int32_t	__stdcall hook_PathFileExists(struct emu_env_w32 *win, struct emu_env_w32_dll_export *ex)
+{
+	/* 	
+		BOOL PathFileExists(
+		  _In_  LPCTSTR pszPath
+		);
+	*/
+
+	uint32_t eip_save = popd();
+	struct emu_string* path = isWapi(ex->fnname) ?  popwstring() : popstring();	
+	
+	printf("%x\t%s(%s)\n", eip_save, ex->fnname, path->data);
+
+	set_ret(FALSE); 
+    emu_cpu_eip_set(cpu, eip_save);
+	emu_string_free(path);
+	return 0;
+}
+
+
+
 
 
 

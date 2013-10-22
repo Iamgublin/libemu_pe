@@ -1,9 +1,13 @@
 
 ---------------[  Changelog for scdbg/libemu  ]---------------
 
+10.22.13 - added /support/webservice/index.php to run scdbg from the web.
+
+9.22.13  - hooks: PathFileExistsA/W , HOOKBOTH macro, added help file
+
 9.13.13  - pop ds
  
-8.5.13   - newdll: iphlpapi, hooks: SendARP,gethostname
+8.5.13   - new dll: iphlpapi, hooks: SendARP,gethostname
            added support for \u and strip + on converter
            tweak logging behavior of connect hook.
 
