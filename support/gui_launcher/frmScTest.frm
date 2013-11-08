@@ -321,6 +321,10 @@ Begin VB.Form frmScTest
          Caption         =   "Register .sc File Extension"
          Index           =   18
       End
+      Begin VB.Menu mnuMore 
+         Caption         =   "Dword Dump (Rop View)"
+         Index           =   19
+      End
    End
 End
 Attribute VB_Name = "frmScTest"
@@ -671,6 +675,15 @@ Private Sub mnuMore_Click(Index As Integer)
                 homedir = homedir & "\gui_launcher.exe"
                 If Not fso.FileExists(homedir) Then Exit Sub
                 cmd = "cmd /c ftype Shellcode.Document=""" & homedir & """ %1 && assoc .sc=Shellcode.Document"
+                
+        Case 19:
+                If Not fso.FileExists(txtLoadedFile) Then
+                    MsgBox "No shellcode file loaded yet.", vbInformation
+                    Exit Sub
+                End If
+                
+                frmDWordDump.DumpFile txtLoadedFile
+                Exit Sub
                 
     End Select
     

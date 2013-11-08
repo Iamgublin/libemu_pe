@@ -1,9 +1,14 @@
 
 ---------------[  Changelog for scdbg/libemu  ]---------------
 
+11.7.13  -  12 hooks: GetStartupInfoA/W, GetCurrentProcessId, GetCurrentThreadId, FreeLibraryAndExitThread
+            CreateToolhelp32Snapshot,Thread32First, Thread32Next, ZwCreateFile (todo: testme), 
+            OpenThread,SuspendThread,FreeLibrary
+            highlight threadstarts, SetFilePointer antispam
+
 10.22.13 - added /support/webservice/index.php to run scdbg from the web.
 
-9.22.13  - hooks: PathFileExistsA/W , HOOKBOTH macro, added help file
+9.22.13  - 2 hooks: PathFileExistsA/W , HOOKBOTH macro, added help file
 
 9.13.13  - pop ds
  

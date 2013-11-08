@@ -60,6 +60,7 @@ extern "C"{
 #include <windows.h>
 #include <wininet.h>
 #include <Shlobj.h>
+#include <TlHelp32.h>
 
 extern uint32_t FS_SEGMENT_DEFAULT_OFFSET;
 extern void hexdump(unsigned char*, int);
@@ -653,7 +654,9 @@ int32_t	__stdcall hook_GenericStub(struct emu_env_w32 *win, struct emu_env_w32_d
 		pushd(log_val2);
 		pushd(eip_save);
 		emu_cpu_eip_set(cpu, log_val);
+		start_color(colors::myellow);
 		printf("\tTransferring execution to threadstart...\n");
+		end_color();
 	}else{
 		cpu->reg[eax] = ret_val;
 		emu_cpu_eip_set(cpu, eip_save);
@@ -1045,7 +1048,12 @@ int32_t	__stdcall hook_SetFilePointer(struct emu_env_w32 *win, struct emu_env_w3
 		}
 	}
 
-	printf("%x\tSetFilePointer(hFile=%x, dist=%x, %x, %s) = %x\n", eip_save, hfile, lDistanceToMove, lDistanceToMoveHigh, method[dwMoveMethod], rv);
+	bool isSpam = strcmp(win->lastApiCalled, "SetFilePointer") == 0 ? true : false;
+
+	if(!isSpam || (isSpam && win->lastApiHitCount == 2) )
+		printf("%x\tSetFilePointer(hFile=%x, dist=%x, %x, %s) = %x\n", eip_save, hfile, lDistanceToMove, lDistanceToMoveHigh, method[dwMoveMethod], rv);
+	
+	if(isSpam && win->lastApiHitCount == 2) printf("\topen file handle scanning occuring - hiding output\n");
 
 	cpu->reg[eax] = rv;
 	emu_cpu_eip_set(cpu, eip_save);
@@ -1565,7 +1573,9 @@ int32_t	__stdcall hook_CreateRemoteThread(struct emu_env_w32 *win, struct emu_en
 		pushd(arg);
 		pushd(eip_save);
 		emu_cpu_eip_set(cpu, address);
+		start_color(colors::myellow);
 		printf("\tTransferring execution to threadstart...\n");
+		end_color();
 	}else{
 		cpu->reg[eax] = 0x222;
 		emu_cpu_eip_set(cpu, eip_save);
@@ -4124,7 +4134,9 @@ int32_t	__stdcall hook_ResumeThread(struct emu_env_w32 *win, struct emu_env_w32_
 	printf("%x\t%s(h=%x)\n", eip_save, ex->fnname, h);
 	
 	if(/*false*/ h == last_set_context_handle){
+		start_color(colors::myellow);
 		printf("\tTransferring Execution to threadstart %x\n", last_set_context.Eip);
+		end_color();
 		cpu->reg[eax] = last_set_context.Eax;
 		cpu->reg[ebx] = last_set_context.Ebx;
 		cpu->reg[ecx] = last_set_context.Ecx;
@@ -5148,8 +5160,285 @@ int32_t	__stdcall hook_PathFileExists(struct emu_env_w32 *win, struct emu_env_w3
 	return 0;
 }
 
+int32_t	__stdcall hook_ZwCreateFile(struct emu_env_w32 *win, struct emu_env_w32_dll_export *ex)
+{
+	/*
+		NTSTATUS ZwCreateFile(
+		  _Out_     PHANDLE FileHandle,
+		  _In_      ACCESS_MASK DesiredAccess,
+		  _In_      POBJECT_ATTRIBUTES ObjectAttributes,
+		  _Out_     PIO_STATUS_BLOCK IoStatusBlock,
+		  _In_opt_  PLARGE_INTEGER AllocationSize,
+		  _In_      ULONG FileAttributes,
+		  _In_      ULONG ShareAccess,
+		  _In_      ULONG CreateDisposition,
+		  _In_      ULONG CreateOptions,
+		  _In_opt_  PVOID EaBuffer,
+		  _In_      ULONG EaLength
+		);
+	
 
+	typedef struct _UNICODE_STRING {
+	  USHORT Length;
+	  USHORT MaximumLength;
+	  PWSTR  Buffer;
+	} UNICODE_STRING, *PUNICODE_STRING;
 
+	typedef struct _OBJECT_ATTRIBUTES {
+	  ULONG           Length;
+	  HANDLE          RootDirectory;
+	  PUNICODE_STRING ObjectName;
+	  ULONG           Attributes;
+	  PVOID           SecurityDescriptor;
+	  PVOID           SecurityQualityOfService;
+	} OBJECT_ATTRIBUTES;
+*/
+	uint32_t ret = 0xCafeBabe;
+
+	uint32_t eip_save = popd();
+	uint32_t pHandle = popd();
+	uint32_t desiredaccess = popd();
+	uint32_t pobj_attr = popd();
+	uint32_t statblock = popd(); 
+	uint32_t allocsize = popd();
+	uint32_t fileattr = popd();
+	uint32_t sharemode = popd();
+    uint32_t createdisp = popd();
+	uint32_t createopts = popd();
+	uint32_t eabuf = popd();
+	uint32_t ealen = popd();
+
+	uint32_t puni = 0;
+	
+	emu_memory_read_dword(mem, pobj_attr + 8, &puni);
+	struct emu_string *filename = emu_string_new();
+	emu_memory_read_wide_string(mem, puni+8, filename, 1256);
+
+	printf("todo: debug me ... pobj_attr = %x, puni = %x\n", pobj_attr, puni);
+
+	/*char *localfile = 0;
+
+	if( opts.CreateFileOverride ){ 
+		if( (int)opts.h_fopen == 0){
+			printf("\tOpening a valid handle to %s\n", filename->data);
+			HANDLE f = CreateFile(filename->data, GENERIC_READ|GENERIC_WRITE ,0,0,OPEN_ALWAYS,FILE_ATTRIBUTE_NORMAL,0); 
+			set_ret((int)f);
+		}else{
+			set_ret((int)opts.h_fopen);
+		}
+	}else{
+		if(opts.interactive_hooks == 1 ){
+			localfile = SafeTempFile();
+			HANDLE f = CreateFile(localfile, GENERIC_READ|GENERIC_WRITE ,0,0,CREATE_ALWAYS,FILE_ATTRIBUTE_NORMAL,0); 
+			set_ret((int)f);
+		}else{
+			set_ret( get_fhandle() );
+		}
+	}*/
+	
+	printf("%x\t%s(%s) = %x\n", eip_save, ex->fnname, emu_string_char(filename), cpu->reg[eax]  );
+
+	/*if(!opts.CreateFileOverride && opts.interactive_hooks){
+		start_color(myellow);
+		printf("\tInteractive mode local file %s\n", localfile);
+		end_color();
+	}
+
+	opts.CreateFileOverride = false;*/
+
+	emu_memory_write_dword(mem, pHandle, ret);
+	set_ret(0); /*STATUS_SUCCESS*/
+	emu_string_free(filename);
+	emu_cpu_eip_set(cpu, eip_save);
+	return 0;
+}
+
+int32_t	__stdcall hook_GetStartupInfo(struct emu_env_w32 *win, struct emu_env_w32_dll_export *ex)
+{
+	/* 	
+		VOID WINAPI GetStartupInfo(
+		  _Out_  LPSTARTUPINFO lpStartupInfo
+		);
+	*/
+
+	uint32_t eip_save = popd();
+	uint32_t lpStartupInfo = popd();
+	
+	printf("%x\t%s(%x)\n", eip_save, ex->fnname, lpStartupInfo);
+
+	STARTUPINFO si;
+	GetStartupInfo(&si);
+
+	si.lpDesktop = 0;
+	si.lpTitle = 0;
+	emu_memory_write_block(mem, lpStartupInfo, &si, sizeof(STARTUPINFO));
+
+	set_ret(0); 
+    emu_cpu_eip_set(cpu, eip_save);
+	return 0;
+}
+
+int32_t	__stdcall hook_GetCurrentProcessId(struct emu_env_w32 *win, struct emu_env_w32_dll_export *ex)
+{
+	/* 	DWORD WINAPI GetCurrentProcessId();	*/
+	uint32_t eip_save = popd();
+	uint32_t ret = rand();
+	printf("%x\t%s() = %x\n", eip_save, ex->fnname, ret);
+	set_ret(ret); 
+    emu_cpu_eip_set(cpu, eip_save);
+	return 0;
+}
+
+int32_t	__stdcall hook_GetCurrentThreadId(struct emu_env_w32 *win, struct emu_env_w32_dll_export *ex)
+{
+	/* 	DWORD WINAPI GetCurrentThreadId();	*/
+	uint32_t eip_save = popd();
+	uint32_t ret = rand();
+	printf("%x\t%s() = %x\n", eip_save, ex->fnname, ret);
+	set_ret(ret); 
+    emu_cpu_eip_set(cpu, eip_save);
+	return 0;
+}
+
+int32_t	__stdcall hook_FreeLibraryAndExitThread(struct emu_env_w32 *win, struct emu_env_w32_dll_export *ex)
+{
+	/* 	
+		VOID WINAPI FreeLibraryAndExitThread(
+		  _In_  HMODULE hModule,
+		  _In_  DWORD dwExitCode
+		);	
+	*/
+
+	uint32_t eip_save = popd();
+	uint32_t hMod = popd();
+	uint32_t exitCode = popd();
+
+	printf("%x\t%s(%x, %x)\n", eip_save, ex->fnname, hMod, exitCode);
+	set_ret(0); 
+    emu_cpu_eip_set(cpu, eip_save);
+	opts.steps = 0;
+	return 0;
+}
+
+int32_t	__stdcall hook_CreateToolhelp32Snapshot(struct emu_env_w32 *win, struct emu_env_w32_dll_export *ex)
+{
+	/* 	
+		HANDLE WINAPI CreateToolhelp32Snapshot(
+		  _In_  DWORD dwFlags,
+		  _In_  DWORD th32ProcessID
+		);
+	*/
+
+	uint32_t eip_save = popd();
+	uint32_t flags = popd();
+	uint32_t pid = popd();
+    uint32_t ret = rand();
+
+	printf("%x\t%s(%x, %x) = %x\n", eip_save, ex->fnname, flags, pid, ret);
+	set_ret(ret); 
+    emu_cpu_eip_set(cpu, eip_save);
+	return 0;
+}
+
+int32_t	__stdcall hook_Thread32First(struct emu_env_w32 *win, struct emu_env_w32_dll_export *ex)
+{
+	/* 	
+		BOOL WINAPI Thread32First(
+		  _In_     HANDLE hSnapshot,
+		  _Inout_  LPTHREADENTRY32 lpte
+		);
+	*/
+
+	uint32_t eip_save = popd();
+	uint32_t hSnap = popd();
+	uint32_t lpte = popd();
+
+	THREADENTRY32 te;
+	te.th32ThreadID = rand();
+	te.th32OwnerProcessID = 0x4444;
+	te.cntUsage = 1;
+	te.dwFlags = 0;
+	te.dwSize = sizeof(te);
+	
+	printf("%x\t%s(%x, %x)\n", eip_save, ex->fnname, hSnap, lpte);
+	emu_memory_write_block(mem,lpte,&te,te.dwSize);
+	set_ret(TRUE); 
+    emu_cpu_eip_set(cpu, eip_save);
+	return 0;
+}
+
+int32_t	__stdcall hook_Thread32Next(struct emu_env_w32 *win, struct emu_env_w32_dll_export *ex)
+{
+	/* 	
+		BOOL WINAPI Thread32First(
+		  _In_     HANDLE hSnapshot,
+		  _Inout_  LPTHREADENTRY32 lpte
+		);
+	*/
+
+	uint32_t eip_save = popd();
+	uint32_t hSnap = popd();
+	uint32_t lpte = popd();
+
+	THREADENTRY32 te;
+	te.th32ThreadID = rand();
+	te.th32OwnerProcessID = 0x4444;
+	te.cntUsage = 1;
+	te.dwFlags = 0;
+	te.dwSize = sizeof(te);
+	
+	printf("%x\t%s(%x, %x)\n", eip_save, ex->fnname, hSnap, lpte);
+	emu_memory_write_block(mem,lpte,&te,te.dwSize);
+	set_ret(FALSE); 
+    emu_cpu_eip_set(cpu, eip_save);
+	return 0;
+}
+
+int32_t	__stdcall hook_OpenThread(struct emu_env_w32 *win, struct emu_env_w32_dll_export *ex)
+{
+	/* 	
+		HANDLE WINAPI OpenThread(
+		  _In_  DWORD dwDesiredAccess,
+		  _In_  BOOL bInheritHandle,
+		  _In_  DWORD dwThreadId
+		);
+	*/
+	uint32_t eip_save = popd();
+	uint32_t a = popd();
+	uint32_t b = popd();
+	uint32_t c = popd();
+	printf("%x\t%s(id=%x)\n", eip_save, ex->fnname, c);
+	set_ret( rand() ); 
+    emu_cpu_eip_set(cpu, eip_save);
+	return 0;
+}
+
+int32_t	__stdcall hook_SuspendThread(struct emu_env_w32 *win, struct emu_env_w32_dll_export *ex)
+{
+	/* 	
+		DWORD WINAPI SuspendThread(
+		  _In_  HANDLE hThread
+		);
+	*/
+	uint32_t eip_save = popd();
+	uint32_t a = popd();
+	printf("%x\t%s(%x)\n", eip_save, ex->fnname, a);
+	set_ret(1); 
+    emu_cpu_eip_set(cpu, eip_save);
+	return 0;
+}
+
+int32_t	__stdcall hook_FreeLibrary(struct emu_env_w32 *win, struct emu_env_w32_dll_export *ex)
+{
+	/* 	BOOL WINAPI FreeLibrary(  _In_  HMODULE hModule); */
+	uint32_t eip_save = popd();
+	uint32_t a = popd();
+	uint32_t ret = rand();
+	printf("%x\t%s(%x)\n", eip_save, ex->fnname, a);
+	set_ret(ret); 
+    emu_cpu_eip_set(cpu, eip_save);
+	return 0;
+}
 
 
 

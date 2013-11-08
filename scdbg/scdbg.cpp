@@ -1806,6 +1806,7 @@ void set_hooks(struct emu_env *env){
 	HOOKBOTH(CreateFile);
 	HOOKBOTH(InternetSetOption);
 	HOOKBOTH(CreateProcess);
+	HOOKBOTH(GetStartupInfo);
 
 	ADDHOOK(ExitProcess);
 	ADDHOOK(memset);
@@ -1989,6 +1990,16 @@ void set_hooks(struct emu_env *env){
 	ADDHOOK(fseek);
 	ADDHOOK(gethostname);
 	ADDHOOK(SendARP);
+	ADDHOOK(ZwCreateFile); //not interactive
+	ADDHOOK(GetCurrentProcessId);
+	ADDHOOK(GetCurrentThreadId);
+	ADDHOOK(FreeLibraryAndExitThread);
+	ADDHOOK(CreateToolhelp32Snapshot);
+	ADDHOOK(Thread32First);
+	ADDHOOK(Thread32Next);
+	ADDHOOK(OpenThread);
+	ADDHOOK(SuspendThread);
+	ADDHOOK(FreeLibrary);
 
 }
 

@@ -4,6 +4,7 @@ Form=frmScTest.frm
 Class=clsCmnDlg; clsCmnDlg.cls
 Module=modEscapes; modEscapes.bas
 Module=fso; simple-fso..bas
+Form=frmDWordDump.frm
 IconForm="frmScTest"
 Startup="frmScTest"
 HelpFile=""
