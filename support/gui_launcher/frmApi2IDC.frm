@@ -1,6 +1,6 @@
 VERSION 5.00
-Begin VB.Form Form1 
-   Caption         =   "Form1"
+Begin VB.Form frmApi2IDC 
+   Caption         =   "Convert API Logs into IDC scripts"
    ClientHeight    =   6360
    ClientLeft      =   60
    ClientTop       =   345
@@ -8,13 +8,13 @@ Begin VB.Form Form1
    LinkTopic       =   "Form1"
    ScaleHeight     =   6360
    ScaleWidth      =   12270
-   StartUpPosition =   3  'Windows Default
+   StartUpPosition =   2  'CenterScreen
    Begin VB.CheckBox Check1 
       Caption         =   "strip 0x401 offsets"
       Height          =   255
       Left            =   8880
       TabIndex        =   3
-      Top             =   6000
+      Top             =   5940
       Value           =   1  'Checked
       Width           =   1575
    End
@@ -41,7 +41,7 @@ Begin VB.Form Form1
       MultiLine       =   -1  'True
       ScrollBars      =   3  'Both
       TabIndex        =   1
-      Text            =   "Form1.frx":0000
+      Text            =   "frmApi2IDC.frx":0000
       Top             =   360
       Width           =   12135
    End
@@ -72,7 +72,7 @@ Begin VB.Form Form1
       Width           =   735
    End
 End
-Attribute VB_Name = "Form1"
+Attribute VB_Name = "frmApi2IDC"
 Attribute VB_GlobalNameSpace = False
 Attribute VB_Creatable = False
 Attribute VB_PredeclaredId = True
@@ -86,13 +86,13 @@ Private Sub Command1_Click()
     
     On Error Resume Next
     tmp = Split(Text1, vbCrLf)
-    For Each x In tmp
-        a = InStr(x, "  ")
+    For Each X In tmp
+        a = InStr(X, "  ")
         If a > 0 Then
-            t2 = Split(x, "  ")
-            y = Replace(Trim(t2(1)), """", "")
-            y = Replace(y, "\", "\\")
-            r = r & "MakeComm(0x" & t2(0) & ", """ & y & """);" & vbCrLf
+            t2 = Split(X, "  ")
+            Y = Replace(Trim(t2(1)), """", "")
+            Y = Replace(Y, "\", "\\")
+            r = r & "MakeComm(0x" & t2(0) & ", """ & Y & """);" & vbCrLf
         End If
     Next
     

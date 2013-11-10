@@ -1,5 +1,5 @@
 VERSION 5.00
-Begin VB.Form frmScTest 
+Begin VB.Form frmscdbg 
    Caption         =   "scDbg - libemu Shellcode Logger Launch Interface"
    ClientHeight    =   7485
    ClientLeft      =   60
@@ -322,12 +322,24 @@ Begin VB.Form frmScTest
          Index           =   18
       End
       Begin VB.Menu mnuMore 
-         Caption         =   "Dword Dump (Rop View)"
+         Caption         =   "-"
          Index           =   19
+      End
+      Begin VB.Menu mnuMore 
+         Caption         =   "Dword Dump (Rop View)"
+         Index           =   20
+      End
+      Begin VB.Menu mnuMore 
+         Caption         =   "Apilog to IDC script"
+         Index           =   21
+      End
+      Begin VB.Menu mnuMore 
+         Caption         =   "Generate Patch File"
+         Index           =   22
       End
    End
 End
-Attribute VB_Name = "frmScTest"
+Attribute VB_Name = "frmscdbg"
 Attribute VB_GlobalNameSpace = False
 Attribute VB_Creatable = False
 Attribute VB_PredeclaredId = True
@@ -609,17 +621,17 @@ Private Sub Label6_Click(Index As Integer)
     cap = Label6(Index).Caption
     
     If InStr(cap, "Example") > 0 Then
-        x = QuickDecode("ACACD13AD13FD4C3C5C5C5610BF38BDCBC49382A79DAC31BEA4E2B6A1A5226A36A26A35A3685A36A22C321A36A1EA56A56A36A16A3FA2B6A16A3E42B6252A3690AA3F42B71361BD71BE07F7FA3E42B263AA951244D5B5B695D2CA31BA9512B5E7E425C5D2CA313ABEA2EABEB2EADE05EF3ADD75EFF2BDC2BD47FC20D2A2A2A5E505E5A084D524D0A05410A1A081A081A081A0A4F4D5E0A5F4148495A411B1C084D524D2A442AC20B2A2A2A5D29EBC2252A2A2A5F4148495A411B1C084D524D2A442AC22F2A2A2A27AEC9D7D7D7EB7273757AABC67E1BEAA3D6A5626AA3FFDB849A6E837F7C79794402442979797D7BD700ABEE7EADEAEB683C793C203C683C0B3C0A3C093C103C0F3C0E3C")
-        x = HexStringUnescape(x)
+        X = QuickDecode("ACACD13AD13FD4C3C5C5C5610BF38BDCBC49382A79DAC31BEA4E2B6A1A5226A36A26A35A3685A36A22C321A36A1EA56A56A36A16A3FA2B6A16A3E42B6252A3690AA3F42B71361BD71BE07F7FA3E42B263AA951244D5B5B695D2CA31BA9512B5E7E425C5D2CA313ABEA2EABEB2EADE05EF3ADD75EFF2BDC2BD47FC20D2A2A2A5E505E5A084D524D0A05410A1A081A081A081A0A4F4D5E0A5F4148495A411B1C084D524D2A442AC20B2A2A2A5D29EBC2252A2A2A5F4148495A411B1C084D524D2A442AC22F2A2A2A27AEC9D7D7D7EB7273757AABC67E1BEAA3D6A5626AA3FFDB849A6E837F7C79794402442979797D7BD700ABEE7EADEAEB683C793C203C683C0B3C0A3C093C103C0F3C0E3C")
+        X = HexStringUnescape(X)
         p = fso.GetFreeFileName(Environ("temp"), ".sc")
-        b = StrConv(x, vbFromUnicode, LANG_US)
+        b = StrConv(X, vbFromUnicode, LANG_US)
         f = FreeFile
         Open p For Binary As f
         Put f, , b()
         Close f
         loadedFile = p
         txtLoadedFile = p
-        Me.InitInterface CStr(x)
+        Me.InitInterface CStr(X)
     End If
 
 End Sub
@@ -676,13 +688,21 @@ Private Sub mnuMore_Click(Index As Integer)
                 If Not fso.FileExists(homedir) Then Exit Sub
                 cmd = "cmd /c ftype Shellcode.Document=""" & homedir & """ %1 && assoc .sc=Shellcode.Document"
                 
-        Case 19:
+        Case 20:
                 If Not fso.FileExists(txtLoadedFile) Then
                     MsgBox "No shellcode file loaded yet.", vbInformation
                     Exit Sub
                 End If
                 
                 frmDWordDump.DumpFile txtLoadedFile
+                Exit Sub
+                
+        Case 21:
+                frmApi2IDC.Show
+                Exit Sub
+                
+        Case 22:
+                frmPatchGen.Show
                 Exit Sub
                 
     End Select
@@ -702,13 +722,13 @@ Private Sub mnuMore_Click(Index As Integer)
     
 End Sub
 
-Private Sub txtFopen_OLEDragDrop(Data As DataObject, Effect As Long, Button As Integer, Shift As Integer, x As Single, Y As Single)
+Private Sub txtFopen_OLEDragDrop(Data As DataObject, Effect As Long, Button As Integer, Shift As Integer, X As Single, Y As Single)
     On Error Resume Next
     txtFopen.Text = Data.Files(1)
     chkfopen.Value = 1
 End Sub
 
-Private Sub txtLoadedFile_OLEDragDrop(Data As DataObject, Effect As Long, Button As Integer, Shift As Integer, x As Single, Y As Single)
+Private Sub txtLoadedFile_OLEDragDrop(Data As DataObject, Effect As Long, Button As Integer, Shift As Integer, X As Single, Y As Single)
     On Error Resume Next
     txtLoadedFile = Data.Files(1)
     InitInterface fso.ReadFile(txtLoadedFile)

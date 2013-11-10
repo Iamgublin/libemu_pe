@@ -1,6 +1,6 @@
 VERSION 5.00
 Object = "{831FDD16-0C5C-11D2-A9FC-0000F8754DA1}#2.0#0"; "mscomctl.ocx"
-Begin VB.Form Form1 
+Begin VB.Form frmPatchGen 
    Caption         =   "scdbg Patch Viewer/Generator"
    ClientHeight    =   5460
    ClientLeft      =   60
@@ -9,27 +9,35 @@ Begin VB.Form Form1
    LinkTopic       =   "Form1"
    ScaleHeight     =   5460
    ScaleWidth      =   10995
-   StartUpPosition =   3  'Windows Default
+   StartUpPosition =   2  'CenterScreen
+   Begin VB.CommandButton cmdHelp 
+      Caption         =   "Help"
+      Height          =   375
+      Left            =   120
+      TabIndex        =   34
+      Top             =   4440
+      Width           =   1035
+   End
    Begin VB.TextBox txtComment 
       Height          =   285
       Left            =   4230
       MaxLength       =   16
-      TabIndex        =   36
-      Top             =   990
+      TabIndex        =   33
+      Top             =   690
       Width           =   4830
    End
    Begin VB.Frame Frame1 
       Caption         =   " Registers "
       Height          =   4695
       Left            =   9225
-      TabIndex        =   17
+      TabIndex        =   14
       Top             =   90
       Width           =   1680
       Begin VB.TextBox txtReg 
          Height          =   285
          Index           =   7
          Left            =   675
-         TabIndex        =   33
+         TabIndex        =   30
          Top             =   2745
          Width           =   850
       End
@@ -37,7 +45,7 @@ Begin VB.Form Form1
          Height          =   285
          Index           =   6
          Left            =   675
-         TabIndex        =   31
+         TabIndex        =   28
          Top             =   2385
          Width           =   850
       End
@@ -45,7 +53,7 @@ Begin VB.Form Form1
          Height          =   285
          Index           =   5
          Left            =   675
-         TabIndex        =   29
+         TabIndex        =   26
          Top             =   2040
          Width           =   850
       End
@@ -53,7 +61,7 @@ Begin VB.Form Form1
          Height          =   285
          Index           =   4
          Left            =   675
-         TabIndex        =   27
+         TabIndex        =   24
          Top             =   1710
          Width           =   850
       End
@@ -61,7 +69,7 @@ Begin VB.Form Form1
          Height          =   285
          Index           =   3
          Left            =   675
-         TabIndex        =   25
+         TabIndex        =   22
          Top             =   1350
          Width           =   850
       End
@@ -69,7 +77,7 @@ Begin VB.Form Form1
          Height          =   285
          Index           =   2
          Left            =   675
-         TabIndex        =   23
+         TabIndex        =   20
          Top             =   990
          Width           =   850
       End
@@ -77,7 +85,7 @@ Begin VB.Form Form1
          Height          =   285
          Index           =   1
          Left            =   675
-         TabIndex        =   21
+         TabIndex        =   18
          Top             =   645
          Width           =   850
       End
@@ -85,7 +93,7 @@ Begin VB.Form Form1
          Height          =   285
          Index           =   0
          Left            =   660
-         TabIndex        =   19
+         TabIndex        =   16
          Top             =   315
          Width           =   850
       End
@@ -93,7 +101,7 @@ Begin VB.Form Form1
          Caption         =   "EIP is set using /foff  setting Flags not impl"
          Height          =   1275
          Left            =   90
-         TabIndex        =   34
+         TabIndex        =   31
          Top             =   3285
          Width           =   1635
       End
@@ -102,7 +110,7 @@ Begin VB.Form Form1
          Height          =   255
          Index           =   7
          Left            =   135
-         TabIndex        =   32
+         TabIndex        =   29
          Top             =   2790
          Width           =   615
       End
@@ -111,7 +119,7 @@ Begin VB.Form Form1
          Height          =   255
          Index           =   6
          Left            =   135
-         TabIndex        =   30
+         TabIndex        =   27
          Top             =   2430
          Width           =   615
       End
@@ -120,7 +128,7 @@ Begin VB.Form Form1
          Height          =   255
          Index           =   5
          Left            =   135
-         TabIndex        =   28
+         TabIndex        =   25
          Top             =   2085
          Width           =   615
       End
@@ -129,7 +137,7 @@ Begin VB.Form Form1
          Height          =   255
          Index           =   4
          Left            =   135
-         TabIndex        =   26
+         TabIndex        =   23
          Top             =   1755
          Width           =   615
       End
@@ -138,7 +146,7 @@ Begin VB.Form Form1
          Height          =   255
          Index           =   3
          Left            =   135
-         TabIndex        =   24
+         TabIndex        =   21
          Top             =   1395
          Width           =   615
       End
@@ -147,7 +155,7 @@ Begin VB.Form Form1
          Height          =   255
          Index           =   2
          Left            =   135
-         TabIndex        =   22
+         TabIndex        =   19
          Top             =   1035
          Width           =   615
       End
@@ -156,7 +164,7 @@ Begin VB.Form Form1
          Height          =   255
          Index           =   1
          Left            =   135
-         TabIndex        =   20
+         TabIndex        =   17
          Top             =   690
          Width           =   615
       End
@@ -165,35 +173,35 @@ Begin VB.Form Form1
          Height          =   255
          Index           =   0
          Left            =   120
-         TabIndex        =   18
+         TabIndex        =   15
          Top             =   360
          Width           =   615
       End
    End
    Begin VB.CommandButton Command2 
-      Caption         =   "New"
+      Caption         =   "Clear All Data"
       Height          =   285
       Left            =   7695
-      TabIndex        =   16
-      Top             =   585
+      TabIndex        =   13
+      Top             =   285
       Width           =   1410
    End
    Begin VB.CommandButton Command1 
       Caption         =   "..."
-      Height          =   285
-      Left            =   6795
-      TabIndex        =   15
-      Top             =   180
-      Width           =   780
+      Height          =   345
+      Left            =   8520
+      TabIndex        =   12
+      Top             =   4980
+      Width           =   900
    End
    Begin MSComctlLib.ListView lv 
-      Height          =   3840
+      Height          =   4200
       Left            =   90
-      TabIndex        =   13
-      Top             =   540
+      TabIndex        =   10
+      Top             =   180
       Width           =   2760
       _ExtentX        =   4868
-      _ExtentY        =   6773
+      _ExtentY        =   7408
       View            =   3
       LabelEdit       =   1
       LabelWrap       =   -1  'True
@@ -219,9 +227,9 @@ Begin VB.Form Form1
    Begin VB.CommandButton cmdRemove 
       Caption         =   "Remove"
       Height          =   375
-      Left            =   5265
-      TabIndex        =   12
-      Top             =   4455
+      Left            =   5340
+      TabIndex        =   9
+      Top             =   4440
       Width           =   1365
    End
    Begin VB.CommandButton cmdUpdate 
@@ -229,74 +237,58 @@ Begin VB.Form Form1
       Enabled         =   0   'False
       Height          =   375
       Left            =   7785
-      TabIndex        =   11
+      TabIndex        =   8
       Top             =   4455
       Width           =   1275
    End
    Begin VB.CommandButton cmdSaveAs 
-      Caption         =   "Save As"
+      Caption         =   "Save"
       Height          =   330
       Left            =   9540
-      TabIndex        =   10
+      TabIndex        =   7
       Top             =   4995
       Width           =   1275
    End
    Begin VB.TextBox txtSave 
       Height          =   315
       Left            =   570
-      TabIndex        =   9
+      OLEDropMode     =   1  'Manual
+      TabIndex        =   6
       Top             =   4995
-      Width           =   8805
+      Width           =   7785
    End
    Begin VB.CommandButton cmdAdd 
       Caption         =   "Insert"
       Height          =   375
       Left            =   3015
-      TabIndex        =   7
+      TabIndex        =   4
       Top             =   4455
       Width           =   1275
    End
    Begin VB.TextBox txtHexData 
-      Height          =   2490
+      Height          =   2790
       Left            =   3015
       MultiLine       =   -1  'True
       OLEDropMode     =   1  'Manual
       ScrollBars      =   2  'Vertical
-      TabIndex        =   6
-      Top             =   1845
+      TabIndex        =   3
+      Top             =   1545
       Width           =   6045
    End
    Begin VB.TextBox txtMemAddress 
       Height          =   330
       Left            =   4230
       MaxLength       =   8
-      TabIndex        =   4
-      Top             =   540
-      Width           =   1455
-   End
-   Begin VB.CommandButton cmdLoad 
-      Caption         =   "Load Existing"
-      Height          =   330
-      Left            =   7695
-      TabIndex        =   2
-      Top             =   180
-      Width           =   1410
-   End
-   Begin VB.TextBox txtLoad 
-      Height          =   315
-      Left            =   615
-      OLEDropMode     =   1  'Manual
       TabIndex        =   1
-      Text            =   "Drag and Drop file here"
-      Top             =   135
-      Width           =   6150
+      Top             =   240
+      Width           =   1455
    End
    Begin VB.Label Label7 
       Caption         =   "Comment"
       Height          =   330
       Left            =   3060
-      TabIndex        =   35
-      Top             =   1035
+      TabIndex        =   32
+      Top             =   735
       Width           =   1050
    End
    Begin VB.Label Label5 
@@ -313,15 +305,15 @@ Begin VB.Form Form1
       ForeColor       =   &H00FF0000&
       Height          =   240
       Left            =   8370
-      TabIndex        =   14
-      Top             =   1575
+      TabIndex        =   11
+      Top             =   1275
       Width           =   690
    End
    Begin VB.Label Label4 
       Caption         =   "File"
       Height          =   255
       Left            =   90
-      TabIndex        =   8
+      TabIndex        =   5
       Top             =   5040
       Width           =   735
    End
@@ -329,34 +321,27 @@ Begin VB.Form Form1
       Caption         =   "HexData  (can also drop file to load)"
       Height          =   285
       Left            =   3060
-      TabIndex        =   5
-      Top             =   1530
+      TabIndex        =   2
+      Top             =   1230
       Width           =   4020
    End
    Begin VB.Label Label2 
       Caption         =   "Hex MemAddr"
       Height          =   240
       Left            =   3060
-      TabIndex        =   3
-      Top             =   585
+      TabIndex        =   0
+      Top             =   285
       Width           =   1590
    End
-   Begin VB.Label Label1 
-      Caption         =   "File"
-      Height          =   255
-      Left            =   90
-      TabIndex        =   0
-      Top             =   180
-      Width           =   735
-   End
 End
-Attribute VB_Name = "Form1"
+Attribute VB_Name = "frmPatchGen"
 Attribute VB_GlobalNameSpace = False
 Attribute VB_Creatable = False
 Attribute VB_PredeclaredId = True
 Attribute VB_Exposed = False
 Dim patches As New Collection
 Dim selLi As ListItem
+Dim dlg As New clsCmnDlg
 
 Private Type patch '16 bytes 1 line in hexeditor
     Memaddress As String * 8
@@ -397,7 +382,7 @@ Function OpenFileDialog()
          Dim lReturn As Long
          Dim sFilter As String
          OpenFile.lStructSize = Len(OpenFile)
-         OpenFile.hwndOwner = Form1.hWnd
+         OpenFile.hwndOwner = Me.hwnd
          OpenFile.hInstance = App.hInstance
          sFilter = "All Files (*.*)" & Chr(0) & "*.*" & Chr(0)
          OpenFile.lpstrFilter = sFilter
@@ -490,7 +475,7 @@ Private Sub cmdLoad_Click()
     lv.ListItems.Clear
     Set patches = New Collection
     
-    Open txtLoad For Binary As f
+    Open txtSave For Binary As f
     
     Dim r As Long
     For i = 0 To 7
@@ -526,6 +511,30 @@ hell:
     
 End Sub
 
+Private Sub cmdHelp_Click()
+
+msg = "patch generator is a small tool to generate files for use with the" & vbCrLf & _
+        "" & vbCrLf & _
+        "scdbg /patch command." & vbCrLf & _
+        "" & vbCrLf & _
+        "each patch file can include multiple patches." & vbCrLf & _
+        "" & vbCrLf & _
+        "to use it, specify the memory address as a hex string, and a hex string" & vbCrLf & _
+        "" & vbCrLf & _
+        "representing the data you want to embed." & vbCrLf & _
+        "" & vbCrLf & _
+        "I decided to do this to experiment with a couple things." & vbCrLf & _
+        "" & vbCrLf & _
+        "1) very easy to try out mods on the fly to the libemu envirnoment (dlls/peb etc)" & vbCrLf & _
+        "2) way to apply non-permanent patchs to teh shellcode after loading but pre-execution" & vbCrLf & _
+        "3) some shellcodes expect certain things in memory at time of exploitation." & vbCrLf & _
+        vbCrLf & _
+        "You can use -wint, -wstr, -raw, and .scmd files to write patches."
+        
+        MsgBox msg, vbInformation
+
+End Sub
+
 Private Sub cmdRemove_Click()
     
     If selLi Is Nothing Then
@@ -555,9 +564,9 @@ Private Sub cmdRemove_Click()
     
 End Sub
 
-Sub Align16(ByRef x As Long)
-    While x Mod 16 <> 0
-        x = x + 1
+Sub Align16(ByRef X As Long)
+    While X Mod 16 <> 0
+        X = X + 1
     Wend
 End Sub
 
@@ -571,6 +580,11 @@ Private Sub cmdSaveAs_Click()
     If lv.ListItems.Count = 0 Then
         MsgBox "No patches have been added.", vbInformation
         Exit Sub
+    End If
+    
+    If Len(txtSave) = 0 Then
+        txtSave = dlg.SaveDialog(AllFiles, , "Save As", , Me.hwnd, "new.patch")
+        If Len(txtSave) = 0 Then Exit Sub
     End If
     
     ReDim pp(1 To lv.ListItems.Count + 1)
@@ -671,26 +685,25 @@ End Sub
 
 Function GetMemAddr() As String
     
-    x = txtMemAddress
-    x = Replace(x, "0x", "", , , vbTextCompare)
+    X = txtMemAddress
+    X = Replace(X, "0x", "", , , vbTextCompare)
     
-    If Len(x) > 8 Then
-        x = Mid(x, 1, 8)
+    If Len(X) > 8 Then
+        X = Mid(X, 1, 8)
     End If
     
-    While Len(x) < 8
-        x = "0" & x
+    While Len(X) < 8
+        X = "0" & X
     Wend
     
-    x = x & Chr(0)
-    GetMemAddr = x
+    X = X & Chr(0)
+    GetMemAddr = X
     
 End Function
  
 Private Sub Command1_Click()
-    txtLoad = OpenFileDialog
-    txtSave = txtLoad
-    If Len(txtLoad) > 0 Then cmdLoad_Click
+    txtSave = OpenFileDialog
+    If Len(txtSave) > 0 Then cmdLoad_Click
 End Sub
 
 Private Sub Command2_Click()
@@ -739,7 +752,7 @@ Private Sub lv_ItemClick(ByVal Item As MSComctlLib.ListItem)
     cmdRemove.Enabled = True
 End Sub
 
-Private Sub txtHexData_OLEDragDrop(Data As DataObject, Effect As Long, Button As Integer, Shift As Integer, x As Single, Y As Single)
+Private Sub txtHexData_OLEDragDrop(Data As DataObject, Effect As Long, Button As Integer, Shift As Integer, X As Single, Y As Single)
     On Error Resume Next
     Dim p As String
     Dim f As Long
@@ -757,15 +770,14 @@ Private Sub txtHexData_OLEDragDrop(Data As DataObject, Effect As Long, Button As
     
 End Sub
 
-Private Sub txtLoad_OLEDragDrop(Data As DataObject, Effect As Long, Button As Integer, Shift As Integer, x As Single, Y As Single)
-    On Error Resume Next
-    txtLoad = Data.Files(1)
-    txtSave = txtLoad
-    cmdLoad_Click
-End Sub
-
 Private Sub txtReg_GotFocus(Index As Integer)
     On Error Resume Next
     txtReg(Index).SelStart = 0
     txtReg(Index).SelLength = Len(txtReg(Index).Text)
+End Sub
+
+Private Sub txtSave_OLEDragDrop(Data As DataObject, Effect As Long, Button As Integer, Shift As Integer, X As Single, Y As Single)
+    On Error Resume Next
+    txtSave = Data.Files(1)
+    cmdLoad_Click
 End Sub
