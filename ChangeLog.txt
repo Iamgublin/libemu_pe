@@ -1,6 +1,8 @@
 
 ---------------[  Changelog for scdbg/libemu  ]---------------
 
+11.21.13 - _lcrea, fopen +b bug fix (thanks Jon)
+
 11.7.13  -  12 hooks: GetStartupInfoA/W, GetCurrentProcessId, GetCurrentThreadId, FreeLibraryAndExitThread
             CreateToolhelp32Snapshot,Thread32First, Thread32Next, ZwCreateFile (todo: testme), 
             OpenThread,SuspendThread,FreeLibrary

@@ -145,6 +145,13 @@ uint32_t build_peb(uint32_t embed_at, uint32_t *final_size){
 		
 		addr = va_base + struct_sz + (name_len * i);
 		memcpy( (void*)addr, &names[i], name_len );
+
+		if(strstr(known_dlls[i].dllname, "ntdll") > 0){ //test4 nuance..
+			unsigned char nuance[19];
+			memset(&nuance[0],0xCC, sizeof(nuance));
+			memcpy((void*)(addr + name_len - sizeof(nuance)-1), &nuance[0], sizeof(nuance));
+		}
+
 	}
 
 	//printf("Data embedded examine now\n");

@@ -1779,7 +1779,7 @@ int32_t	__stdcall hook_fopen(struct emu_env_w32 *win, struct emu_env_w32_dll_exp
 		cpu->reg[eax] = 0x4711;
 	}else{
 		char* localfile = SafeTempFile();
-		FILE *f = fopen(localfile,"w");
+		FILE *f = fopen(localfile,"wb");
 		printf("%x\tfopen(%s) = %x\n", eip_save, filename, (int)f);
 		start_color(myellow);
 		printf("\tInteractive mode local file: %s\n", localfile);
@@ -1856,7 +1856,7 @@ int32_t	__stdcall hook__lcreat(struct emu_env_w32 *win, struct emu_env_w32_dll_e
 
 	if(opts.interactive_hooks != 0){
 		char *localfile = SafeTempFile();
-		FILE *f = fopen(localfile,"w");
+		FILE *f = fopen(localfile,"wb");
 		start_color(myellow);
 		printf("\tInteractive mode local file: %s\n", localfile);
 		end_color();
