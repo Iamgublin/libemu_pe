@@ -35,6 +35,8 @@
 <li><b><a href="#bp">BreakPoints and Debug Shell</a></b>
 <li><b><a href="#rop">ROP shellcode</a></b>
 <li><b><a href="#sig">Signatures</a></b>
+<li><b><a href="#web">Running as a web service</a></b>
+<li><b><a href="#idc">Converting API logs to IDC scripts</a></b>
 <li><b><a href="#hookcheck">Hook Checks and RET scanners</a></b>
 <li><b><a href="#complete">Complete command line options</a></b>
 <li><b><a href="#credits">Credits</a></b>
@@ -551,8 +553,8 @@ Several help videos are available:
 
   The first patching mechanism implemented was the -patch [file] command. This option uses a 
   specially constructed binary patch file format that can hold multiple patches per file. Patch 
-  files are generated with the patchgen.exe utility available in the git hub source archive in the 
-  /support folder. A blog post with example file can be downloaded here: 
+  files are generated with the "Generate Patch" command available within gui_launcher More menu.
+  A blog post with example file can be downloaded here: 
   <br><br>
 
   <a target=_blank href="http://sandsprite.com/blogs/index.php?uid=7&pid=177">http://sandsprite.com/blogs/index.php?uid=7&pid=177</a>
@@ -721,6 +723,30 @@ Several help videos are available:
 	of each signature.
 	<br><br>
 
+<a name="web"></a>
+<font size=+3><b>Running as a web service.</font><a href="#top">top</a></b>
+<br><br>
+	
+	A sample php script is available that will allow you to run scdbg as a web service.
+	It is designed for the windows build, but could be modified to run the linux version
+	as well. On windows, the easiest way to set it up is to use the WAMP server package.
+	<b>I would not recommend running it as a world accessible service.</b>
+	<br><br>
+	The script can be found in the github repository in the /support/webservice folder.
+	
+<br><br>
+
+<a name="idc"></a>
+<font size=+3><b>Converting API logs to IDC scripts</font><a href="#top">top</a></b>
+<br><br>
+	
+	A quick and dirty converter is available that can convert scdbg api logs into IDC
+	scripts to add them as comments to the IDA disassembly. The comment will be added on the
+	line after the call (the return address). This can be accessed by running gui_launcher
+	and choosing API to IDC from the More menu.
+	<br><br>
+	
+	
 <a name="hookcheck"></a>
 <font size=+3><b>Hook checks and RET scanners</font><a href="#top">top</a></b>
 	<br><br>

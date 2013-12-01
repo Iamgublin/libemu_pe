@@ -657,7 +657,7 @@ struct emu_env_w32_dll_export *emu_env_w32_eip_check(struct emu_env *env)
 				bool isSpam = strcmp(env->win->lastApiCalled, ex->fnname) == 0 ? true : false ;
 				if(isSpam) env->win->lastApiHitCount++;
 				
-				ex->fnhook(env->win , ex);
+				ex->fnhook(env->win , ex); //transfer execution to the api hook
 
 				if(!isSpam){
 					free( env->win->lastApiCalled );

@@ -201,7 +201,7 @@ void test_2(uint32_t peb_base){
 	}
 
 
-	printf("test2> ntdll base is %x ?= 7C900000\n", k32_base );
+	printf("test 2> ntdll base is %x ?= 7C900000\n", k32_base );
 
  }
 
@@ -237,7 +237,7 @@ void test_4(uint32_t base){
 	//EBP 7C800000 kernel32.7C800000
 	
 	_asm{
-		int 3
+		//int 3
 		AND ECX,0
 		//MOV ESI,DWORD PTR FS:[30]
 		//MOV ESI,DWORD PTR DS:[ESI+C]
@@ -439,7 +439,7 @@ void main(int argc, char* argv[]){
 	test_1(base);
 	test_2(base);
 	test_3(base);
-	//test_4(base);  //unsupported right now
+	test_4(base); 
 	harmony_enum_inmemlist(base);
 	
 	if( (uint32_t)GetModuleHandle(L"kernel32") == 0x7C800000){

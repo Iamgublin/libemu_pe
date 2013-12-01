@@ -133,7 +133,7 @@ void loadraw_patch(uint32_t base, char* fpath);
 void HandleDirMode(char* folder);
 void nl(void);
 bool isDllMemAddress(uint32_t eip);
-extern char* SafeMalloc(int size);
+extern char* SafeMalloc(uint32_t size);
 extern uint32_t popd(void);
 extern int SysCall_Handler(int callNumber, struct emu_cpu *c);
 
@@ -172,6 +172,14 @@ extern uint32_t next_alloc;
 //             BLUE=9, GREEN=10, TEAL=11, RED=12, PINK=13, YELLOW=14, WHITE=15 };
 
 enum colors{ mwhite=15, mgreen=10, mred=12, myellow=14, mblue=9, mpurple=5, mgrey=7, mdkgrey=8 };
+
+void m_exit(int arg){
+	if( IsDebuggerPresent() ) {
+		printf("Press any key to exit...\n");	
+		getch();
+	}
+	exit(arg);
+}
 
 void end_color(void){
 	if(opts.no_color) return;
@@ -312,7 +320,8 @@ bool isInteractive(char* api){
 					"WriteFile","accept","bind","closesocket","connect","listen","recv","send",
 					"sendto","socket","WSASocketA","CreateFileMappingA","FindFirstFileA",
 					"fread","ExpandEnvironmentStringsA","lstrlenA","lstrcmpiA","lstrcatA","strcat",
-					"RtlDecompressBuffer", NULL };
+					"RtlDecompressBuffer","CryptReleaseContext","CryptDestroyHash","CryptGetHashParam","CryptHashData",
+					"CryptCreateHash","CryptAcquireContextA","CryptAcquireContextW", NULL };
 
 	int i=0;
 	while( iApi[i] != NULL ){
@@ -325,11 +334,9 @@ bool isInteractive(char* api){
 }
 
 bool isProxied(char* api){
-	char* iApi[] = {"CryptReleaseContext","CryptDestroyHash","CryptGetHashParam","CryptHashData",
-					"CryptCreateHash","CryptAcquireContextA","CryptAcquireContextW","GetCommandLineA","GetSystemTime",
-					"GetTempPathA","GetTempFileNameA","strstr","SHGetFolderPathA","SHGetSpecialFolderPathA",
-					"ExpandEnvironmentStringsA","lstrlenA","lstrcmpiA","lstrcatA","strcat",
-					"RtlDecompressBuffer",NULL };
+	char* iApi[] = {"GetCommandLineA","GetSystemTime", "GetTempPathA","GetTempFileNameA","strstr",
+					"SHGetFolderPathA","SHGetSpecialFolderPathA","ExpandEnvironmentStringsA","lstrlenA",
+					"lstrcmpiA","lstrcatA","strcat",NULL };
 
 	int i=0;
 	while( iApi[i] != NULL ){
@@ -1319,7 +1326,7 @@ void show_disasm(struct emu *e){  //current line
 	disasm_addr(e,m_eip);
 
 	if(opts.time_delay > 0){
-		if(opts.verbose ==1 || opts.verbose ==2) Sleep(opts.time_delay * 1000);
+		if(opts.verbose ==1 || opts.verbose ==2) Sleep(opts.time_delay);
 	}
 
 }
@@ -2000,6 +2007,9 @@ void set_hooks(struct emu_env *env){
 	ADDHOOK(OpenThread);
 	ADDHOOK(SuspendThread);
 	ADDHOOK(FreeLibrary);
+	ADDHOOK(ZwAllocateVirtualMemory);
+	ADDHOOK(DeviceIoControl);
+	ADDHOOK(GetSystemTimeAsFileTime);
 
 }
 
@@ -2469,7 +2479,7 @@ int run_sc(void)
 		}
 		struct emu_env_w32_dll_export *ex = NULL;
 
-		ex = emu_env_w32_eip_check(env);
+		ex = emu_env_w32_eip_check(env); //will execute the api hook if one is set..
 
 		//ignore UnhandledExceptionFilter && MessageBeep
 		if ( ex != NULL  && cpu->eip != 0x7c862e62 && cpu->eip != 0x7e431f7b) 
@@ -2485,6 +2495,9 @@ int run_sc(void)
 				end_color();
 				break;
 			}
+			 
+			if(opts.time_delay > 0) Sleep(opts.time_delay);
+			 
 		}
 		else
 		{
@@ -2778,7 +2791,7 @@ void show_help(void)
 
 	printf("\n   in the dbg> shell enter ? to see supported commands\n\n");
 	//show_debugshell_help();
-	exit(0);
+	m_exit(0);
 
 }
 
@@ -2799,19 +2812,23 @@ void show_supported_hooks(void){
 		while( e.fnname != NULL ){
 			if( e.fnhook != 0 ){
 				if( strlen(e.fnname) == 0){
-					printf("\t  @%x\r\n", e.ordinal);
+					if(opts.verbose > 0) printf("\t  @%-29x =  0x%x\r\n", e.ordinal, e.virtualaddr + dll->baseaddr);
+					 else printf("\t  @%x\r\n", e.ordinal);
 				}else if( isInteractive(e.fnname) ){
 					start_color(myellow);
-					printf("\t  %s\r\n", e.fnname);
+					if(opts.verbose > 0) printf("\t  %-30s  =  0x%x\r\n", e.fnname, e.virtualaddr + dll->baseaddr);
+					 else printf("\t  %s\r\n", e.fnname);
 					end_color();
 					iHooks++;
 				}else if( isProxied(e.fnname) ){
 					start_color(myellow);
-					printf("\t* %s\r\n", e.fnname);
+					if(opts.verbose > 0) printf("\t* %-30s  =  0x%x\r\n", e.fnname, e.virtualaddr + dll->baseaddr);
+					 else printf("\t* %s\r\n", e.fnname);
 					end_color();
 					proxied++;
 				}else{
-					printf("\t  %s\r\n", e.fnname);
+					if(opts.verbose > 0) printf("\t  %-30s  =  0x%x\r\n", e.fnname, e.virtualaddr + dll->baseaddr);
+					 else printf("\t  %s\r\n", e.fnname);
 				}				
 				tot++;
 			}
@@ -2823,7 +2840,7 @@ void show_supported_hooks(void){
 		j=0;
 	}
 	//libemu 2.0 is 5 dlls, 51 hooks, 234 opcodes
-	//cur:          12     187        244
+	//11.30.13      13     217        245
 	printf("\r\n  Dlls: %d\r\n  Hooks: %d\r\n  Interactive: %d (yellow)\r\n *Proxied: %d\r\n", i, tot, iHooks, proxied);
 	printf("  Opcodes: %d\r\n", emu_cpu_implemented_inst_cnt() );
 	exit(0);
@@ -2933,7 +2950,7 @@ void parse_opts(int argc, char* argv[] ){
 		if(sl==5 && strstr(argv[i],"/mdll")  > 0 ){  opts.mem_monitor_dlls  = true;handled=true;}
 		if(sl==4 && strstr(argv[i],"/api")  > 0 ){  opts.findApi = true;handled=true;}
 		if(sl==5 && strstr(argv[i],"/dump")  > 0 ){  opts.hexdump_file = 1;handled=true;}
-		if(sl==6 && strstr(argv[i],"/hooks")  > 0 ){ show_supported_hooks();handled=true;}
+		if(sl==6 && strstr(argv[i],"/hooks")  > 0 ){ show_supported_hooks();handled=true;} //supports -v (must specify first though)
 		if(sl==4 && strstr(argv[i],"/cfo")  > 0 ){ opts.CreateFileOverride = true;handled=true;}
 		if(sl==2 && strstr(buf,"/d") > 0 ){ opts.dump_mode = true;handled=true;}
 		if(sl==2 && strstr(buf,"/h") > 0 ){ show_help();handled=true;}
@@ -2945,20 +2962,20 @@ void parse_opts(int argc, char* argv[] ){
 		if(sl==5 && strstr(argv[i],"/temp") > 0 ){
 			if(i+1 >= argc){
 				printf("Invalid option /temp must specify a folder path as next arg\n");
-				exit(0);
+				m_exit(0);
 			}
 			opts.temp_dir = strdup(argv[i+1]);
 			if( !FolderExists(opts.temp_dir) ){
 				start_color(myellow);
 				printf("/temp argument must be a valid folder path.\nFolder not found: %s", opts.temp_dir);
 				end_color();
-				exit(0);
+				m_exit(0);
 			}
 			if( strlen(opts.temp_dir) > 255){
 				start_color(myellow);
 				printf("Sorry /temp argument must be less than 255 chars in length.."); //im lazy
 				end_color();
-				exit(0);
+				m_exit(0);
 			}
 			if(!opts.automationRun) printf("temp directory will be: %s\n", opts.temp_dir);
 			i++;handled=true;
@@ -2967,7 +2984,7 @@ void parse_opts(int argc, char* argv[] ){
 		if(sl==2 && strstr(buf,"/f") > 0 ){
 			if(i+1 >= argc){
 				printf("Invalid option /f must specify a file path as next arg\n");
-				exit(0);
+				m_exit(0);
 			}
 			strncpy(opts.sc_file, argv[i+1],499);
 			opts.file_mode = true;
@@ -2977,7 +2994,7 @@ void parse_opts(int argc, char* argv[] ){
 		if(sl==6 && strstr(argv[i],"/patch") > 0 ){
 			if(i+1 >= argc){
 				printf("Invalid option /patch must specify a file path as next arg\n");
-				exit(0);
+				m_exit(0);
 			}
 			opts.patch_file = strdup(argv[i+1]);
 			i++;handled=true;
@@ -2986,7 +3003,7 @@ void parse_opts(int argc, char* argv[] ){
 		if(sl==5 && strstr(argv[i],"/conv") > 0 ){
 			if(i+1 >= argc){
 				printf("Invalid option /conv must specify a file path as next arg\n");
-				exit(0);
+				m_exit(0);
 			}
 			opts.convert_outPath = strdup(argv[i+1]);
 			i++;handled=true;
@@ -2995,21 +3012,21 @@ void parse_opts(int argc, char* argv[] ){
 		if(sl==7 && strstr(argv[i],"/lookup") > 0 ){
 			if(i+1 >= argc){
 				printf("Invalid option /lookup must specify an API name as next arg\n");
-				exit(0);
+				m_exit(0);
 			}
 			uint32_t addr = symbol2addr(argv[i+1]);
 			if( addr == 0)
 				printf("\nNo results found for: %s\n\n",argv[i+1]);
 			else
 				printf("\n%s = 0x%x\n\n",argv[i+1],addr);
-			exit(0);
+			m_exit(0);
 			
 		}
 		
 		if(sl==4 && strstr(argv[i],"/cmd") > 0 ){
 			if(i+1 >= argc){
 				printf("Invalid option /cmd command line for GetCommandLineA as next arg\n");
-				exit(0);
+				m_exit(0);
 			}
 			opts.cmdline = strdup(argv[i+1]);
 			i++;handled=true;
@@ -3018,7 +3035,7 @@ void parse_opts(int argc, char* argv[] ){
 		if(sl==4 && strstr(argv[i],"/dir") > 0 ){
 			if(i+1 >= argc){
 				printf("Invalid option /dir must specify a folder path as next arg\n");
-				exit(0);
+				m_exit(0);
 			}
 			opts.scan_dir = strdup(argv[i+1]);
 			i++;handled=true;
@@ -3027,7 +3044,7 @@ void parse_opts(int argc, char* argv[] ){
 		if(sl==2 && strstr(buf,"/o") > 0 ){
 			if(i+1 >= argc){
 				printf("Invalid option /o must specify a hex base addr as next arg\n");
-				exit(0);
+				m_exit(0);
 			}
 		    opts.baseAddress = strtol(argv[i+1], NULL, 16);			
 			i++;handled=true;
@@ -3036,7 +3053,7 @@ void parse_opts(int argc, char* argv[] ){
 		if(sl==4 && strstr(argv[i],"/min") > 0 ){
 			if(i+1 >= argc){
 				printf("Invalid option /min must specify min number of decimal steps (findsc mode) as next arg\n");
-				exit(0);
+				m_exit(0);
 			}
 		    opts.min_steps = atoi(argv[i+1]);			
 			i++;handled=true;
@@ -3045,7 +3062,7 @@ void parse_opts(int argc, char* argv[] ){
 		if(sl==6 && strstr(argv[i],"/fopen") > 0 ){
 			if(i+1 >= argc){
 				printf("Invalid option /foopen must specify file to open as next arg\n");
-				exit(0);
+				m_exit(0);
 			}
 			//opts.fopen = fopen(argv[i+1],"r");  //ms implemented of fread barfs after 0x27000?
 			opts.h_fopen = CreateFile(argv[i+1],GENERIC_READ,FILE_SHARE_READ,0,OPEN_EXISTING,FILE_ATTRIBUTE_NORMAL,0);
@@ -3056,7 +3073,7 @@ void parse_opts(int argc, char* argv[] ){
 				start_color(myellow);
 				printf("FAILED TO OPEN %s", argv[i+1]);
 				end_color();
-				exit(0);
+				m_exit(0);
 			}
 			if(!opts.automationRun) printf("fopen(%s) = %x\n", argv[i+1], (int)opts.h_fopen);
 			i++;handled=true;
@@ -3065,7 +3082,7 @@ void parse_opts(int argc, char* argv[] ){
 		if(sl==5 && strstr(argv[i],"/foff") > 0 ){
 			if(i+1 >= argc){
 				printf("Invalid option /foff must specify start file offset as next arg\n");
-				exit(0);
+				m_exit(0);
 			}
 			opts.offset = strtol(argv[i+1], NULL, 16);
 			i++;handled=true;
@@ -3074,7 +3091,7 @@ void parse_opts(int argc, char* argv[] ){
 		if(sl==3 && strstr(argv[i],"/bp") > 0 ){
 			if(i+1 >= argc){
 				printf("Invalid option /bp must specify hex breakpoint addr as next arg\n");
-				exit(0);
+				m_exit(0);
 			}
 			opts.log_after_va = symbol2addr(argv[i+1]);
 			if(opts.log_after_va == 0) opts.log_after_va = strtol(argv[i+1], NULL, 16);
@@ -3085,7 +3102,7 @@ void parse_opts(int argc, char* argv[] ){
 		if(sl==3 && strstr(argv[i],"/ba") > 0 ){
 			if(i+1 >= argc){
 				printf("Invalid option /ba must specify hex breakpoint above addr as next arg\n");
-				exit(0);
+				m_exit(0);
 			}
 			opts.break_above = strtol(argv[i+1], NULL, 16);
 			i++;handled=true;
@@ -3094,7 +3111,7 @@ void parse_opts(int argc, char* argv[] ){
 		if(sl==3 && strstr(argv[i],"/bs") > 0 ){
 			if(i+1 >= argc){
 				printf("Invalid option /bp must specify hex breakpoint addr as next arg\n");
-				exit(0);
+				m_exit(0);
 			}
 		    opts.log_after_step = atoi(argv[i+1]);
 			opts.verbosity_after = 3;
@@ -3104,7 +3121,7 @@ void parse_opts(int argc, char* argv[] ){
 		if(sl==4 && strstr(argv[i],"/laa") > 0 ){
 			if(i+1 >= argc){
 				printf("Invalid option /laa must specify a hex addr as next arg\n");
-				exit(0);
+				m_exit(0);
 			}
 			opts.log_after_va = symbol2addr(argv[i+1]);
 			if(opts.log_after_va == 0) opts.log_after_va = strtol(argv[i+1], NULL, 16);	
@@ -3114,7 +3131,7 @@ void parse_opts(int argc, char* argv[] ){
 		if(sl==6 && strstr(argv[i],"/redir") > 0 ){
 			if(i+1 >= argc){
 				printf("Invalid option /redir must specify IP:PORT as next arg\n");
-				exit(0);
+				m_exit(0);
 			}
 		    opts.override.host = strdup(argv[i+1]);
 			char *port;
@@ -3137,7 +3154,7 @@ void parse_opts(int argc, char* argv[] ){
 		if(sl==4 && strstr(argv[i],"/las") > 0 ){
 			if(i+1 >= argc){
 				printf("Invalid option /las must specify a integer as next arg\n");
-				exit(0);
+				m_exit(0);
 			}
 		    opts.log_after_step  = atoi(argv[i+1]);		
 			i++;handled=true;
@@ -3146,7 +3163,7 @@ void parse_opts(int argc, char* argv[] ){
 		if(sl==2 && strstr(buf,"/e") > 0 ){
 			if(i+1 >= argc){
 				printf("Invalid option /e must specify err verbosity as next arg\n");
-				exit(0);
+				m_exit(0);
 			}
 		    opts.verbosity_onerr = atoi(argv[i+1]);			
 			i++;handled=true;
@@ -3155,7 +3172,7 @@ void parse_opts(int argc, char* argv[] ){
 		if(sl==7 && strstr(argv[i],"/disasm") > 0 ){
 			if(i+1 >= argc){
 				printf("Invalid option /disasm must specify #lines to disassemble as next arg\n");
-				exit(0);
+				m_exit(0);
 			}
 		    opts.disasm_mode = atoi(argv[i+1]);			
 			i++;handled=true;
@@ -3164,7 +3181,7 @@ void parse_opts(int argc, char* argv[] ){
 		if(sl==2 && strstr(buf,"/s") > 0 ){
 			if(i+1 >= argc){
 				printf("Invalid option /s must specify num of steps as next arg\n");
-				exit(0);
+				m_exit(0);
 			}
 		    opts.steps = atoi(argv[i+1]);	
 			i++;handled=true;
@@ -3173,7 +3190,7 @@ void parse_opts(int argc, char* argv[] ){
 		if(sl==2 && strstr(buf,"/t") > 0 ){
 			if(i+1 >= argc){
 				printf("Invalid option /t must specify delay in millisecs as next arg\n");
-				exit(0);
+				m_exit(0);
 			}
 		    opts.time_delay = atoi(argv[i+1]);		
 			i++;handled=true;
@@ -3182,7 +3199,7 @@ void parse_opts(int argc, char* argv[] ){
 		if(strstr(argv[i],"/va") > 0 ){
 			if(i+1 >= argc){
 				printf("Invalid option /va must specify 0xBase-0xSize as next arg\n");
-				exit(0);
+				m_exit(0);
 			}
 		    char *ag = strdup(argv[i+1]);
 			char *sz;
@@ -3202,35 +3219,35 @@ void parse_opts(int argc, char* argv[] ){
 
 			}else{
 				printf("Invalid option /va must specify 0xBase-0xSize as next arg\n");
-				exit(0);
+				m_exit(0);
 			}
 		}
 
 		if( (sl==5 && strstr(argv[i],"/poke") > 0) || (sl==5 && strstr(argv[i],"/wint") > 0) ){
 			if(i+1 >= argc){
 				printf("Invalid option /wint must specify 0xBase-0xValue as next arg\n");
-				exit(0);
+				m_exit(0);
 			}
 			if ( strstr(argv[i+1], "-") != NULL)
 			{
 				i++;handled=true; //validated here, but handed in post_parse_opts after loadsc()
 			}else{
 				printf("Invalid option /wint must specify 0xBase:0xValue as next arg\n");
-				exit(0);
+				m_exit(0);
 			}
 		}
 
 		if( (sl==6 && strstr(argv[i],"/spoke") > 0) || (sl==5 && strstr(argv[i],"/wstr") > 0) ){
 			if(i+1 >= argc){
 				printf("Invalid option /wstr must specify 0xBase-0xHexString or 0xBase-string as next arg\n");
-				exit(0);
+				m_exit(0);
 			}
 			if ( strstr(argv[i+1], "-") != NULL)
 			{
 				i++;handled=true; //validated here, but handed in post_parse_opts after loadsc()
 			}else{
 				printf("Invalid option /wstr must specify 0xBase-0xHexString or 0xBase-string as next arg\n");
-				exit(0);
+				m_exit(0);
 			}
 		}
 
@@ -3238,14 +3255,14 @@ void parse_opts(int argc, char* argv[] ){
 		if(sl==4 && strstr(argv[i],"/raw") > 0 ){
 			if(i+1 >= argc){
 				printf("Invalid option /raw must specify 0xBase-fpath as next arg\n");
-				exit(0);
+				m_exit(0);
 			}
 			if ( strstr(argv[i+1], "-") != NULL)
 			{
 				i++;handled=true; //validated here, but handed in post_parse_opts after loadsc()
 			}else{
 				printf("Invalid option /raw must specify 0xBase-fpath as next arg\n");
-				exit(0);
+				m_exit(0);
 			}
 		}
 
@@ -3253,7 +3270,7 @@ void parse_opts(int argc, char* argv[] ){
 			start_color(myellow);
 			printf("Unknown Option %s\n\n", argv[i]);
 			end_color();
-			exit(0);
+			m_exit(0);
 		}
 
 	}
@@ -3306,7 +3323,7 @@ void post_parse_opts(int argc, char* argv[] ){
 	    if(sl==4 && strstr(argv[i],"/raw") > 0 ){
 			if(i+1 >= argc){
 				printf("Invalid option /raw must specify 0xBase-fpath as next arg\n");
-				exit(0);
+				m_exit(0);
 			}
 		    char *ag = strdup(argv[i+1]);
 			char *sz;
@@ -3329,7 +3346,7 @@ void post_parse_opts(int argc, char* argv[] ){
 		if( (sl==5 && strstr(argv[i],"/poke") > 0) || (sl==5 && strstr(argv[i],"/wint") > 0) ){
 			if(i+1 >= argc){
 				printf("Invalid option /wint must specify 0xBase-0xValue as next arg\n");
-				exit(0);
+				m_exit(0);
 			}
 		    char *ag = strdup(argv[i+1]);
 			char *sz;
@@ -3346,14 +3363,14 @@ void post_parse_opts(int argc, char* argv[] ){
 				i++;
 			}else{
 				printf("Invalid option /wint must specify 0xBase-0xValue as next arg\n");
-				exit(0);
+				m_exit(0);
 			}
 		}
 
 		if( (sl==6 && strstr(argv[i],"/spoke") > 0) || (sl==5 && strstr(argv[i],"/wstr") > 0) ){
 			if(i+1 >= argc){
 				printf("Invalid option /wstr must specify 0xBase-0xHexString or 0xBase-string as next arg\n");
-				exit(0);
+				m_exit(0);
 			}
 		    char *ag = strdup(argv[i+1]);
 			char *sz;
@@ -3381,7 +3398,7 @@ void post_parse_opts(int argc, char* argv[] ){
 				i++;
 			}else{
 				printf("Invalid option /wstr must specify 0xBase-0xHexString or 0xBase-string as next arg\n");
-				exit(0);
+				m_exit(0);
 			}
 		}
 
@@ -3426,7 +3443,7 @@ void loadsc(void){
 		start_color(myellow);
 		printf("Failed to open file %s\n",opts.sc_file);
 		end_color();
-		exit(0);
+		m_exit(0);
 	}
 	opts.size = file_length(fp);
 	opts.scode = (unsigned char*)malloc(opts.size+10); 
@@ -3565,7 +3582,7 @@ char* isCmdFile(char* path){
 
 	if(fp==0){
 		printf("Failed to open file %s\n",path);
-		exit(0);
+		m_exit(0);
 	}
 
 	int size = file_length(fp);
@@ -3917,7 +3934,11 @@ reinit:
 	nl();
 	run_sc();
 
-	if( IsDebuggerPresent() ) getch();
+	if( IsDebuggerPresent() ){
+		printf("Press any key to exit...\n"); //for VS debugging..
+		getch();
+	}
+
 	return opts.cur_step;
 	 
 }

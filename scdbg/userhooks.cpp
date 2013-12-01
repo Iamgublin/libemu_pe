@@ -78,6 +78,7 @@ extern char* getDumpPath(char* extension);
 
 enum colors{ mwhite=15, mgreen=10, mred=12, myellow=14, mblue=9, mpurple=5 };
 
+int STATUS_SUCCESS = 0x00000000;
 int nextFhandle = 0;
 int nextDropIndex=0;
 uint32_t MAX_ALLOC  = 0x1000000;
@@ -87,10 +88,11 @@ CONTEXT last_set_context;
 int last_set_context_handle=0;
 char *default_host_name = "JOHN_PC1";
 
-char* SafeMalloc(int size){
-	char* buf = (char*)malloc(size);
+char* SafeMalloc(uint32_t size){
+	char* buf = 0;
+	if(size > 0 && size <= MAX_ALLOC) buf = (char*)malloc(size);
 	if( (int)buf == 0){
-		printf("Malloc Failed to allocate 0x%x bytes exiting...",size);
+		printf("SafeMalloc Failed/refused to allocate 0x%x bytes exiting...",size);
 		exit(0);
 	}
 	memset(buf,0,size);
@@ -1110,21 +1112,20 @@ int32_t	__stdcall hook_ReadFile(struct emu_env_w32 *win, struct emu_env_w32_dll_
 	return 0;
 }
 
-//scans for first null in emu memory from address. returns emu address of null or limit
+//scans for first null in emu memory from address. returns string length or limit
 uint32_t emu_string_length(uint32_t addr, int scan_limit){
-	uint32_t o = addr;
 	unsigned char b;
+	uint32_t i = 0;
 
-	emu_memory_read_byte(mem, o, &b);
+	emu_memory_read_byte(mem, addr, &b);
 	while(b != 0){
-		o++;
-		if(o - addr > scan_limit) break;
-		emu_memory_read_byte(mem, o, &b);
+		i++;
+		if(i > scan_limit) break;
+		emu_memory_read_byte(mem, addr + i, &b);
 	}
 
-	return o;
+	return i;
 }
-
 
 int32_t	__stdcall hook_strstr(struct emu_env_w32 *win, struct emu_env_w32_dll_export *ex)
 {
@@ -1139,7 +1140,7 @@ int32_t	__stdcall hook_strstr(struct emu_env_w32 *win, struct emu_env_w32_dll_ex
 	if(s2==0){
 		ret = s1;
 	}else{
-		uint32_t len = emu_string_length(s1, 0x6000);
+		uint32_t len = emu_string_length(s1, 255);
 		emu_memory_read_string(mem, s2, find, 255);
 
 		if(len > 0){
@@ -1175,14 +1176,23 @@ int32_t	__stdcall hook_strtoul(struct emu_env_w32 *win, struct emu_env_w32_dll_e
 	uint32_t base = popd();
 
 	uint32_t ret=0;
-	
+	int invalid_base = 0;
+
 	struct emu_string *arg = emu_string_new();
-	uint32_t len = emu_string_length(s1, 0x6000);
+	uint32_t len = emu_string_length(s1, 8);
 	emu_memory_read_string(mem, s1, arg, len);
-	ret = strtoul( emu_string_char(arg), NULL, base);
+
+	if( base >=2 && base <= 36){
+		try{
+			ret = strtoul( emu_string_char(arg), NULL, base);
+		}catch(...){}
+	}else{
+		invalid_base = 1;
+	}
 
 	printf("%x\tstrtoul(buf=%x -> \"%s\", base=%d) = %x\n", eip_save, s1, emu_string_char(arg), base, ret);
-	
+	if(invalid_base) printf("\t Invalid base ignoring...\n");
+
 	emu_string_free(arg);
 	cpu->reg[eax] = ret;
 	emu_cpu_eip_set(cpu, eip_save);
@@ -2254,6 +2264,8 @@ int32_t	__stdcall hook_malloc(struct emu_env_w32 *win, struct emu_env_w32_dll_ex
 	uint32_t eip_save = popd();
 	uint32_t size = get_arg(0);
 
+	printf("%x\tmalloc(%x)\n",eip_save,size);	
+
 	if(size > MAX_ALLOC){
 		printf("\tAllocation > MAX_ALLOC adjusting...\n");
 		size = MAX_ALLOC; //dzzie
@@ -2262,13 +2274,11 @@ int32_t	__stdcall hook_malloc(struct emu_env_w32 *win, struct emu_env_w32_dll_ex
 	uint32_t baseMemAddress = next_alloc;
 	set_next_alloc(size); // so dump knows about it...
 		
-	void *buf = malloc(size);
-	memset(buf,0,size);
+	void *buf = SafeMalloc(size);
 	emu_memory_write_block(mem,baseMemAddress,buf, size);
 	free(buf);
 	 
 	set_ret(baseMemAddress);
-	printf("%x\tmalloc(%x)\n",eip_save,size);	
     emu_cpu_eip_set(cpu, eip_save);
 	return 0;
 }
@@ -2284,8 +2294,7 @@ int32_t	__stdcall hook_memset(struct emu_env_w32 *win, struct emu_env_w32_dll_ex
 	printf("%x\tmemset(buf=%x, c=%x, sz=%x)\n",eip_save,dest,writeme,size);
 
 	if(size > 0 && size < MAX_ALLOC){
-		void* buf = malloc(size);
-		memset(buf, writeme, size);
+		void* buf = SafeMalloc(size);
 		emu_memory_write_block(mem, dest, buf, size);
 	}
 
@@ -3247,9 +3256,15 @@ int32_t	__stdcall hook_CryptAcquireContext(struct emu_env_w32 *win, struct emu_e
  
 	HCRYPTPROV myProv = NULL; //typedef long
 	
-	uint32_t rv = (uint32_t)CryptAcquireContext(&myProv, szContainer->data, szProvider->data, dwProvType, dwFlags); 
-
-	emu_memory_write_dword(mem, phProv, (uint32_t)myProv);
+	uint32_t rv = 0;
+	
+	if(opts.interactive_hooks){
+		rv = (uint32_t)CryptAcquireContext(&myProv, szContainer->data, szProvider->data, dwProvType, dwFlags); 
+		emu_memory_write_dword(mem, phProv, (uint32_t)myProv);
+	}else{
+		rv = TRUE;
+		emu_memory_write_dword(mem, phProv, GetTickCount() );
+	}
 		
 	printf("%x\t%s(%x, %s, %s, %x, %x) = %x mProv=%x\n", eip_save, ex->fnname, phProv, szContainer->data, szProvider->data, dwProvType, dwFlags, rv, (uint32_t)myProv );
 	
@@ -3284,9 +3299,15 @@ int32_t	__stdcall hook_CryptCreateHash(struct emu_env_w32 *win, struct emu_env_w
 	char sAlgid[256];
 	GetAligIDName(algid, &sAlgid[0]);
 
-	uint32_t rv = (uint32_t)CryptCreateHash(hProv,algid,hkey,flags,&mHash); 
-
-	emu_memory_write_dword(mem, hHash, (uint32_t)mHash);
+	uint32_t rv = 0;
+	
+	if(opts.interactive_hooks){
+		rv = (uint32_t)CryptCreateHash(hProv,algid,hkey,flags,&mHash); 
+		emu_memory_write_dword(mem, hHash, (uint32_t)mHash);
+	}else{
+		rv = TRUE;
+		emu_memory_write_dword(mem, hHash, GetTickCount() );
+	}
 		
 	printf("%x\tCryptCreateHash(%x, %s, %x, %x, %x) = %x mHash=%x\n", eip_save, hProv, sAlgid, hkey, flags, hHash, rv, (uint32_t)mHash );
 	
@@ -3314,15 +3335,19 @@ int32_t	__stdcall hook_CryptHashData(struct emu_env_w32 *win, struct emu_env_w32
 	uint32_t myDataLen = 1;
 	if( dwDataLen < MAX_ALLOC) myDataLen = dwDataLen;
 
-	unsigned char* data = (unsigned char*)malloc(myDataLen+1);
-	emu_memory_read_block(mem, pbData, data, myDataLen);
+	uint32_t rv = 1;
+	
+	if(opts.interactive_hooks){
+		unsigned char* data = (unsigned char*)malloc(myDataLen+1);
+		emu_memory_read_block(mem, pbData, data, myDataLen);
+		rv = (uint32_t)CryptHashData(hHash,data,myDataLen,dwFlags); 
+		free(data);
+	}
 
-	uint32_t rv = (uint32_t)CryptHashData(hHash,data,myDataLen,dwFlags); 
-		
 	printf("%x\tCryptHashData(%x, %x, %x, %x) = %x\n", eip_save, hHash, pbData, dwDataLen, dwFlags,rv);
-	if(myDataLen == 1) printf("\tSize excedded max alloc, was ignored...\n");
+	
+	if(opts.interactive_hooks && myDataLen == 1) printf("\tSize excedded max alloc, was ignored...\n");
 
-	free(data);
 	cpu->reg[eax] =  rv;	 
 	emu_cpu_eip_set(cpu, eip_save);
 	return 0;
@@ -3352,12 +3377,21 @@ int32_t	__stdcall hook_CryptGetHashParam(struct emu_env_w32 *win, struct emu_env
 	emu_memory_read_dword(mem, pdwDataLen, &dwDataLen);
 
 	if( dwDataLen < MAX_ALLOC) myDataLen = dwDataLen;
-	unsigned char* myData = (unsigned char*)malloc(myDataLen+1);
+	unsigned char* myData = NULL;
+	char* dummy = "ccab60efc75e27a374f5802fc63ecb28"; //MD5("piss off")
 
-	uint32_t rv = (uint32_t)CryptGetHashParam(hHash,dwParam,myData, &myDataLen,dwFlags); 
+	uint32_t rv = 1;
+	
+	if(opts.interactive_hooks){
+		myData = (unsigned char*)malloc(myDataLen+1);
+		rv = (uint32_t)CryptGetHashParam(hHash,dwParam,myData, &myDataLen,dwFlags); 
+	}else{
+		myDataLen = strlen(dummy);
+		myData = (unsigned char*)malloc(myDataLen+1);
+	}
 		
 	printf("%x\tCryptGetHashParam(%x, %x, %x, %x, %x) = %x\n", eip_save, hHash, dwParam, pbData, pdwDataLen, dwFlags,rv);
-	if(myDataLen == 0) printf("\tSize %x excedded max alloc, was ignored...\n", dwDataLen);
+	if(opts.interactive_hooks && myDataLen == 0) printf("\tSize %x excedded max alloc, was ignored...\n", dwDataLen);
 
 	emu_memory_write_block(mem, pbData, myData, myDataLen);
 	emu_memory_write_dword(mem, dwDataLen, myDataLen);
@@ -3378,7 +3412,9 @@ int32_t	__stdcall hook_CryptDestroyHash(struct emu_env_w32 *win, struct emu_env_
 	uint32_t eip_save = popd();
 	uint32_t hHash = popd();
 	
-	uint32_t rv = (uint32_t)CryptDestroyHash(hHash); 
+	uint32_t rv = 1;
+	
+	if(opts.interactive_hooks) rv =(uint32_t)CryptDestroyHash(hHash); 
 		
 	printf("%x\tCryptDestroyHash(%x)\n", eip_save, hHash);
 	
@@ -3399,7 +3435,9 @@ int32_t	__stdcall hook_CryptReleaseContext(struct emu_env_w32 *win, struct emu_e
 	uint32_t hProv = popd();
 	uint32_t dwFlags = popd();
 	
-	uint32_t rv = (uint32_t)CryptReleaseContext(hProv,dwFlags); 
+	uint32_t rv = 1;
+	
+	if(opts.interactive_hooks) rv = (uint32_t)CryptReleaseContext(hProv,dwFlags); 
 		
 	printf("%x\tCryptReleaseContext(%x, %x)\n", eip_save, hProv,dwFlags);
 	
@@ -3856,7 +3894,7 @@ int32_t	__stdcall hook_ExpandEnvironmentStringsA(struct emu_env_w32 *win, struct
 
 	printf("%x\t%s(%s, dst=%x, sz=%x)\n", eip_save, ex->fnname, src->data, dst,sz);
 	
-	char* buf = SafeMalloc(sz+1);
+	char* buf = SafeMalloc(sz);
 	int ret = ExpandEnvironmentStringsA(src->data, buf, sz);
 	
 	if(dst!=0 && ret!=0) emu_memory_write_block(mem,dst,buf,ret); 
@@ -3935,7 +3973,7 @@ int32_t	__stdcall hook_memcpy(struct emu_env_w32 *win, struct emu_env_w32_dll_ex
 
 	printf("%x\t%s(dst=%x, src=%x, sz=%x)\n", eip_save, ex->fnname , dest, src, sz);
 
-	void* buf = (void*)SafeMalloc(sz+1);
+	void* buf = (void*)SafeMalloc(sz);
 	emu_memory_read_block(mem, src, buf, sz);
 	emu_memory_write_block(mem,dest, buf, sz);
 	free(buf);
@@ -4168,13 +4206,12 @@ int32_t	__stdcall hook_GetMappedFileNameA(struct emu_env_w32 *win, struct emu_en
 	uint32_t fname = popd();
 	uint32_t size = popd();
 
-	printf("%x\tGetMappedFileNameA(hproc=%x, addr%x)\n", eip_save, hproc, addr);
+	printf("%x\tGetMappedFileNameA(hproc=%x, addr=%x)\n", eip_save, hproc, addr);
 	
 	char *path = "parentdoc.pdf";
     int sz = strlen(path)+1;
 
-	if(size > sz) sz = size;
-	if(sz > 0) emu_memory_write_block(mem,fname,path,sz+1);
+	if(sz > 0) emu_memory_write_block(mem, fname, path, sz+1);
 
 	set_ret(sz); 
 	emu_cpu_eip_set(cpu, eip_save);
@@ -4934,8 +4971,10 @@ int32_t	__stdcall hook_RtlZeroMemory(struct emu_env_w32 *win, struct emu_env_w32
 		free(tmp);
 	}
 
-	for(uint32_t i=0; i< leng; i++){
-		emu_memory_write_byte(mem,dest+i,0);
+	if(leng < 0x10000){
+		for(uint32_t i=0; i< leng; i++){
+			emu_memory_write_byte(mem,dest+i,0);
+		}
 	}
 
 	emu_cpu_eip_set(cpu, eip_save);
@@ -5436,6 +5475,109 @@ int32_t	__stdcall hook_FreeLibrary(struct emu_env_w32 *win, struct emu_env_w32_d
 	uint32_t ret = rand();
 	printf("%x\t%s(%x)\n", eip_save, ex->fnname, a);
 	set_ret(ret); 
+    emu_cpu_eip_set(cpu, eip_save);
+	return 0;
+}
+
+int32_t	__stdcall hook_ZwAllocateVirtualMemory(struct emu_env_w32 *win, struct emu_env_w32_dll_export *ex)
+{
+/*
+	NTSTATUS ZwAllocateVirtualMemory(
+	  _In_     HANDLE ProcessHandle,
+	  _Inout_  PVOID *BaseAddress,
+	  _In_     ULONG_PTR ZeroBits,
+	  _Inout_  PSIZE_T RegionSize,
+	  _In_     ULONG AllocationType,
+	  _In_     ULONG Protect
+	);
+
+*/
+	uint32_t eip_save = popd();
+	uint32_t hproc = popd();
+	uint32_t lp_address = popd();
+	uint32_t zero = popd();
+	uint32_t size = popd();
+	uint32_t atype = popd();
+	uint32_t flProtect = popd();
+
+	uint32_t baseMemAddress = next_alloc;
+	uint32_t address = 0;
+
+	emu_memory_read_dword(mem,lp_address,&address);
+
+	if(size < MAX_ALLOC){
+		set_next_alloc(size);
+		printf("%x\tZwAllocateVirtualMemory(pid=%x, base=%x , sz=%x) = %x\n", eip_save, hproc, address, size, baseMemAddress);
+		if(size < 1024) size = 1024;
+		void *buf = malloc(size);
+		memset(buf,0,size);
+		emu_memory_write_block(mem,baseMemAddress,buf, size);
+		emu_memory_write_dword(mem,lp_address,baseMemAddress);
+		free(buf);
+	}else{
+		printf("%x\tZwAllocateVirtualMemory(pid=%x, sz=%x) (Ignored size out of range)\n", eip_save, hproc, size);
+	}
+
+	set_ret(STATUS_SUCCESS);
+	emu_cpu_eip_set(cpu, eip_save);
+	return 0;
+}
+
+int32_t	__stdcall hook_DeviceIoControl(struct emu_env_w32 *win, struct emu_env_w32_dll_export *ex)
+{
+/*
+	BOOL WINAPI DeviceIoControl(
+	  _In_         HANDLE hDevice,
+	  _In_         DWORD dwIoControlCode,
+	  _In_opt_     LPVOID lpInBuffer,
+	  _In_         DWORD nInBufferSize,
+	  _Out_opt_    LPVOID lpOutBuffer,
+	  _In_         DWORD nOutBufferSize,
+	  _Out_opt_    LPDWORD lpBytesReturned,
+	  _Inout_opt_  LPOVERLAPPED lpOverlapped
+	);
+
+*/
+	uint32_t eip_save = popd();
+	uint32_t hDev = popd();
+	uint32_t ctlCode = popd();
+	uint32_t lpInBuffer = popd();
+	uint32_t buf_size = popd();
+	uint32_t out_buf = popd();
+	uint32_t outsz = popd();
+	uint32_t bytesRet = popd();
+	uint32_t overlap = popd();
+
+	printf("%x\tDeviceIoControl(hDev=%x, code=%x , buf=%x, sz=%x, outbuf=%x, outsz=%x, lpBytesRet=%x, overlap=%x)\n", eip_save, hDev, ctlCode, lpInBuffer, buf_size, out_buf, outsz, bytesRet, overlap);
+	
+	if(opts.show_hexdumps && buf_size > 0){
+		int display_size = buf_size > 300 ? 300 : buf_size;
+		unsigned char *buffer = (unsigned char*)SafeMalloc(display_size);
+		emu_memory_read_block(mem, lpInBuffer,(void*)buffer, display_size);
+		if(buf_size > display_size) printf("Showing first %x bytes...\n", display_size);
+		hexdump(buffer, display_size);
+		free(buffer);
+	}
+
+	if(bytesRet!=0) emu_memory_write_dword(mem,bytesRet,0);
+
+	set_ret(0); //fail code
+	emu_cpu_eip_set(cpu, eip_save);
+	return 0;
+}
+
+int32_t	__stdcall hook_GetSystemTimeAsFileTime(struct emu_env_w32 *win, struct emu_env_w32_dll_export *ex)
+{
+	/* 	void WINAPI GetSystemTimeAsFileTime( _Out_  LPFILETIME lpSystemTimeAsFileTime ); */
+	uint32_t eip_save = popd();
+	uint32_t lpt = popd();
+	
+	FILETIME ft;
+	//GetSystemTimeAsFileTime(&ft);
+	memset(&ft,0,sizeof(ft));
+	printf("%x\t%s(%x)\n", eip_save, ex->fnname, lpt);
+	emu_memory_write_block(mem,lpt, &ft, sizeof(ft));
+	set_ret(0); 
     emu_cpu_eip_set(cpu, eip_save);
 	return 0;
 }
