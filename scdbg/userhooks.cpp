@@ -730,17 +730,25 @@ int32_t	__stdcall hook_GlobalAlloc(struct emu_env_w32 *win, struct emu_env_w32_d
 	uint32_t size = popd();
 
 	uint32_t baseMemAddress = next_alloc;
-
-	if(size > 0 && size < MAX_ALLOC){
-		set_next_alloc(size);
-		void *buf = malloc(size);
-		memset(buf,0,size);
-		emu_memory_write_block(mem,baseMemAddress,buf, size);
-		printf("%x\t%s(sz=%x) = %x\n", eip_save, ex->fnname, size, baseMemAddress);
-		free(buf);
-	}else{
-		printf("%x\t%s(sz=%x) (Ignored size out of range)\n", eip_save, ex->fnname, size);
+	
+	if( size < 1024 ){
+		printf("\tAllocation %x < 1024 adjusting...\n", size);
+		size = 1024;
 	}
+
+	if(size > MAX_ALLOC){
+		printf("\tAllocation %x > MAX_ALLOC adjusting...\n", size);
+		size = MAX_ALLOC;
+	}
+
+	if(size > 0 && size <= MAX_ALLOC){
+		set_next_alloc(size);
+		void *buf = SafeMalloc(size);
+		emu_memory_write_block(mem,baseMemAddress,buf, size);
+		free(buf);
+	}
+
+	printf("%x\t%s(sz=%x) = %x\n", eip_save, ex->fnname, size, baseMemAddress);
 
 	cpu->reg[eax] = baseMemAddress;
 	emu_cpu_eip_set(cpu, eip_save);
@@ -774,7 +782,7 @@ int32_t	__stdcall hook_MapViewOfFile(struct emu_env_w32 *win, struct emu_env_w32
 
 	if(size > 0 && size < MAX_ALLOC){
 		set_next_alloc(size);
-		void *buf = malloc(size);
+		void *buf = SafeMalloc(size);
 		
 		if(opts.interactive_hooks==1) 
 			view = MapViewOfFile((HANDLE)h,access,offsetHigh,offset,size);
@@ -873,18 +881,26 @@ int32_t	__stdcall hook_VirtualAlloc(struct emu_env_w32 *win, struct emu_env_w32_
 
 	uint32_t baseMemAddress = next_alloc;
 
-	if(size < MAX_ALLOC){
-		set_next_alloc(size);
-		printf("%x\tVirtualAlloc(base=%x , sz=%x) = %x\n", eip_save, address, size, baseMemAddress);
-		if(size < 1024) size = 1024;
-		void *buf = malloc(size);
-		memset(buf,0,size);
-		emu_memory_write_block(mem,baseMemAddress,buf, size);
-		free(buf);
-	}else{
-		printf("%x\tVirtualAlloc(sz=%x) (Ignored size out of range)\n", eip_save, size);
+	if( size < 1024 ){
+		printf("\tAllocation %x < 1024 adjusting...\n", size);
+		size = 1024;
 	}
 
+	if(size > MAX_ALLOC){
+		printf("\tAllocation (%x) > MAX_ALLOC adjusting...\n", size);
+		size = MAX_ALLOC;
+	}
+
+	if(size > 0 && size <= MAX_ALLOC){
+		set_next_alloc(size);
+		if(size < 1024) size = 1024;
+		void *buf = SafeMalloc(size);
+		emu_memory_write_block(mem, baseMemAddress, buf, size);
+		free(buf);
+	}
+	
+	printf("%x\tVirtualAlloc(base=%x , sz=%x) = %x\n", eip_save, address, size, baseMemAddress);
+	
 	cpu->reg[eax] = baseMemAddress;
 	emu_cpu_eip_set(cpu, eip_save);
 	return 0;
@@ -1087,7 +1103,7 @@ int32_t	__stdcall hook_ReadFile(struct emu_env_w32 *win, struct emu_env_w32_dll_
 
 	if( opts.interactive_hooks == 1){
 		if( (int)opts.h_fopen != 0 && hfile  < 10 ) m_hfile = (uint32_t)opts.h_fopen; //scanners start at 1 or 4 we let them go with it..
-		char* tmp = (char*)malloc(numBytes);
+		char* tmp = (char*)SafeMalloc(numBytes);
 		if(tmp==0){
 			printf("\tFailed to allocate %x bytes skipping ReadFile\n",numBytes);
 		}else{
@@ -1144,7 +1160,7 @@ int32_t	__stdcall hook_strstr(struct emu_env_w32 *win, struct emu_env_w32_dll_ex
 		emu_memory_read_string(mem, s2, find, 255);
 
 		if(len > 0){
-			char* tmp = (char*)malloc(len);
+			char* tmp = (char*)SafeMalloc(len);
 			emu_memory_read_block(mem, s1, tmp, len);
 			ret = (int)strstr(tmp, (char*)find->data);
 			if(ret != 0){
@@ -1215,7 +1231,7 @@ int32_t	__stdcall hook_GetTempFileName(struct emu_env_w32 *win, struct emu_env_w
 	uint32_t unique = popd();
 	uint32_t out_buf = popd();
 
-	char* realBuf = (char*)malloc(256);
+	char* realBuf = (char*)SafeMalloc(256);
 	uint32_t ret = GetTempFileName(lpPathName->data, lpPrefixString->data, unique, realBuf); 
 	
 	printf("%x\t%s(path=%s, prefix=%x, unique=%x, buf=%x) = %X\n", eip_save, ex->fnname, 
@@ -1492,18 +1508,26 @@ int32_t	__stdcall hook_VirtualAllocEx(struct emu_env_w32 *win, struct emu_env_w3
 
 	uint32_t baseMemAddress = next_alloc;
 
-	if(size < MAX_ALLOC){
-		set_next_alloc(size);
-		printf("%x\tVirtualAllocEx(pid=%x, base=%x , sz=%x) = %x\n", eip_save, hproc, address, size, baseMemAddress);
-		if(size < 1024) size = 1024;
-		void *buf = malloc(size);
-		memset(buf,0,size);
-		emu_memory_write_block(mem,baseMemAddress,buf, size);
-		free(buf);
-	}else{
-		printf("%x\tVirtualAllocEx(pid=%x, sz=%x) (Ignored size out of range)\n", eip_save, hproc, size);
+	if( size < 1024 ){
+		printf("\tAllocation %x < 1024 adjusting...\n", size);
+		size = 1024;
 	}
 
+	if(size > MAX_ALLOC){
+		printf("\tAllocation %x > MAX_ALLOC adjusting...\n", size);
+		size = MAX_ALLOC;
+	}
+
+	if(size > 0 && size <= MAX_ALLOC){
+		set_next_alloc(size);
+		if(size < 1024) size = 1024;
+		void *buf = SafeMalloc(size);
+		emu_memory_write_block(mem,baseMemAddress,buf, size);
+		free(buf);
+	}
+
+	printf("%x\tVirtualAllocEx(pid=%x, base=%x , sz=%x) = %x\n", eip_save, hproc, address, size, baseMemAddress);
+	
 	cpu->reg[eax] = baseMemAddress;
 	emu_cpu_eip_set(cpu, eip_save);
 	return 0;
@@ -1531,7 +1555,7 @@ int32_t	__stdcall hook_WriteProcessMemory(struct emu_env_w32 *win, struct emu_en
 	printf("%x\tWriteProcessMemory(pid=%x, base=%x , buf=%x, sz=%x, written=%x)\n", eip_save, hproc, address, buf, size, BytesWritten);
 
 	if(size < MAX_ALLOC){
-		unsigned char* tmp = (unsigned char*)malloc(size);
+		unsigned char* tmp = (unsigned char*)SafeMalloc(size);
 		emu_memory_read_block(mem, buf, tmp, size);
 		
 		if(opts.show_hexdumps){
@@ -1821,7 +1845,7 @@ int32_t	__stdcall hook_fwrite(struct emu_env_w32 *win, struct emu_env_w32_dll_ex
 		len = MAX_ALLOC; //dzzie
 	}
 
-	unsigned char *buffer = (unsigned char*)malloc(len);
+	unsigned char *buffer = (unsigned char*)SafeMalloc(len);
 	emu_memory_read_block(mem, p_buffer, buffer, len);
 		
 	printf("%x\tfwrite(h=%x, sz=%x, buf=%x)\n", eip_save, (int)p_stream, size*count, p_buffer);
@@ -1917,7 +1941,7 @@ int32_t	__stdcall hook__lwrite(struct emu_env_w32 *win, struct emu_env_w32_dll_e
 		size = MAX_ALLOC; //dzzie
 	}
 
-	unsigned char *buffer = (unsigned char*)malloc(size);
+	unsigned char *buffer = (unsigned char*)SafeMalloc(size);
 	emu_memory_read_block(mem, p_buffer, buffer, size);
 	
 	printf("%x\t_lwrite(h=%x, buf=%x)\n",eip_save, file, p_buffer);
@@ -1948,7 +1972,7 @@ int32_t	__stdcall hook_GetTempPath(struct emu_env_w32 *win, struct emu_env_w32_d
 	uint32_t bufferlength = popd();
 	uint32_t p_buffer = popd();
 
-	char* realBuf = (char*)malloc(256);
+	char* realBuf = (char*)SafeMalloc(256);
 	uint32_t ret = GetTempPath(256,realBuf);
 	
 	if( (ret+1) > bufferlength) ret = 0;
@@ -2137,14 +2161,14 @@ int32_t	__stdcall hook_CreateProcess(struct emu_env_w32 *win, struct emu_env_w32
 	uint32_t p_startinfo = popd();
 	uint32_t p_procinfo = popd();
 
-	STARTUPINFO *si = (STARTUPINFO*)malloc(sizeof(STARTUPINFO));
+	STARTUPINFO *si = (STARTUPINFO*)SafeMalloc(sizeof(STARTUPINFO));
 	memset(si, 0, sizeof(STARTUPINFO));
 
 	emu_memory_read_dword(mem, p_startinfo + 14 * 4, (uint32_t *)&si->hStdInput);
 	emu_memory_read_dword(mem, p_startinfo + 15 * 4, (uint32_t *)&si->hStdOutput);
 	emu_memory_read_dword(mem, p_startinfo + 16 * 4, (uint32_t *)&si->hStdError);
 
-	PROCESS_INFORMATION *pi = (PROCESS_INFORMATION*)malloc(sizeof(PROCESS_INFORMATION));
+	PROCESS_INFORMATION *pi = (PROCESS_INFORMATION*)SafeMalloc(sizeof(PROCESS_INFORMATION));
 	memset(pi, 0, sizeof(PROCESS_INFORMATION));
 
 	pi->hProcess = (HANDLE)4713;
@@ -2261,10 +2285,14 @@ int32_t	__stdcall hook_GetSystemDirectoryA(struct emu_env_w32 *win, struct emu_e
 
 int32_t	__stdcall hook_malloc(struct emu_env_w32 *win, struct emu_env_w32_dll_export *ex)
 {/* cdecl void *malloc( size_t size );  not stdcall! */
+
 	uint32_t eip_save = popd();
 	uint32_t size = get_arg(0);
 
-	printf("%x\tmalloc(%x)\n",eip_save,size);	
+	if( size < 1024 ){
+		printf("\tAllocation %x < 1024 adjusting...\n", size);
+		size = 1024;
+	}
 
 	if(size > MAX_ALLOC){
 		printf("\tAllocation > MAX_ALLOC adjusting...\n");
@@ -2274,6 +2302,8 @@ int32_t	__stdcall hook_malloc(struct emu_env_w32 *win, struct emu_env_w32_dll_ex
 	uint32_t baseMemAddress = next_alloc;
 	set_next_alloc(size); // so dump knows about it...
 		
+	printf("%x\tmalloc(%x) = %x \n", eip_save, size, baseMemAddress);	
+
 	void *buf = SafeMalloc(size);
 	emu_memory_write_block(mem,baseMemAddress,buf, size);
 	free(buf);
@@ -2361,7 +2391,7 @@ int32_t	__stdcall hook_WriteFile(struct emu_env_w32 *win, struct emu_env_w32_dll
 		bytestowrite = max_size;
 	}
 
-	unsigned char *buffer = (unsigned char*)malloc(bytestowrite);
+	unsigned char *buffer = (unsigned char*)SafeMalloc(bytestowrite);
 	emu_memory_read_block(mem, p_buffer,(void*) buffer, bytestowrite);
 
 	emu_memory_write_dword(mem, p_byteswritten, bytestowrite);
@@ -2564,7 +2594,7 @@ int32_t	__stdcall hook_recv(struct emu_env_w32 *win, struct emu_env_w32_dll_expo
 		len = 4096;
 	}
 
-	char *buffer = (char *)malloc(len);
+	char *buffer = (char *)SafeMalloc(len);
 	memset(buffer, 0, len);
 
 	uint32_t returnvalue = 0;
@@ -2601,7 +2631,7 @@ int32_t	__stdcall hook_send(struct emu_env_w32 *win, struct emu_env_w32_dll_expo
 		len = MAX_ALLOC; //dzzie
 	}
 
-	char *buffer = (char *)malloc(len);
+	char *buffer = (char *)SafeMalloc(len);
 	emu_memory_read_block(mem, p_buf, buffer, len);
 
 	uint32_t returnvalue = len;
@@ -2637,7 +2667,7 @@ int32_t	__stdcall hook_sendto(struct emu_env_w32 *win, struct emu_env_w32_dll_ex
 		len = MAX_ALLOC; //dzzie
 	}
 	
-	char *buffer = (char *)malloc(len);
+	char *buffer = (char *)SafeMalloc(len);
 	emu_memory_read_block(emu_memory_get(win->emu), p_buf, buffer, len);
 
 	struct sockaddr sa;
@@ -2787,7 +2817,7 @@ int32_t	__stdcall hook_WideCharToMultiByte(struct emu_env_w32 *win, struct emu_e
 	//we dont feed the shellcode any unicode data from any api hooks, chances they use it native are very low
 	//so they are probably trying to convert our api output which is already ansi, so just copy it 
 	if(bufInSz < MAX_ALLOC ){
-		char* tmp = (char*)malloc(bufInSz);
+		char* tmp = (char*)SafeMalloc(bufInSz);
 		emu_memory_read_block(mem,bufIn,tmp,bufInSz);
 		emu_memory_write_block(mem, bufOut,tmp,bufOutSz); //if > bufInSz thats their problem emu will allocate
 		rv = strlen(tmp);
@@ -3122,7 +3152,7 @@ int32_t	__stdcall hook_fread(struct emu_env_w32 *win, struct emu_env_w32_dll_exp
 
 	if(opts.interactive_hooks == 1 && realSize > 0){
 		if(realSize > MAX_ALLOC) realSize = MAX_ALLOC;
-		void* realBuf = malloc(realSize+1);
+		void* realBuf = SafeMalloc(realSize+1);
 		rv = fread(realBuf, size, count, (FILE*)hFile);
 		if(rv > 0) emu_memory_write_block(mem, lpData, realBuf, realSize);
 	}
@@ -3338,7 +3368,7 @@ int32_t	__stdcall hook_CryptHashData(struct emu_env_w32 *win, struct emu_env_w32
 	uint32_t rv = 1;
 	
 	if(opts.interactive_hooks){
-		unsigned char* data = (unsigned char*)malloc(myDataLen+1);
+		unsigned char* data = (unsigned char*)SafeMalloc(myDataLen+1);
 		emu_memory_read_block(mem, pbData, data, myDataLen);
 		rv = (uint32_t)CryptHashData(hHash,data,myDataLen,dwFlags); 
 		free(data);
@@ -3383,11 +3413,11 @@ int32_t	__stdcall hook_CryptGetHashParam(struct emu_env_w32 *win, struct emu_env
 	uint32_t rv = 1;
 	
 	if(opts.interactive_hooks){
-		myData = (unsigned char*)malloc(myDataLen+1);
+		myData = (unsigned char*)SafeMalloc(myDataLen+1);
 		rv = (uint32_t)CryptGetHashParam(hHash,dwParam,myData, &myDataLen,dwFlags); 
 	}else{
 		myDataLen = strlen(dummy);
-		myData = (unsigned char*)malloc(myDataLen+1);
+		myData = (unsigned char*)SafeMalloc(myDataLen+1);
 	}
 		
 	printf("%x\tCryptGetHashParam(%x, %x, %x, %x, %x) = %x\n", eip_save, hHash, dwParam, pbData, pdwDataLen, dwFlags,rv);
@@ -5505,18 +5535,25 @@ int32_t	__stdcall hook_ZwAllocateVirtualMemory(struct emu_env_w32 *win, struct e
 
 	emu_memory_read_dword(mem,lp_address,&address);
 
-	if(size < MAX_ALLOC){
+	if( size < 1024 ){
+		printf("\tAllocation %x < 1024 adjusting...\n", size);
+		size = 1024;
+	}
+
+	if(size > MAX_ALLOC){
+		printf("\tAllocation %x > MAX_ALLOC adjusting...\n", size);
+		size = MAX_ALLOC;
+	}
+
+	if(size > 0 && size <= MAX_ALLOC){
 		set_next_alloc(size);
-		printf("%x\tZwAllocateVirtualMemory(pid=%x, base=%x , sz=%x) = %x\n", eip_save, hproc, address, size, baseMemAddress);
-		if(size < 1024) size = 1024;
-		void *buf = malloc(size);
-		memset(buf,0,size);
+		void *buf = SafeMalloc(size);
 		emu_memory_write_block(mem,baseMemAddress,buf, size);
 		emu_memory_write_dword(mem,lp_address,baseMemAddress);
 		free(buf);
-	}else{
-		printf("%x\tZwAllocateVirtualMemory(pid=%x, sz=%x) (Ignored size out of range)\n", eip_save, hproc, size);
 	}
+
+	printf("%x\tZwAllocateVirtualMemory(pid=%x, base=%x , sz=%x) = %x\n", eip_save, hproc, address, size, baseMemAddress);
 
 	set_ret(STATUS_SUCCESS);
 	emu_cpu_eip_set(cpu, eip_save);
@@ -5550,15 +5587,30 @@ int32_t	__stdcall hook_DeviceIoControl(struct emu_env_w32 *win, struct emu_env_w
 
 	printf("%x\tDeviceIoControl(hDev=%x, code=%x , buf=%x, sz=%x, outbuf=%x, outsz=%x, lpBytesRet=%x, overlap=%x)\n", eip_save, hDev, ctlCode, lpInBuffer, buf_size, out_buf, outsz, bytesRet, overlap);
 	
-	if(opts.show_hexdumps && buf_size > 0){
-		int display_size = buf_size > 300 ? 300 : buf_size;
-		unsigned char *buffer = (unsigned char*)SafeMalloc(display_size);
-		emu_memory_read_block(mem, lpInBuffer,(void*)buffer, display_size);
-		if(buf_size > display_size) printf("Showing first %x bytes...\n", display_size);
-		hexdump(buffer, display_size);
-		free(buffer);
+	uint32_t max_size = 0x900000;
+	if( buf_size > max_size ){  //sample 2c2167d371c6e0ccbcee778a4d10b3bd - dzzie 
+		if(!opts.norw) printf("\tWriteFile modifying BytesToWrite from %x to %x\n", buf_size , max_size);
+		buf_size = max_size;
 	}
 
+	unsigned char *buffer = (unsigned char*)SafeMalloc(buf_size);
+	emu_memory_read_block(mem, lpInBuffer,(void*)buffer, buf_size);
+
+	if(opts.show_hexdumps && buf_size > 0){
+		uint32_t display_size = buf_size;
+		if(display_size > 300){
+			printf("Showing first 300 bytes...\n");
+			display_size = 300;
+		}
+		hexdump(buffer, display_size);
+	}
+
+	uint32_t written=0;
+	if(opts.interactive_hooks == 1 ){
+		WriteFile( (HANDLE)hDev, buffer, buf_size , &written,0);
+	}
+
+	free(buffer);
 	if(bytesRet!=0) emu_memory_write_dword(mem,bytesRet,0);
 
 	set_ret(0); //fail code
