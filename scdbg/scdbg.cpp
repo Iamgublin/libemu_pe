@@ -398,7 +398,7 @@ char* GetParentFolder(char* path){
 		x--;
 	}
 	char* tmp = strdup(path);
-	tmp[x]=0;
+	tmp[x]=0; //were not modifying parent string, just our copy..
 	return tmp;
 }
 
@@ -1266,7 +1266,7 @@ int disasm_addr_simple(int va){
 	return len;
 }
 	
-int disasm_addr(struct emu *e, int va){  //arbitrary offset
+int disasm_addr(struct emu *e, int va, int justDisasm=0){  //arbitrary offset
 	
 	int instr_len =0;
 	char disasm[200];
@@ -1280,7 +1280,9 @@ int disasm_addr(struct emu *e, int va){  //arbitrary offset
 	if(foffset < 0) foffset = m_eip; //probably a stack address.
 
 	start_color(mgreen);
-	if(opts.verbose ==1){
+	if(justDisasm==1){
+		printf("%x   %s\n", m_eip, disasm);
+	}else if(opts.verbose ==1){
 		if(opts.cur_step % 5 == 0){
 			printf("%x   %s\t\t step: %i\n", m_eip, disasm, opts.cur_step );
 		}else{
@@ -1433,8 +1435,9 @@ void show_stack(void){
 
 void savemem(void){
 	FILE *fp;
-	char fname[255];
+	char fname[600];
 	char tmp[255];
+	char *tmpPath=0;
 
 	int base = read_hex("Enter base address to dump", (char*)&tmp);
 	int size = read_hex("Enter size to dump", (char*)&tmp);
@@ -1449,11 +1452,14 @@ void savemem(void){
 	if(emu_memory_read_block(mem,base,buf,size) == -1){
 		printf("Failed to read block...\n");
 	}else{
-		sprintf(fname,"memdump_0x%x-0x%x.bin", base, base+size);
+		//todo save to shellcode parent directory..
+		tmpPath = GetParentFolder(opts.sc_file);
+		sprintf(fname,"%s\\memdump_0x%x-0x%x.bin", tmpPath, base, base+size);
 		fp = fopen(fname,"wb");
 		fwrite(buf,1,size,fp);
 		fclose(fp);
 		printf("Dump saved to %s\n", fname);
+		free(tmpPath);
 	}
 
 	free(buf);
@@ -1654,7 +1660,7 @@ void interactive_command(struct emu *e){
 			size = read_int("Number of instructions to dump (max 100)", tmp);
 			if(size > 100) size = 100;
 			for(i=0;i<size;i++){
-				bytes_read = disasm_addr(e,base);
+				bytes_read = disasm_addr(e,base,1);
 				if(bytes_read < 1) break;
 				base += bytes_read;
 			}
@@ -1814,6 +1820,7 @@ void set_hooks(struct emu_env *env){
 	HOOKBOTH(InternetSetOption);
 	HOOKBOTH(CreateProcess);
 	HOOKBOTH(GetStartupInfo);
+	HOOKBOTH(MoveFileWithProgress);
 
 	ADDHOOK(ExitProcess);
 	ADDHOOK(memset);

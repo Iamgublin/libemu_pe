@@ -1554,7 +1554,7 @@ int32_t	__stdcall hook_WriteProcessMemory(struct emu_env_w32 *win, struct emu_en
 
 	printf("%x\tWriteProcessMemory(pid=%x, base=%x , buf=%x, sz=%x, written=%x)\n", eip_save, hproc, address, buf, size, BytesWritten);
 
-	if(size < MAX_ALLOC){
+	if(size < MAX_ALLOC && size > 0){
 		unsigned char* tmp = (unsigned char*)SafeMalloc(size);
 		emu_memory_read_block(mem, buf, tmp, size);
 		
@@ -1570,7 +1570,10 @@ int32_t	__stdcall hook_WriteProcessMemory(struct emu_env_w32 *win, struct emu_en
 		emu_memory_write_block(mem, address, tmp, size);
 		if(BytesWritten != 0) emu_memory_write_dword(mem, BytesWritten, size);
 	}else{
-		printf("\tSize > MAX_ALLOC (%x) ignoring...", MAX_ALLOC);
+		if(size==0)
+			printf("\tSize = 0 ignoring...\n");
+		else
+			printf("\tSize > MAX_ALLOC (%x) ignoring...\n", MAX_ALLOC);
 	}
 
 	cpu->reg[eax] = 1;
@@ -5634,6 +5637,34 @@ int32_t	__stdcall hook_GetSystemTimeAsFileTime(struct emu_env_w32 *win, struct e
 	return 0;
 }
 
+int32_t	__stdcall hook_MoveFileWithProgress(struct emu_env_w32 *win, struct emu_env_w32_dll_export *ex)
+{
+	/* 	
+		BOOL WINAPI MoveFileWithProgress(
+		  _In_      LPCTSTR lpExistingFileName,
+		  _In_opt_  LPCTSTR lpNewFileName,
+		  _In_opt_  LPPROGRESS_ROUTINE lpProgressRoutine,
+		  _In_opt_  LPVOID lpData,
+		  _In_      DWORD dwFlags
+		);
+
+	*/
+
+	uint32_t eip_save = popd();
+	struct emu_string* path = isWapi(ex->fnname) ?  popwstring() : popstring();
+	struct emu_string* path_new = isWapi(ex->fnname) ?  popwstring() : popstring();
+	uint32_t lpProgressRoutine = popd();
+	uint32_t lpData = popd();
+	uint32_t flags = popd();
+	
+	printf("%x\t%s(%s, %s, lpProgressRoutine=%x, data=%x, flags=%x)\n",eip_save, ex->fnname, path->data, path_new->data, lpProgressRoutine, lpData, flags);
+
+	set_ret(1); 
+    emu_cpu_eip_set(cpu, eip_save);
+	emu_string_free(path);
+	emu_string_free(path_new);
+	return 0;
+}
 
 
 int SysCall_Handler(int callNumber, struct emu_cpu *c){

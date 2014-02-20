@@ -437,17 +437,23 @@ Private Function SuperShell(ByVal App As String, ByVal WorkDir As String, Option
 End Function
 
 
-'file msut exist for this to work which is stupid...
+'file must exist for this to work which is stupid...
 Public Function GetShortName(sFile As String) As String
-    Dim sShortFile As String * 67
+    Dim sShortFile As String * 500
     Dim lResult As Long
 
     'Make a call to the GetShortPathName API
-    lResult = GetShortPathName(sFile, sShortFile, _
-    Len(sShortFile))
+    lResult = GetShortPathName(sFile, sShortFile, Len(sShortFile))
 
     'Trim out unused characters from the string.
     GetShortName = Left$(sShortFile, lResult)
+    GetShortName = Replace(GetShortName, Chr(0), Empty)
+    
+    'if the api fails, we will revert to a quoted version of the full file name
+    '(maybe file doesnt exist, or buf to small)
+    If Len(GetShortName) = 0 Then
+        GetShortName = """" & sFile & """"
+    End If
 
 End Function
 
@@ -621,17 +627,17 @@ Private Sub Label6_Click(Index As Integer)
     cap = Label6(Index).Caption
     
     If InStr(cap, "Example") > 0 Then
-        X = QuickDecode("ACACD13AD13FD4C3C5C5C5610BF38BDCBC49382A79DAC31BEA4E2B6A1A5226A36A26A35A3685A36A22C321A36A1EA56A56A36A16A3FA2B6A16A3E42B6252A3690AA3F42B71361BD71BE07F7FA3E42B263AA951244D5B5B695D2CA31BA9512B5E7E425C5D2CA313ABEA2EABEB2EADE05EF3ADD75EFF2BDC2BD47FC20D2A2A2A5E505E5A084D524D0A05410A1A081A081A081A0A4F4D5E0A5F4148495A411B1C084D524D2A442AC20B2A2A2A5D29EBC2252A2A2A5F4148495A411B1C084D524D2A442AC22F2A2A2A27AEC9D7D7D7EB7273757AABC67E1BEAA3D6A5626AA3FFDB849A6E837F7C79794402442979797D7BD700ABEE7EADEAEB683C793C203C683C0B3C0A3C093C103C0F3C0E3C")
-        X = HexStringUnescape(X)
+        x = QuickDecode("ACACD13AD13FD4C3C5C5C5610BF38BDCBC49382A79DAC31BEA4E2B6A1A5226A36A26A35A3685A36A22C321A36A1EA56A56A36A16A3FA2B6A16A3E42B6252A3690AA3F42B71361BD71BE07F7FA3E42B263AA951244D5B5B695D2CA31BA9512B5E7E425C5D2CA313ABEA2EABEB2EADE05EF3ADD75EFF2BDC2BD47FC20D2A2A2A5E505E5A084D524D0A05410A1A081A081A081A0A4F4D5E0A5F4148495A411B1C084D524D2A442AC20B2A2A2A5D29EBC2252A2A2A5F4148495A411B1C084D524D2A442AC22F2A2A2A27AEC9D7D7D7EB7273757AABC67E1BEAA3D6A5626AA3FFDB849A6E837F7C79794402442979797D7BD700ABEE7EADEAEB683C793C203C683C0B3C0A3C093C103C0F3C0E3C")
+        x = HexStringUnescape(x)
         p = fso.GetFreeFileName(Environ("temp"), ".sc")
-        b = StrConv(X, vbFromUnicode, LANG_US)
+        b = StrConv(x, vbFromUnicode, LANG_US)
         f = FreeFile
         Open p For Binary As f
         Put f, , b()
         Close f
         loadedFile = p
         txtLoadedFile = p
-        Me.InitInterface CStr(X)
+        Me.InitInterface CStr(x)
     End If
 
 End Sub
@@ -722,13 +728,13 @@ Private Sub mnuMore_Click(Index As Integer)
     
 End Sub
 
-Private Sub txtFopen_OLEDragDrop(Data As DataObject, Effect As Long, Button As Integer, Shift As Integer, X As Single, Y As Single)
+Private Sub txtFopen_OLEDragDrop(Data As DataObject, Effect As Long, Button As Integer, Shift As Integer, x As Single, Y As Single)
     On Error Resume Next
     txtFopen.Text = Data.Files(1)
     chkfopen.Value = 1
 End Sub
 
-Private Sub txtLoadedFile_OLEDragDrop(Data As DataObject, Effect As Long, Button As Integer, Shift As Integer, X As Single, Y As Single)
+Private Sub txtLoadedFile_OLEDragDrop(Data As DataObject, Effect As Long, Button As Integer, Shift As Integer, x As Single, Y As Single)
     On Error Resume Next
     txtLoadedFile = Data.Files(1)
     InitInterface fso.ReadFile(txtLoadedFile)
