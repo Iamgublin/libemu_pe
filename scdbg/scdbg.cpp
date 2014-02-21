@@ -734,7 +734,6 @@ void symbol_lookup(char* symbol){
 			
 			struct emu_hashtable_item *ehi = emu_hashtable_search(dll->exports_by_fnname, (void *)symbol);
 			
-
 			if ( ehi != 0 ){
 				int dllBase = dll->baseaddr; 
 				struct emu_env_w32_dll_export *ex = (struct emu_env_w32_dll_export *)ehi->value;
@@ -900,15 +899,15 @@ void doApiScan(void){
 
 	uint32_t i;
 
-	if( env->win->lastApiCalled == NULL){
+	if( env->win->lastApiCalled == NULL || strlen(env->win->lastApiCalled)==0 ){
 		printf("No Api were called can not scan for api table...\n");
 	}else{
-		printf("\n\nScanning main code body for api table...\n");
+		printf("\n\nScanning main code body for api table looking for %s...\n", env->win->lastApiCalled );
 		if ( !find_apiTable(opts.baseAddress, opts.size)){
 			uint32_t stack_start = cpu->reg[esp];
 			int stack_size = cpu->reg[ebp] - cpu->reg[esp];
-			if( stack_size < 1 || stack_size > 0x1000) stack_size = 0x1000;
-			printf("Scanning stack for api table base=%x sz=%x\n", stack_start, stack_size);
+			/*if( stack_size < 1 || stack_size > 0x1000)*/ stack_size = 0x1000;
+			printf("Scanning stack for api table base=%x sz=%x\n", stack_start-stack_size, stack_size);
 			if(!find_apiTable( stack_start , stack_size )){
 				printf("Scanning for register based tables: ");
 				for(i=0;i<8;i++){
@@ -1586,6 +1585,8 @@ void interactive_command(struct emu *e){
 					if(base > 0){
 						if( fulllookupAddress(base, (char*)&lookup) > 0){
 							printf("\tFound: %s\n", lookup);
+						}else if( fulllookupAddress(base-5, (char*)&lookup) > 0){
+							printf("\tFound: %s+5\n", lookup);
 						}
 					}
 				}
@@ -1702,7 +1703,7 @@ void interactive_command(struct emu *e){
 			size = read_hex("Enter words to dump",tmp);
 			int rel = read_int("Offset mode 1,2,-1,-2 (abs/rel/-abs/-rel)", tmp);			
 			if(rel==0) rel = 1;
-			size*=4; //num of 4 byte words to show, adjust for 0 based
+			//size*=4; //num of 4 byte words to show, adjust for 0 based
 		
 			if( rel < 1 ){
 				for(i=base-size;i<=base;i+=4){

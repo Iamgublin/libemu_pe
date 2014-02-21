@@ -337,6 +337,9 @@ Begin VB.Form frmscdbg
          Caption         =   "Generate Patch File"
          Index           =   22
       End
+      Begin VB.Menu mnuHashScan 
+         Caption         =   "Scan for known Hashs"
+      End
    End
 End
 Attribute VB_Name = "frmscdbg"
@@ -643,6 +646,11 @@ Private Sub Label6_Click(Index As Integer)
 End Sub
 
 
+Private Sub mnuHashScan_Click()
+    frmHashScan.Text1 = txtLoadedFile
+    frmHashScan.Show
+End Sub
+
 Private Sub mnuMore_Click(Index As Integer)
 
     Dim homedir As String
@@ -728,13 +736,13 @@ Private Sub mnuMore_Click(Index As Integer)
     
 End Sub
 
-Private Sub txtFopen_OLEDragDrop(Data As DataObject, Effect As Long, Button As Integer, Shift As Integer, x As Single, Y As Single)
+Private Sub txtFopen_OLEDragDrop(Data As DataObject, Effect As Long, Button As Integer, Shift As Integer, x As Single, y As Single)
     On Error Resume Next
     txtFopen.Text = Data.Files(1)
     chkfopen.Value = 1
 End Sub
 
-Private Sub txtLoadedFile_OLEDragDrop(Data As DataObject, Effect As Long, Button As Integer, Shift As Integer, x As Single, Y As Single)
+Private Sub txtLoadedFile_OLEDragDrop(Data As DataObject, Effect As Long, Button As Integer, Shift As Integer, x As Single, y As Single)
     On Error Resume Next
     txtLoadedFile = Data.Files(1)
     InitInterface fso.ReadFile(txtLoadedFile)

@@ -2449,7 +2449,11 @@ int32_t	__stdcall hook_VirtualProtect(struct emu_env_w32 *win, struct emu_env_w3
 	int rv = fulllookupAddress( p_address, &lookup[0]);
 	if( rv != 1) sprintf(lookup, "%x", p_address);
 
-	printf("%x\tVirtualProtect(adr=%s, sz=%x, flags=%x)\n", eip_save, lookup, size ,newprotect);
+	if(newprotect == 0x40){
+		printf("%x\tVirtualProtect(adr=%s, sz=%x, flags=RWE)\n", eip_save, lookup, size);
+	}else{
+		printf("%x\tVirtualProtect(adr=%s, sz=%x, flags=%x)\n", eip_save, lookup, size , newprotect);
+	}
 
 	set_ret(1);
 	emu_cpu_eip_set(cpu, eip_save);

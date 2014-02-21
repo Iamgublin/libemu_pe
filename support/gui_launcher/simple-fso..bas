@@ -18,13 +18,20 @@ Global Const LANG_US = &H409
 Public Declare Sub Sleep Lib "kernel32" (ByVal dwMilliseconds As Long)
 
 Private Declare Sub SetWindowPos Lib "user32" (ByVal hwnd As Long, ByVal _
-    hWndInsertAfter As Long, ByVal x As Long, ByVal Y As Long, ByVal cx _
+    hWndInsertAfter As Long, ByVal x As Long, ByVal y As Long, ByVal cx _
     As Long, ByVal cy As Long, ByVal wFlags As Long)
 
 Private Declare Function GetShortPathName Lib "kernel32" Alias "GetShortPathNameA" (ByVal lpszLongPath As String, ByVal lpszShortPath As String, ByVal cchBuffer As Long) As Long
 Private Const HWND_TOPMOST = -1
 Private Const HWND_NOTOPMOST = -2
 
+Function isIDE() As Boolean
+    On Error GoTo hell
+    Debug.Print 1 / 0
+    isIDE = False
+    Exit Function
+hell:     isIDE = True
+End Function
 
 Public Function GetShortName(sFile As String) As String
     Dim sShortFile As String * 67
