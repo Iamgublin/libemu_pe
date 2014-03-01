@@ -28,6 +28,7 @@
 #pragma warning(disable: 4311)
 #pragma warning(disable: 4312)
 #pragma warning(disable: 4267)
+#pragma warning(disable: 4482)
 
 #include <stdint.h>
 #include <stdio.h>
@@ -5667,6 +5668,58 @@ int32_t	__stdcall hook_MoveFileWithProgress(struct emu_env_w32 *win, struct emu_
     emu_cpu_eip_set(cpu, eip_save);
 	emu_string_free(path);
 	emu_string_free(path_new);
+	return 0;
+}
+
+int32_t	__stdcall hook_VirtualQuery(struct emu_env_w32 *win, struct emu_env_w32_dll_export *ex)
+{
+/*
+	SIZE_T WINAPI VirtualQuery(
+	  _In_opt_  LPCVOID lpAddress,
+	  _Out_     PMEMORY_BASIC_INFORMATION lpBuffer,
+	  _In_      SIZE_T dwLength
+	);
+
+	SIZE_T WINAPI VirtualQueryEx(
+	  _In_      HANDLE hProcess,
+	  _In_opt_  LPCVOID lpAddress,
+	  _Out_     PMEMORY_BASIC_INFORMATION lpBuffer,
+	  _In_      SIZE_T dwLength
+	);
+		 
+
+*/
+	bool isEx = (strlen(ex->fnname) == strlen("VirtualQueryEx")) ? true : false; 
+	uint32_t hproc = 0;
+
+	uint32_t eip_save = popd();
+	if(isEx) hproc = popd();
+	uint32_t base = popd();
+	uint32_t buf = popd();
+	uint32_t sz = popd();
+	
+	if(isEx)
+		printf("%x\t%s(pid=%x, base=%x, buf=%x, sz=%x)\n", eip_save, ex->fnname, hproc, base, buf, sz);
+	else
+		printf("%x\t%s(base=%x, buf=%x, sz=%x)\n", eip_save, ex->fnname, base, buf, sz);
+
+	MEMORY_BASIC_INFORMATION mbi;
+	mbi.AllocationBase = (void*)base;
+	mbi.BaseAddress = (void*)base;
+	mbi.RegionSize = 0x10000;
+	mbi.Protect = PAGE_EXECUTE_READWRITE;
+	mbi.AllocationProtect = PAGE_EXECUTE_READWRITE;
+	mbi.State = MEM_COMMIT;
+	mbi.Type = MEM_PRIVATE;
+
+	if(sz > sizeof(mbi)){
+		emu_memory_write_block(mem, buf, &mbi, sizeof(mbi));
+		cpu->reg[eax] = sizeof(mbi);	
+	}else{
+		cpu->reg[eax] = 0;
+	}
+
+	emu_cpu_eip_set(cpu, eip_save);
 	return 0;
 }
 

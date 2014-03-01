@@ -1,5 +1,11 @@
 #include <windows.h>
 
+typedef struct{
+    int dwFlag;
+    int cbSize;
+    int lpData;
+} cpyData;
+
 struct run_time_options
 {
 	int opts_parsed;
@@ -52,9 +58,10 @@ struct run_time_options
     bool  bSwap;
 	bool  eSwap;
 	char* convert_outPath;
+	HWND IDASrvrHwnd;
+	uint32_t IDAImgBase;
 
-	struct
-	{
+	struct{
 		char *host;
 		int port;
 	}override;

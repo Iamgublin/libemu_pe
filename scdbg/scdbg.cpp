@@ -75,6 +75,7 @@ extern "C"{
 #include <conio.h>
 
 #pragma warning(disable: 4311)
+#pragma warning(disable: 4482)
 
 struct hh{
 	uint32_t eip;
@@ -138,6 +139,7 @@ extern uint32_t popd(void);
 extern int SysCall_Handler(int callNumber, struct emu_cpu *c);
 
 uint32_t FS_SEGMENT_DEFAULT_OFFSET = 0x7ffdf000;
+UINT IDA_QUICKCALL_MESSAGE;
 
 int ctrl_c_count=0;
 uint32_t last_good_eip=0;
@@ -346,6 +348,59 @@ bool isProxied(char* api){
 		i++;
 	}
 	return false;
+}
+
+void SyncIDA(uint32_t eip){
+	if(opts.IDASrvrHwnd == 0) return;
+	if(!IsWindow(opts.IDASrvrHwnd)){ opts.IDASrvrHwnd = 0; return;	}
+	uint32_t adjustedOffset = eip;
+	if(opts.IDAImgBase == 0) adjustedOffset -= opts.baseAddress; //they disam as raw binary file no rebase or exe
+	SendMessage(opts.IDASrvrHwnd, IDA_QUICKCALL_MESSAGE, 1, adjustedOffset); //jmp:lngAdr this will steal window focus
+	Sleep(100);
+	SetForegroundWindow( GetConsoleWindow() ); //steal it back. I am assuming you have enough screen realestate to display both at once to avoid flicker back and forth..
+}
+
+int IDASendTextMessage(HWND hwnd, char *buf) 
+{
+	  int blen = strlen(buf);
+	  if(buf[blen] != 0) buf[blen]=0; ;
+	  cpyData cpStructData;  
+	  cpStructData.cbSize = blen;
+	  cpStructData.lpData = (int)buf;
+	  cpStructData.dwFlag = 3;
+	  return SendMessage((HWND)hwnd, WM_COPYDATA, (WPARAM)hwnd,(LPARAM)&cpStructData);  
+}
+
+void IDASetComment(uint32_t eip, char* cmt){
+	if(!cmt) return;
+	if(opts.IDASrvrHwnd == 0) return;
+	if(!IsWindow(opts.IDASrvrHwnd)){ opts.IDASrvrHwnd = 0; return;	}
+	
+	uint32_t adjustedOffset = eip;
+	if(opts.IDAImgBase == 0) adjustedOffset -= opts.baseAddress; //they disam as raw binary file no rebase or exe
+
+	char* buf = SafeMalloc(strlen(cmt) + 100);
+	sprintf(buf, "addcomment:%d:%s", adjustedOffset, cmt);
+	IDASendTextMessage(opts.IDASrvrHwnd,buf);
+	free(buf);
+}
+
+
+HWND IDASrvrHWND(void){
+
+	 char* baseKey = "Software\\VB and VBA Program Settings\\IPC\\Handles";
+	 char tmp[20] = {0};
+     unsigned long l = sizeof(tmp);
+	 HWND ret=0;
+	 HKEY h;
+	 
+	 RegOpenKeyExA(HKEY_CURRENT_USER, baseKey, 0, KEY_READ, &h);
+	 RegQueryValueExA(h, "IDA_SERVER", 0,0, (unsigned char*)tmp, &l);
+	 RegCloseKey(h);
+	
+	 ret = (HWND)atoi(tmp);
+	 if(!IsWindow(ret)) ret = 0;
+	 return ret;
 }
 
 void showEipLog(void){
@@ -1264,7 +1319,8 @@ int disasm_addr_simple(int va){
 	end_color();
 	return len;
 }
-	
+
+
 int disasm_addr(struct emu *e, int va, int justDisasm=0){  //arbitrary offset
 	
 	int instr_len =0;
@@ -1363,13 +1419,13 @@ unsigned int read_hex(char* prompt, char* buf){
 	return base;
 }
 
-int read_string(char* prompt, char* buf){
-	uint32_t nBytes = 60;
+int read_string(char* prompt, char* buf, int maxLen = 60){
+	//uint32_t nBytes = 60;
 	int i=0;
 
 	printf("%s", prompt);
 //	getline(&buf, &nBytes, stdin);
-	fgets(buf, nBytes, stdin); 
+	fgets(buf, maxLen, stdin); 
 
 	i = strlen(buf);
 	if(i>0) buf[i-1] = 0; //strip new line
@@ -1487,6 +1543,7 @@ void show_debugshell_help(void){
 			"\tf - dereF registers (show any common api addresses in regs)\n" 
 			"\tj - show log of last 10 instructions executed\n" 
 			"\to - step over\n" 
+			"\t; - Set comment in IDA if .idasync active\n" 
 			"\t+/- - basic calculator to add or subtract 2 hex values\n"  
 			"\t.lp - lookup - get symbol for address\n"  
 			"\t.pl - reverse lookup - get address for symbol (special: peb,dllmap,fs0)\n" 
@@ -1498,6 +1555,7 @@ void show_debugshell_help(void){
 			"\t.poke1 - write a single byte to memory\n"
 			"\t.poke4 - write a 4 byte value to memory\n"
 			"\t.savemem - saves a memdump of specified range to file\n"
+			"\t.idasync - connect IDASrvr plugin and sync view at step or break.\n"
 			"\tq - quit\n\n"
 		  );
 }
@@ -1518,7 +1576,7 @@ void interactive_command(struct emu *e){
 	disable_mm_logging = true;
 
 	char *buf=0;
-	char *tmp = (char*)malloc(61);
+	char *tmp = (char*)malloc(161);
 	char lookup[255];
 	uint32_t base=0;
 	uint32_t size=0;
@@ -1544,6 +1602,17 @@ void interactive_command(struct emu *e){
 		if(c=='k'){ nl(); show_stack(); nl();}
 		if(c=='c'){ opts.cur_step = 0; printf("Step counter has been zeroed\n"); }
 		if(c=='t') opts.time_delay = read_int("Enter time delay (1000ms = 1sec)", tmp);
+
+		if(c==';'){ 
+			if(opts.IDASrvrHwnd == 0){
+				printf("Can not add a comment. Not connected to IDA. Use .idasync command\n");
+			}else{
+				i = read_string("Enter comment to add to IDA: ", tmp, 160);
+				nl();
+				if(i > 0) IDASetComment(cpu->eip, tmp);	
+			}
+			c = '.'; //this will show dbg> prompt again..
+		}
 
 		if(c=='r'){ 
 			opts.exec_till_ret = true; 
@@ -1576,6 +1645,22 @@ void interactive_command(struct emu *e){
 				if(strcmp(tmp,"segs")==0) show_segs();
 				if(strcmp(tmp,"savemem")==0) savemem();
 				if(strcmp(tmp,"dllmap")==0) symbol_lookup("dllmap");
+
+				if(strcmp(tmp,"idasync")==0){
+					opts.IDASrvrHwnd = IDASrvrHWND();
+					if(opts.IDASrvrHwnd != 0){
+						opts.IDAImgBase = SendMessage( opts.IDASrvrHwnd, IDA_QUICKCALL_MESSAGE, 8, 0);
+						if(opts.IDAImgBase == 0 || opts.IDAImgBase == 0x401000 || opts.IDAImgBase == opts.baseAddress){
+							printf("Connected to IDA, will sync disasm when stepping in debug shell and breakpoints.\n");
+						}else{
+							printf("Image base for last opened IDA does not match. hwnd: %x imgbase: %x\n", opts.IDASrvrHwnd, opts.IDAImgBase);
+							opts.IDASrvrHwnd = 0;
+						}
+					}else{
+						printf("No open instances of IDA with IDASrvr plugin open.\n");
+					}
+				}
+
 				if(strcmp(tmp,"pl")==0){
 					i = read_string("Enter symbol to lookup address for: ", tmp);
 					symbol_lookup(tmp);
@@ -1752,11 +1837,7 @@ void interactive_command(struct emu *e){
 void debugCPU(struct emu *e, bool showdisasm){
 
 	int i=0;
-	//struct emu_memory *m = emu_memory_get(e);
-
-
 	if( in_repeat ) return;
-
 	if (opts.verbose == 0) return;
 
 	//verbose 1= offset opcodes disasm step count every 5th hit
@@ -1777,9 +1858,10 @@ void debugCPU(struct emu *e, bool showdisasm){
 	dumpFlags(emu_cpu_get(e));
 	printf("\n");
 
-	if (opts.verbose < 3) return;
+	if(opts.verbose < 3) return;
 	if(opts.verbose > 3) show_stack();
 
+	SyncIDA( cpu->eip );
 	interactive_command(e);
 
 	return;
@@ -1832,7 +1914,8 @@ void set_hooks(struct emu_env *env){
 	ADDHOOK(strtoul);
     ADDHOOK(lstrcatA);
 	ADDHOOK(strrchr);
-	
+	ADDHOOK(VirtualQuery);
+
 	//these dont follow the macro pattern..mostly redirects/multitasks
 	emu_env_w32_export_new_hook(env, "LoadLibraryExA",  hook_LoadLibrary, NULL);
 	emu_env_w32_export_new_hook(env, "ExitThread", hook_ExitProcess, NULL);
@@ -1840,7 +1923,8 @@ void set_hooks(struct emu_env *env){
 	emu_env_w32_export_new_hook(env, "LocalAlloc", hook_GlobalAlloc, NULL);
 	emu_env_w32_export_new_hook(env, "strcat", hook_lstrcatA, NULL);
     emu_env_w32_export_new_hook(env, "RtlMoveMemory", hook_memcpy, NULL); //kernel32. found first...
-    emu_env_w32_export_new_hook(env, "CopyMemory", hook_memcpy, NULL);	
+    emu_env_w32_export_new_hook(env, "CopyMemory", hook_memcpy, NULL);
+	emu_env_w32_export_new_hook(env, "VirtualQueryEx", hook_VirtualQuery, NULL);
 
 	//-----handled by the generic stub 2 string
 	emu_env_w32_export_new_hook(env, "InternetOpenA", hook_GenericStub2String, NULL);
@@ -3666,6 +3750,7 @@ int main(int argc, char *argv[])
     
 	min_window_size();
 	SetConsoleCtrlHandler(ctrl_c_handler, TRUE); //http://msdn.microsoft.com/en-us/library/ms686016
+	IDA_QUICKCALL_MESSAGE = RegisterWindowMessageA("IDA_QUICKCALL");
 
 	hCon = GetStdHandle( STD_INPUT_HANDLE );
 	hConOut = GetStdHandle( STD_OUTPUT_HANDLE );

@@ -80,6 +80,7 @@ Private Declare Function lstrcat Lib "kernel32" Alias "lstrcatA" (ByVal lpString
 Private Declare Function SHBrowseForFolder Lib "shell32" (lpbi As BrowseInfo) As Long
 Private Declare Function SHGetPathFromIDList Lib "shell32" (ByVal pidList As Long, ByVal lpBuffer As String) As Long
 Private Declare Sub CoTaskMemFree Lib "ole32.dll" (ByVal hMem As Long)
+Private Declare Function GetForegroundWindow Lib "user32" () As Long
 
 Private o As OPENFILENAME
 Private filters(6) As String
@@ -121,7 +122,7 @@ End Sub
 
 Function OpenDialog(filt As FilterTypes, Optional initDir As String, Optional title As String, Optional pHwnd As Long = 0) As String
     o.lStructSize = Len(o)
-    o.hWndOwner = pHwnd
+    o.hWndOwner = GetForegroundWindow()
     o.hInstance = 0
     o.lpstrFilter = filters(filt)
     o.lpstrFile = Space$(254)
@@ -140,8 +141,8 @@ End Function
 
 Function SaveDialog(filt As FilterTypes, Optional initDir As String, Optional title As String = "", Optional ConfirmOvewrite As Boolean = True, Optional pHwnd As Long = 0, Optional defaultFileName As String) As String
     o.lStructSize = Len(o)
-    o.hWndOwner = pHwnd
-    o.hInstance = pHwnd
+    o.hWndOwner = GetForegroundWindow()
+    o.hInstance = App.hInstance
     o.lpstrFilter = filters(filt)
     o.lpstrFile = Space$(254)
     o.nMaxFile = 255
@@ -179,7 +180,7 @@ Function ColorDialog(Optional pHwnd As Long) As Long
     Dim cColors() As Byte
 
     c.lStructSize = Len(c)
-    c.hWndOwner = pHwnd
+    c.hWndOwner = GetForegroundWindow()
     c.hInstance = App.hInstance
     c.lpCustColors = StrConv(cColors, vbUnicode, LANG_US)
     c.flags = 0
@@ -198,9 +199,8 @@ Function FolderDialog(Optional initDir As String, Optional pHwnd As Long = 0) As
     Dim bInfo As BrowseInfo, ret As String, ptrList As Long, nullChar As Long
 
     With bInfo
-        .hWndOwner = pHwnd
-        .lpszTitle = lstrcat(initDir, "") 'returns memaddress
-        .ulFlags = 1                      'only directories
+        .hWndOwner = GetForegroundWindow()
+        .ulFlags = 1 + &H40                     'only directories
     End With
 
     ptrList = SHBrowseForFolder(bInfo)

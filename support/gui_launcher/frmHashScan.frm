@@ -367,15 +367,23 @@ Private Sub Form_Load()
     Me.Refresh
     
     On Error Resume Next
+    Dim newKey As String
     
     While Not rs.EOF
-        'Err.Clear
+        Err.Clear
         c.Add CStr(rs!hashName), CStr(rs!hashValue)
-'        For i = 0 To 5
-'            If Err.Number = 0 Then Exit For
-'            Err.Clear
-'            c.Add CStr(rs!hashName), CStr(rs!hashValue) & "_" & i 'this is how we index conflicts..
-'        Next
+        If Err.Number <> 0 Then
+            'Debug.Print "Hash conflict: "; rs!hashValue & ":" & rs!hashName
+            For i = 0 To 5
+                newKey = CStr(rs!hashValue) & "_" & i
+                Err.Clear
+                c.Add CStr(rs!hashName), newKey 'this is how we index conflicts..
+                If Err.Number = 0 Then
+                    Debug.Print "Conflict for: "; rs!hashName; " resolved as "; newKey
+                    Exit For
+                End If
+            Next
+        End If
         rs.MoveNext
     Wend
     
@@ -387,3 +395,60 @@ Private Sub Form_Load()
     cmdScan.Enabled = True
     
 End Sub
+
+'here are all of the conflicts in current DB, really on the RtlMoveMemory would matter at all..
+'still not enough for me to muck up the code to support the extra checks..
+'
+'Conflict for: ror3.RtlCaptureContext resolved as 0x8AC46B33_0
+'Conflict for: ror5.RtlCaptureContext resolved as 0x2EC6FF44_0
+'Conflict for: ror7.RtlCaptureContext resolved as 0xF062B2C9_0
+'Conflict for: ror9.RtlCaptureContext resolved as 0x80311284_0
+'Conflict for: rorD.RtlCaptureContext resolved as 0x818A64C8_0
+'Conflict for: rol3xor.RtlCaptureContext resolved as 0xD7C0859A_0
+'Conflict for: ror3.RtlCaptureStackBackTrace resolved as 0x36878F3F_0
+'Conflict for: ror5.RtlCaptureStackBackTrace resolved as 0x212DFDB2_0
+'Conflict for: ror7.RtlCaptureStackBackTrace resolved as 0x553B29F0_0
+'Conflict for: ror9.RtlCaptureStackBackTrace resolved as 0x9FA77B4B_0
+'Conflict for: rorD.RtlCaptureStackBackTrace resolved as 0x2BDC1FD7_0
+'Conflict for: rol3xor.RtlCaptureStackBackTrace resolved as 0x3A46CE86_0
+'Conflict for: ror3.RtlFillMemory resolved as 0x5988D438_0
+'Conflict for: ror5.RtlFillMemory resolved as 0x97EC65DA_0
+'Conflict for: ror7.RtlFillMemory resolved as 0x549AF861_0
+'Conflict for: ror9.RtlFillMemory resolved as 0x79C89A06_0
+'Conflict for: rorD.RtlFillMemory resolved as 0xC930AF1B_0
+'Conflict for: rol3xor.RtlFillMemory resolved as 0x551017F8_0
+'Conflict for: ror3.RtlMoveMemory resolved as 0x59876B18_0
+'Conflict for: ror5.RtlMoveMemory resolved as 0xDE2465BF_0
+'Conflict for: ror7.RtlMoveMemory resolved as 0x52DFFE6F_0
+'Conflict for: ror9.RtlMoveMemory resolved as 0x7FCBFE1A_0
+'Conflict for: rorD.RtlMoveMemory resolved as 0xCF14E85B_0
+'Conflict for: rol3xor.RtlMoveMemory resolved as 0x087417F8_0
+'Conflict for: ror3.RtlUnwind resolved as 0xA728F273_0
+'Conflict for: ror5.RtlUnwind resolved as 0x5D350CA6_0
+'Conflict for: ror7.RtlUnwind resolved as 0x98E2114F_0
+'Conflict for: ror9.RtlUnwind resolved as 0x6BC40033_0
+'Conflict for: rorD.RtlUnwind resolved as 0xC527094F_0
+'Conflict for: rol3xor.RtlUnwind resolved as 0x5D1C9754_0
+'Conflict for: ror3.RtlZeroMemory resolved as 0x5989C2B8_0
+'Conflict for: ror5.RtlZeroMemory resolved as 0x548C65E7_0
+'Conflict for: ror7.RtlZeroMemory resolved as 0x555DF489_0
+'Conflict for: ror9.RtlZeroMemory resolved as 0x75D2A612_0
+'Conflict for: rorD.RtlZeroMemory resolved as 0xC53D4FDB_0
+'Conflict for: rol3xor.RtlZeroMemory resolved as 0xBADC17F8_0
+'Conflict for: ror3.VerSetConditionMask resolved as 0xC6B44FEF_0
+'Conflict for: ror5.VerSetConditionMask resolved as 0x3BF2B98D_0
+'Conflict for: ror7.VerSetConditionMask resolved as 0x076FE315_0
+'Conflict for: ror9.VerSetConditionMask resolved as 0x90E9DEB2_0
+'Conflict for: rorD.VerSetConditionMask resolved as 0xB917C2E1_0
+'Conflict for: rol3xor.VerSetConditionMask resolved as 0xD0C42B45_0
+'Conflict for: ror3.DllInstall resolved as 0x462214FB_0
+'Conflict for: ror5.DllInstall resolved as 0x674F68A1_0
+'Conflict for: ror7.DllInstall resolved as 0xABFE1432_0
+'Conflict for: ror9.DllInstall resolved as 0xD5AB73CB_0
+'Conflict for: rorD.DllInstall resolved as 0x588D7664_0
+'Conflict for: rol3xor.DllInstall resolved as 0x4094C34E_0
+'Conflict for: rol3xor.SystemFunction010 resolved as 0x4BDF7120_0
+'Conflict for: rol3xor.SystemFunction011 resolved as 0x4BDF7121_0
+'Conflict for: rol3xor.SystemFunction019 resolved as 0x4BDF7129_0
+'Conflict for: rol3xor.SystemFunction030 resolved as 0x4BDF7130_0
+'Conflict for: rol3xor.SystemFunction031 resolved as 0x4BDF7131_0

@@ -21,6 +21,7 @@
 <li><b><a href="#gui">GUI Launcher</a></b>
 <li><b><a href="#find">Finding Shellcode Start Offset</a></b>
 <li><b><a href="#dumps">Memory Dumps</a></b>
+<li><b><a href="#ida">IDA Integration</a></b>
 <li><b><a href="#verbosity">Verbosity levels</a></b>
 <li><b><a href="#lookup">ordinal lookups</a></b>
 <li><b><a href="#api">-api mode</a></b>
@@ -305,6 +306,27 @@ Several help videos are available:
 	debug shell.
 	
 	<br><br>
+
+<a name="ida"></a>
+<font size=+3><b>IDA Integration</font><a href="#top">top</a></b>
+<br><br>
+	Scdbg has support for syncing an IDA disassembly on breakpoint and single step events.
+	Comments can also be added to IDA from the debug shell by pressing the semi colon key ;
+	<br><br>
+	In order to utilize this feature, you will need:
+	<ul>
+	<li>IDASrvr plugin must be installed
+	<li>Shellcode was last disassembly opened. 
+	<li>idb base offset can be either 0 or match scdbg base
+	</ul>
+
+	Once you enter the debug shell, type .idasync to connect
+	<br><br>
+	IDASrvr is open source and hosted on github. You can download the latest binary here:
+	<br><br>
+	<a href="https://github.com/dzzie/RE_Plugins/raw/master/IDASrvr/bin/IDASrvr.plw" target="_blank">https://github.com/dzzie/RE_Plugins/raw/master/IDASrvr/bin/IDASrvr.plw</a>
+
+	<br><br><br>
 	
 <a name="verbosity"></a>
 <font size=+3><b>Verbosity Levels </font><a href="#top">top</a></b>

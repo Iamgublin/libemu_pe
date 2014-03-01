@@ -991,6 +991,16 @@ void emu_cpu_debugflag_unset(struct emu_cpu *c, uint8_t flag)
 
 
 
+//this is used to add up/ down arrows to the disasm..
+uint32_t getJmpTarget(char* disasm){
+	char* pos = strstr(disasm, "0x");
+	if(pos > 0){
+		int base = strtol(pos, NULL, 16);
+		return base;
+	}
+	return 0;
+}
+
 //------------------------------------------------------------
 //new exported handy enough to be worth including.. -dzzie
 //str must be buffer at least 81 characters long..
@@ -1028,7 +1038,22 @@ uint32_t emu_disasm_addr(struct emu_cpu *c, uint32_t eip, char *str)
 	// step 3: print it
 	get_instruction_string(&inst, FORMAT_INTEL, eip, str+32, 31);
 
+	if(inst.type == INSTRUCTION_TYPE_JMP || inst.type == INSTRUCTION_TYPE_JMPC){
+		if(inst.op1.type == OPERAND_TYPE_IMMEDIATE){
+			if(getJmpTarget(str+32) < eip){
+				strcat(str,"   ^^");  
+				instrsize = strlen(str);
+			}else{
+				strcat(str,"  vv");
+				instrsize = strlen(str);
+			}
+		}
+	}
+
 	return instrsize;
 }
+
+
+
 //----------------------------------------------------------
 

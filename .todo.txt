@@ -1,0 +1,2 @@
+debug shell make registers show up in top right corner of console window as column?
+multiple breakpoints would be nice..
