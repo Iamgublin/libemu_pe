@@ -34,9 +34,7 @@
 
 	TODO: 
 		  - implement a break on memory access command using mem monitor? maybe overkill for shellcode...
-		  - CreateFileMapping/MapViewofFile - figure out how to make work...
-		  - add string deref for pointers in stack dump, deref regs and dword dump?
-		  - log call stack similar to eip log ?
+		  - multi breakpoint support would be nice..current log after trick is a hack
 */
 
 
@@ -401,6 +399,21 @@ HWND IDASrvrHWND(void){
 	 ret = (HWND)atoi(tmp);
 	 if(!IsWindow(ret)) ret = 0;
 	 return ret;
+}
+
+void IDAConnect(void){
+	opts.IDASrvrHwnd = IDASrvrHWND();
+	if(opts.IDASrvrHwnd != 0){
+		opts.IDAImgBase = SendMessage( opts.IDASrvrHwnd, IDA_QUICKCALL_MESSAGE, 8, 0);
+		if(opts.IDAImgBase == 0 || opts.IDAImgBase == opts.baseAddress){
+			printf("Connected to IDA, will sync disasm when stepping in debug shell and breakpoints.\n");
+		}else{
+			printf("Image base for last opened IDA does not match. hwnd: %x imgbase: %x\n", opts.IDASrvrHwnd, opts.IDAImgBase);
+			opts.IDASrvrHwnd = 0;
+		}
+	}else{
+		printf("No open instances of IDA found. Is IDASrvr plugin installed?\n");
+	}
 }
 
 void showEipLog(void){
@@ -1003,7 +1016,7 @@ uint32_t isString(uint32_t va, uint32_t max_len){ //returns string length
 
 bool derefStringAddr(struct emu_string* s, uint32_t va, uint32_t len){
 		uint32_t slen = isString(va, len);
-		if(slen > 0){
+		if(slen > 1){
 			emu_memory_read_string(mem, va, s, slen);
 			return true;
 		}else{
@@ -1594,7 +1607,7 @@ void interactive_command(struct emu *e){
 		c = getch();
 
 		if(c=='q'){ opts.steps =0; break; }
-		if(c=='g'){ opts.verbose =0; break; }
+		if(c=='g'){ opts.verbose=0; break; }
 		if(c=='s' || c== 0x0A) break;
 		if(c=='?' || c=='h') show_debugshell_help();
 		if(c=='f') deref_regs();
@@ -1622,10 +1635,10 @@ void interactive_command(struct emu *e){
 		}
 		
 		if(c=='o'){
-			if(previous_eip < opts.baseAddress || previous_eip > (opts.baseAddress + opts.size)) previous_eip = last_good_eip;
-			if(previous_eip < opts.baseAddress || previous_eip > (opts.baseAddress + opts.size) ) previous_eip = cpu->eip ;
-			if(previous_eip >= opts.baseAddress && previous_eip <= (opts.baseAddress + opts.size) ){
-				opts.step_over_bp = previous_eip + get_instr_length(previous_eip);
+			//if(previous_eip < opts.baseAddress || previous_eip > (opts.baseAddress + opts.size)) previous_eip = last_good_eip;
+			//if(previous_eip < opts.baseAddress || previous_eip > (opts.baseAddress + opts.size) ) previous_eip = cpu->eip ;
+			if(cpu->eip >= opts.baseAddress && cpu->eip <= (opts.baseAddress + opts.size) ){
+				opts.step_over_bp = cpu->eip + get_instr_length(cpu->eip);
 				opts.verbose = 0;
 				start_color(myellow);
 				printf("Step over will break at %x\n", opts.step_over_bp);
@@ -1645,21 +1658,7 @@ void interactive_command(struct emu *e){
 				if(strcmp(tmp,"segs")==0) show_segs();
 				if(strcmp(tmp,"savemem")==0) savemem();
 				if(strcmp(tmp,"dllmap")==0) symbol_lookup("dllmap");
-
-				if(strcmp(tmp,"idasync")==0){
-					opts.IDASrvrHwnd = IDASrvrHWND();
-					if(opts.IDASrvrHwnd != 0){
-						opts.IDAImgBase = SendMessage( opts.IDASrvrHwnd, IDA_QUICKCALL_MESSAGE, 8, 0);
-						if(opts.IDAImgBase == 0 || opts.IDAImgBase == 0x401000 || opts.IDAImgBase == opts.baseAddress){
-							printf("Connected to IDA, will sync disasm when stepping in debug shell and breakpoints.\n");
-						}else{
-							printf("Image base for last opened IDA does not match. hwnd: %x imgbase: %x\n", opts.IDASrvrHwnd, opts.IDAImgBase);
-							opts.IDASrvrHwnd = 0;
-						}
-					}else{
-						printf("No open instances of IDA with IDASrvr plugin open.\n");
-					}
-				}
+				if(strcmp(tmp,"idasync")==0) IDAConnect();
 
 				if(strcmp(tmp,"pl")==0){
 					i = read_string("Enter symbol to lookup address for: ", tmp);
@@ -1738,7 +1737,11 @@ void interactive_command(struct emu *e){
 		if(c=='e'){
 			base = read_hex("Set eip", tmp);
 			if(base==0){ printf("Failed to get value...\n");}
-			else{ emu_cpu_eip_set(emu_cpu_get(e), base);}
+			else{ 
+				if(base < opts.baseAddress) base += opts.baseAddress; //allow them to enter file offsets			
+				emu_cpu_eip_set(emu_cpu_get(e), base);
+				SyncIDA(base);
+			}
 		}
 
 		if(c=='u'){
@@ -1754,6 +1757,7 @@ void interactive_command(struct emu *e){
 
 		if(c=='b'){
 			opts.log_after_va = read_hex("Break at address",tmp);
+			opts.verbosity_after = 3;
 			printf("Log after address updated. Now set verbosity < 3 and step\n");
 		}
 
@@ -2858,6 +2862,7 @@ void show_help(void)
 		{"bswap", NULL ,     "byte swaps -f and -wstr input buffers"},
 		{"eswap", NULL ,     "endian swaps -f and -wstr input buffers"},
 		{"conv", "path" , "outputs converted shellcode to file (%u,\\x,bswap,eswap..)"},
+		{"idasync", NULL , "connects to last opened IDA instance on startup"},
 	};
 
 	system("cls");
@@ -3050,6 +3055,7 @@ void parse_opts(int argc, char* argv[] ){
 		if(sl==5 && strstr(argv[i],"/help") > 0 ){ show_help();handled=true;}
 		if(sl==7 && strstr(argv[i],"/dllmap") > 0 ){ nl(); symbol_lookup("dllmap");exit(0);}
 		if(sl==7 && strstr(argv[i],"/nofile") > 0 ){ opts.nofile = true;handled=true;}
+		if(sl==8 && strstr(argv[i],"/idasync") > 0 ){ IDAConnect();handled=true;}
 
 		if(sl==5 && strstr(argv[i],"/temp") > 0 ){
 			if(i+1 >= argc){
