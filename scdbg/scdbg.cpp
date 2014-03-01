@@ -135,6 +135,7 @@ bool isDllMemAddress(uint32_t eip);
 extern char* SafeMalloc(uint32_t size);
 extern uint32_t popd(void);
 extern int SysCall_Handler(int callNumber, struct emu_cpu *c);
+extern int isJumpTaken(struct emu_cpu *c, uint32_t eip);
 
 uint32_t FS_SEGMENT_DEFAULT_OFFSET = 0x7ffdf000;
 UINT IDA_QUICKCALL_MESSAGE;
@@ -1168,12 +1169,18 @@ void dumpFlags(struct emu_cpu *c){
 				strcat(fmsg," ");
 			}
 		}
+	} 
+	
+	printf(" %s", fmsg); //show set flags
+
+	int jt = isJumpTaken(c, c->eip);
+	if(jt >=0 ){
+		start_color(myellow);
+		if(jt==0) printf(" (jump not taken)"); else printf(" (jump taken)");
+		end_color();
 	}
 
-	start_color(myellow);
-	printf(" %s\n", fmsg);
-	end_color();
-
+	nl();
 	free(fmsg);
 
 }
@@ -1393,7 +1400,7 @@ void show_disasm(struct emu *e){  //current line
 
 	uint32_t m_eip = emu_cpu_eip_get(emu_cpu_get(e));
 
-	disasm_addr(e,m_eip);
+	disasm_addr(e, m_eip);
 
 	if(opts.time_delay > 0){
 		if(opts.verbose ==1 || opts.verbose ==2) Sleep(opts.time_delay);
@@ -3192,7 +3199,7 @@ void parse_opts(int argc, char* argv[] ){
 				m_exit(0);
 			}
 			opts.log_after_va = symbol2addr(argv[i+1]);
-			if(opts.log_after_va == 0) opts.log_after_va = strtol(argv[i+1], NULL, 16);
+			if(opts.log_after_va == 0) opts.log_after_va = strtol(argv[i+1], NULL, 16); //todo support file offsets would be nice..but what if base set after..
 			opts.verbosity_after = 3;
 			i++;handled=true;
 		}

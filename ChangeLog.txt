@@ -1,8 +1,21 @@
 
 ---------------[  Changelog for scdbg/libemu  ]---------------
 
-11.22.13 - 3 hooks: ZwAllocateVirtualMemory, DeviceIoControl, GetSystemTimeAsFileTime
-		   crypto api hooks now support interactive mode, misc tweaks
+3.01.14 -  dbgshell bug fixes: step over, break point, set eip now supports fileoffsets, 
+		   IDA integration: sync display on step/bp, add comments from debug shell. 
+		   /idasync added to startup options and .idasync to debug shell
+		   2 new hooks VirtualQuery/Ex, 
+		   added up/down arrows to disasm for jxx
+		   jump taken/not taken now shown for -vvv next to flags
+
+2.21.14 -  added hash scan to gui_launcher (database has 30k hash values downloaded on first use)
+
+2.20.14 -  newhook: MoveFileWithProgressA/W , .savemem now saves to sc file parent dir
+
+12.03.13-  switch over hooks to SafeMalloc, DeviceIOControl -i write to dump file
+
+12.01.13 - 3 hooks: ZwAllocateVirtualMemory, DeviceIoControl, GetSystemTimeAsFileTime
+		   crypto api hooks now support interactive mode
 
 11.21.13 - lcreate, fopen +b bug fix (thanks Jon)
 

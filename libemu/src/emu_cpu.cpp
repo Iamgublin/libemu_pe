@@ -989,8 +989,6 @@ void emu_cpu_debugflag_unset(struct emu_cpu *c, uint8_t flag)
 	CPU_DEBUG_FLAG_UNSET(c, flag);	
 }
 
-
-
 //this is used to add up/ down arrows to the disasm..
 uint32_t getJmpTarget(char* disasm){
 	char* pos = strstr(disasm, "0x");

@@ -5698,11 +5698,19 @@ int32_t	__stdcall hook_VirtualQuery(struct emu_env_w32 *win, struct emu_env_w32_
 	uint32_t buf = popd();
 	uint32_t sz = popd();
 	
-	if(isEx)
-		printf("%x\t%s(pid=%x, base=%x, buf=%x, sz=%x)\n", eip_save, ex->fnname, hproc, base, buf, sz);
-	else
-		printf("%x\t%s(base=%x, buf=%x, sz=%x)\n", eip_save, ex->fnname, base, buf, sz);
+	bool isSpam = strstr(win->lastApiCalled, "VirtualQuery") !=0 ? true : false;
 
+	if(!isSpam || (isSpam && win->lastApiHitCount == 2) ){
+		if(isEx)
+			printf("%x\t%s(pid=%x, base=%x, buf=%x, sz=%x)\n", eip_save, ex->fnname, hproc, base, buf, sz);
+		else
+			printf("%x\t%s(base=%x, buf=%x, sz=%x)\n", eip_save, ex->fnname, base, buf, sz);
+	}
+	
+	if(isSpam && win->lastApiHitCount == 2) printf("\tVirtualQuery memory scanning occuring - hiding output\n");
+
+	//for this to work as a file handle scanner locator..we would have to make the fopen file data exist at base..
+	//could use /raw for this..but then we need to set raw size = region size...
 	MEMORY_BASIC_INFORMATION mbi;
 	mbi.AllocationBase = (void*)base;
 	mbi.BaseAddress = (void*)base;
@@ -5710,7 +5718,9 @@ int32_t	__stdcall hook_VirtualQuery(struct emu_env_w32 *win, struct emu_env_w32_
 	mbi.Protect = PAGE_EXECUTE_READWRITE;
 	mbi.AllocationProtect = PAGE_EXECUTE_READWRITE;
 	mbi.State = MEM_COMMIT;
-	mbi.Type = MEM_PRIVATE;
+	mbi.Type = MEM_MAPPED;
+	
+	//if(opts.h_fopen > 0 ) mbi.RegionSize = opts.fopen_fsize + opts.adjust_getfsize;
 
 	if(sz > sizeof(mbi)){
 		emu_memory_write_block(mem, buf, &mbi, sizeof(mbi));
