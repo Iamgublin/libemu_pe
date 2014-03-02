@@ -60,6 +60,8 @@ struct run_time_options
 	char* convert_outPath;
 	HWND IDASrvrHwnd;
 	uint32_t IDAImgBase;
+	uint32_t bpx[10];
+	uint32_t bpCnt;
 
 	struct{
 		char *host;

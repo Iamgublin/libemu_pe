@@ -198,6 +198,26 @@ void start_color(enum colors c){
     SetConsoleTextAttribute(hConOut, c);
 }
 
+void color_printf(colors c, const char *format, ...)
+{
+	DWORD dwErr = GetLastError();
+		
+	if(format){
+		char buf[1024]; 
+		va_list args; 
+		va_start(args,format); 
+		try{
+ 			 _vsnprintf(buf,1024,format,args);
+			 start_color(c);
+			 printf("%s",buf);
+			 end_color();
+		}
+		catch(...){}
+	}
+
+	SetLastError(dwErr);
+}
+
 //            0      1      2      3      4      5         6      7  
 int regs[] = {0,    0,      0,     0,  0x12fe00,0x12fff0  ,0,    0};
 char *regm[] = {"eax", "ecx", "edx", "ebx", "esp", "ebp", "esi", "edi"};
@@ -1551,7 +1571,7 @@ void show_debugshell_help(void){
 			"\tc - reset step counter\n"
 			"\tr - execute till return (v=0 recommended)\n"
 			"\tu - unassembled address\n"
-			"\tb - break at address\n"
+			"\tb - sets next free breakpoint (10 max)\n"
 			"\tm - reset max step count (-1 = infinate)\n"
 			"\te - set eip\n"
 			"\tw - dWord dump,(32bit ints) prompted for hex base addr and then size\n"
@@ -1564,7 +1584,9 @@ void show_debugshell_help(void){
 			"\tj - show log of last 10 instructions executed\n" 
 			"\to - step over\n" 
 			"\t; - Set comment in IDA if .idasync active\n" 
-			"\t+/- - basic calculator to add or subtract 2 hex values\n"  
+			"\t+/- - basic calculator to add or subtract 2 hex values\n"
+			"\t.bl - list set breakpoints\n"
+			"\t.bc - clear breakpoint\n"
 			"\t.lp - lookup - get symbol for address\n"  
 			"\t.pl - reverse lookup - get address for symbol (special: peb,dllmap,fs0)\n" 
 			"\t.api - scan memory for api table\n"
@@ -1647,9 +1669,7 @@ void interactive_command(struct emu *e){
 			if(cpu->eip >= opts.baseAddress && cpu->eip <= (opts.baseAddress + opts.size) ){
 				opts.step_over_bp = cpu->eip + get_instr_length(cpu->eip);
 				opts.verbose = 0;
-				start_color(myellow);
-				printf("Step over will break at %x\n", opts.step_over_bp);
-				end_color();
+				color_printf(myellow, "Step over will break at %x\n", opts.step_over_bp);
 				break;
 			}
 			else{
@@ -1667,10 +1687,31 @@ void interactive_command(struct emu *e){
 				if(strcmp(tmp,"dllmap")==0) symbol_lookup("dllmap");
 				if(strcmp(tmp,"idasync")==0) IDAConnect();
 
+				if(strcmp(tmp,"bl")==0){
+					printf("Listing set breakpoints:\n");
+					for(i=0; i < 10; i++){
+						if(opts.bpx[i] != 0){
+							printf("\t%d) ", i);
+							disasm_addr_simple(opts.bpx[i]);
+						}
+					}
+				}
+				
+				if(strcmp(tmp,"bc")==0){
+					i = read_int("Enter breakpoint index to clear (0-9,*)", tmp);
+					if(tmp[0]=='*'){
+						for(i=0; i < 10; i++) opts.bpx[i] = 0;
+						printf("all breakpoints cleared\n");
+					}else{
+						if(i >= 0 && i <=9) opts.bpx[i] = 0;
+					}
+				}
+
 				if(strcmp(tmp,"pl")==0){
 					i = read_string("Enter symbol to lookup address for: ", tmp);
 					symbol_lookup(tmp);
 				}
+
 				if(strcmp(tmp,"lp")==0){
 					base = read_hex("Enter address to do a lookup on", tmp);
 					if(base > 0){
@@ -1761,11 +1802,21 @@ void interactive_command(struct emu *e){
 				base += bytes_read;
 			}
 		}
-
+ 
 		if(c=='b'){
-			opts.log_after_va = read_hex("Break at address",tmp);
-			opts.verbosity_after = 3;
-			printf("Log after address updated. Now set verbosity < 3 and step\n");
+			i = read_string("Enter address for breakpoint (va, file offset, or api name): ", tmp);
+			if(i > 0){
+				base = symbol2addr(tmp);
+				if(base==0) base = strtol(tmp, NULL, 16); //not a symbol must be a hex num
+				if(base < opts.baseAddress) base+= opts.baseAddress; //assume it was a file offset..
+				for(i=0; i < 10; i++){
+					if(opts.bpx[i] == 0){
+						opts.bpx[i] = base;
+						printf("Breakpoint %d has been set to %x\n", i , opts.bpx[i]);
+						break;
+					}
+				}
+			}
 		}
 
 		if(c=='d'){
@@ -2137,9 +2188,7 @@ int handle_UnhandledExceptionFilter(void){
 	unsigned char b;
 	emu_memory_read_byte(mem, 0x7c862e62, &b);
 	if(b != 0){ //code has been written here..so we handle it..
-		start_color(myellow);
-		printf("\n%x\tException caught w/ UnhandledExceptionFilter\n", last_good_eip);
-		end_color();
+		color_printf(myellow,"\n%x\tException caught w/ UnhandledExceptionFilter\n", last_good_eip);
 		emu_cpu_eip_set(emu_cpu_get(e), 0x7c862e62); 
 		//this doesnt work with the popular GlobalAlloc/UEF shellcode..cant replicate that env..
 		//but if the code did write to UEF this will at least let it run that code. and if they
@@ -2514,16 +2563,11 @@ int run_sc(void)
     bool firstchance = true;
 	uint32_t eipsave = 0;
 	bool parse_ok = false;
-	//struct emu_vertex *last_vertex = NULL;
-	//struct emu_graph *graph = NULL;
 	struct emu_hashtable *eh = NULL;
 	struct emu_hashtable_item *ehi = NULL;
 
-	//printf("Setting eip\n");
 	emu_cpu_eip_set(emu_cpu_get(e), opts.baseAddress + opts.offset);  //+ opts.offset for getpc mode
-
 	set_hooks(env);
-
 	disable_mm_logging = false;
 
 //----------------------------- MAIN STEP LOOP ----------------------
@@ -2537,6 +2581,13 @@ int run_sc(void)
 
 		if(opts.steps >= 0){ //this allows us to use -1 as run till crash..we can ctrl c so
 			if(opts.cur_step > opts.steps) break;
+		}
+	
+		for(i=0; i < 10; i++){
+			if(cpu->eip == opts.bpx[i]){
+				opts.verbose = 3;
+				color_printf(myellow, "\tBreakpoint %d hit at: %x\n", i, cpu->eip);
+			}
 		}
 
 		if(emu_cpu_get(e)->eip  == opts.log_after_va) //we hit the requested eip start logging.
@@ -2562,17 +2613,13 @@ int run_sc(void)
 		if( opts.break_above != 0 && last_good_eip > opts.break_above){
 			opts.verbose = 3;
 			opts.break_above = 0;
-			start_color(myellow);
-			printf("Break Above hit...\n");
-			end_color();
+			color_printf(myellow, "\tBreak Above hit...\n");
 		}
 
 		if(opts.break0){
 			if(cpu->instr.cpu.opc == 0 && opts.cur_step > 0){
 				opts.verbose = 3; //interactive dbg prompt
-				start_color(myellow);
-				printf("break 0 hit\n");
-				end_color();
+				color_printf(myellow, "\tbreak 0 hit\n");
 			}
 		}
 
@@ -2644,9 +2691,7 @@ int run_sc(void)
 									opts.exec_till_ret = false;
 									opts.verbose = 3; //interactive dbg prompt
 									//show_disasm(e);
-									start_color(myellow);
-									printf("Exec till return hit!\n");
-									end_color();
+									color_printf(myellow, "Exec till return hit!\n");
 								}
 							}
 							if(opts.break_at_instr != 0){
@@ -2654,9 +2699,7 @@ int run_sc(void)
 								if(strstr(disasm, opts.break_at_instr) > 0){
 									opts.verbose = 3; //interactive dbg prompt
 									//show_disasm(e);
-									start_color(myellow);
-									printf("Break at instruction hit!\n");
-									end_color();
+									color_printf(myellow, "Break at instruction hit!\n");
 								}
 							}
 							firstchance = true;						//step was ok..give it another chance at exception.
@@ -2688,9 +2731,7 @@ int run_sc(void)
 				if(opts.verbose < opts.verbosity_onerr)	opts.verbose = opts.verbosity_onerr; 
 				if(opts.verbose < 2) opts.verbose = 2; //always show disasm and regs on error now..
 
-				start_color(mred);
-				printf("%x\t %s\n", last_good_eip, emu_strerror(e)); 
-				end_color();
+				color_printf(mred, "%x\t %s\n", last_good_eip, emu_strerror(e)); 
 
 				cpu->eip = last_good_eip;
 				debugCPU(e,true);
@@ -2823,7 +2864,7 @@ void show_help(void)
 		{"api", NULL  ,      "scan memory and try to find API table"},
 		{"auto", NULL  ,     "running as part of an automation run"},
 		{"ba", "hexnum"  ,   "break above - breaks if eip > hexnum"},
-		{"bp", "hexnum"  ,   "set breakpoint on addr or api name (same as -laa <hexaddr> -vvv)"},
+		{"bp", "varies"  ,   "set breakpoint on file offset, virtual addr or api name (max 10)"},
 		{"bs", "int"     ,   "break on step (shortcut for -las <int> -vvv)"},
 		{"b0", NULL ,        "break if 00 00 add [eax],al"},
 		{"cmd", "\"string data\"","data to use for GetCommandLineA (use \\\" to embed quotes)"},
@@ -2992,6 +3033,7 @@ void parse_opts(int argc, char* argv[] ){
 	int sl=0;
 	char buf[5];
     
+	//opts structure was already memset(0) in main 
 	opts.sc_file[0] = 0;
 	opts.opts_parsed = 1;
 	opts.verbosity_onerr = 0;
@@ -3018,6 +3060,7 @@ void parse_opts(int argc, char* argv[] ){
     opts.eSwap = false;
 	opts.bSwap = false;
 	opts.convert_outPath = 0;
+	opts.bpCnt = 0;
 
 	for(i=1; i < argc; i++){
 
@@ -3084,6 +3127,19 @@ void parse_opts(int argc, char* argv[] ){
 			}
 			if(!opts.automationRun) printf("temp directory will be: %s\n", opts.temp_dir);
 			i++;handled=true;
+		}
+
+		if(sl==3 && strstr(argv[i],"/bp") > 0 ){ 
+			if(i+1 >= argc){
+				printf("Invalid option /bp must specify hex breakpoint addr as next arg\n");
+				m_exit(0);
+			}
+			if(opts.bpCnt == 10){
+				printf("Only 10 breakpoints are supported\n");
+				m_exit(0);
+			}
+			//validated here but handled in post to ensure baseaddress already set
+			i++; handled = true;
 		}
 
 		if(sl==2 && strstr(buf,"/f") > 0 ){
@@ -3166,7 +3222,7 @@ void parse_opts(int argc, char* argv[] ){
 
 		if(sl==6 && strstr(argv[i],"/fopen") > 0 ){
 			if(i+1 >= argc){
-				printf("Invalid option /foopen must specify file to open as next arg\n");
+				printf("Invalid option /fopen must specify file to open as next arg\n");
 				m_exit(0);
 			}
 			//opts.fopen = fopen(argv[i+1],"r");  //ms implemented of fread barfs after 0x27000?
@@ -3190,17 +3246,6 @@ void parse_opts(int argc, char* argv[] ){
 				m_exit(0);
 			}
 			opts.offset = strtol(argv[i+1], NULL, 16);
-			i++;handled=true;
-		}
-
-		if(sl==3 && strstr(argv[i],"/bp") > 0 ){
-			if(i+1 >= argc){
-				printf("Invalid option /bp must specify hex breakpoint addr as next arg\n");
-				m_exit(0);
-			}
-			opts.log_after_va = symbol2addr(argv[i+1]);
-			if(opts.log_after_va == 0) opts.log_after_va = strtol(argv[i+1], NULL, 16); //todo support file offsets would be nice..but what if base set after..
-			opts.verbosity_after = 3;
 			i++;handled=true;
 		}
 
@@ -3424,7 +3469,25 @@ void post_parse_opts(int argc, char* argv[] ){
 	
 		sl = strlen(argv[i]);
 		if( argv[i][0] == '-') argv[i][0] = '/'; //standardize
-		 		
+		 	
+		if(sl==3 && strstr(argv[i],"/bp") > 0 ){ //this is done post to ensure baseAddress is already set
+			if(i+1 >= argc){
+				printf("Invalid option /bp must specify hex breakpoint addr as next arg\n");
+				m_exit(0);
+			}
+			if(opts.bpCnt == 10){
+				printf("Only 10 breakpoints are supported\n");
+				m_exit(0);
+			}
+			opts.bpx[opts.bpCnt] = symbol2addr(argv[i+1]);
+			if(opts.bpx[opts.bpCnt] == 0) opts.bpx[opts.bpCnt] = strtol(argv[i+1], NULL, 16);     //it wasnt a symbol must be a hex offset
+			if(opts.bpx[opts.bpCnt] < opts.baseAddress) opts.bpx[opts.bpCnt] += opts.baseAddress; //assume it was a file offset
+			printf("Breakpoint %d set at %x\n", opts.bpCnt, opts.bpx[opts.bpCnt]);
+			opts.bpCnt++;
+			i++;
+		}
+
+
 	    if(sl==4 && strstr(argv[i],"/raw") > 0 ){
 			if(i+1 >= argc){
 				printf("Invalid option /raw must specify 0xBase-fpath as next arg\n");
@@ -3659,20 +3722,14 @@ int HookDetector(char* fxName){
 		7C801D7E   8BEC             MOV EBP,ESP
 	*/
 
+	//todo: wire in antispam?
 	start_color(colors::myellow); 
 	printf("\tjmp %s+5 hook evasion code detected! trying to recover...\n", fxName);
 	end_color();
 
-	//if(strcmp(fxName,"LoadLibraryA") == 0){ //probably a pretty generic cleanup for x+5
-		cpu->reg[esp] = cpu->reg[ebp];
-		cpu->reg[ebp] = popd();
-		return 1;
-	//}
-
-	/*printf("Unhandled...\n");
-	exit(0);
-	return 0;*/
-	
+	cpu->reg[esp] = cpu->reg[ebp];
+	cpu->reg[ebp] = popd();
+	return 1;
 }
 
 char* isCmdFile(char* path){
