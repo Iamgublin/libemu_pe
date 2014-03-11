@@ -76,6 +76,8 @@ extern int fulllookupAddress(int eip, char* buf255);
 extern void start_color(enum colors);
 extern void end_color(void);
 extern char* getDumpPath(char* extension);
+extern bool allocExists(uint32_t base);
+extern uint32_t allocSize(uint32_t base);
 
 enum colors{ mwhite=15, mgreen=10, mred=12, myellow=14, mblue=9, mpurple=5 };
 
@@ -5709,19 +5711,25 @@ int32_t	__stdcall hook_VirtualQuery(struct emu_env_w32 *win, struct emu_env_w32_
 	
 	if(isSpam && win->lastApiHitCount == 2) printf("\tVirtualQuery memory scanning occuring - hiding output\n");
 
-	//for this to work as a file handle scanner locator..we would have to make the fopen file data exist at base..
-	//could use /raw for this..but then we need to set raw size = region size...
+	//they can use a VirtualQuery loop to try to find a parent file mapped in to 
+	//the address space by the exploited application. You can manually load the file using /raw
+    //and the alloc data will be tracked and fed back into the shellcode.
+
+	uint32_t size = 0x10000;
+	if( allocExists(base) ) 
+		size = allocSize(base);
+	else
+		if(!isSpam) printf("\t(no alloc found for this base, you can use /raw to add one.)\n");
+
 	MEMORY_BASIC_INFORMATION mbi;
 	mbi.AllocationBase = (void*)base;
 	mbi.BaseAddress = (void*)base;
-	mbi.RegionSize = 0x10000;
+	mbi.RegionSize = (SIZE_T)size;
 	mbi.Protect = PAGE_EXECUTE_READWRITE;
 	mbi.AllocationProtect = PAGE_EXECUTE_READWRITE;
 	mbi.State = MEM_COMMIT;
 	mbi.Type = MEM_MAPPED;
 	
-	//if(opts.h_fopen > 0 ) mbi.RegionSize = opts.fopen_fsize + opts.adjust_getfsize;
-
 	if(sz > sizeof(mbi)){
 		emu_memory_write_block(mem, buf, &mbi, sizeof(mbi));
 		cpu->reg[eax] = sizeof(mbi);	

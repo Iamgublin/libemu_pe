@@ -98,6 +98,7 @@
 			OutputDirectory="Release"
 			IntermediateDirectory="Release"
 			ConfigurationType="1"
+			CharacterSet="2"
 			>
 			<Tool
 				Name="VCPreBuildEventTool"
@@ -550,6 +551,18 @@
 				>
 			</File>
 		</Filter>
+		<File
+			RelativePath=".\.todo.txt"
+			>
+			<FileConfiguration
+				Name="Release|Win32"
+				ExcludedFromBuild="true"
+				>
+				<Tool
+					Name="VCCustomBuildTool"
+				/>
+			</FileConfiguration>
+		</File>
 		<File
 			RelativePath=".\ChangeLog.txt"
 			>

@@ -656,11 +656,15 @@ Several help videos are available:
 
 	<pre>
 	  /ba hexnum            break above - breaks if eip > hexnum
-	  /bp hexnum            set breakpoint on addr or api name (same as -laa <hexaddr> -vvv)
-	  /bs int               break on step (shortcut for -las <int> -vvv)
+	  /bp hexnum            set breakpoint on virtual address, file offset or api name
+	  /bs int               break on step (shortcut for -las [int] -vvv)
 	  /b0                   break if 00 00 add [eax],al
 	</pre>
 
+	You can set up to 10 breakpoints with -bp. The other options all use the same internal
+	mechanism and can only be used one at a time. -bp breakpoints can be managed in the debug
+	shell using the .bl (bp list), .bc (bp clear), and b (bp set) commands.
+	
 	You can also have it automatically enter the debug shell if it encounters an error during 
 	execution with -e 3	which means error mode set verbosity to 3.
 	<br><br>
@@ -681,7 +685,7 @@ Several help videos are available:
         c - reset step counter
         r - execute till return (v=0 recommended)
         u - unassembled address
-        b - break at address
+        b - sets next free breakpoint (10 max)
         m - reset max step count (-1 = infinate)
         e - set eip
         w - dWord dump,(32bit ints) prompted for hex base addr and then size
@@ -693,9 +697,10 @@ Several help videos are available:
         f - dereF registers (show any common api addresses in regs)
         j - show log of last 10 instructions executed
         o - step over
+        ; - Set comment in IDA if .idasync active
         +/- - basic calculator to add or subtract 2 hex values
-        .lp - lookup - get symbol for address
-        .pl - reverse lookup - get address for symbol (special: peb,dllmap,fs0)
+        .bl - list set breakpoints
+        .bc - clear breakpoint
         .api - scan memory for api table
         .seh - shows current value at fs[0]
         .segs - show values of segment registers
@@ -703,7 +708,10 @@ Several help videos are available:
         .dllmap - show dll map
         .poke1 - write a single byte to memory
         .poke4 - write a 4 byte value to memory
+        .lookup - get symbol for address
+        .symbol - get address for symbol (special: peb,dllmap,fs0)
         .savemem - saves a memdump of specified range to file
+        .idasync - connect IDASrvr plugin and sync view at step or break.
         q - quit
 	</pre>
 

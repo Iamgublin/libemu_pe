@@ -369,14 +369,21 @@ bool isProxied(char* api){
 	return false;
 }
 
-void SyncIDA(uint32_t eip){
+void IDASync(uint32_t eip){
 	if(opts.IDASrvrHwnd == 0) return;
 	if(!IsWindow(opts.IDASrvrHwnd)){ opts.IDASrvrHwnd = 0; return;	}
 	uint32_t adjustedOffset = eip;
 	if(opts.IDAImgBase == 0) adjustedOffset -= opts.baseAddress; //they disam as raw binary file no rebase or exe
-	SendMessage(opts.IDASrvrHwnd, IDA_QUICKCALL_MESSAGE, 1, adjustedOffset); //jmp:lngAdr this will steal window focus
-	Sleep(100);
-	SetForegroundWindow( GetConsoleWindow() ); //steal it back. I am assuming you have enough screen realestate to display both at once to avoid flicker back and forth..
+
+	SendMessage(opts.IDASrvrHwnd, IDA_QUICKCALL_MESSAGE, 1, adjustedOffset);  //jmp:lngAdr 
+	SendMessage(opts.IDASrvrHwnd, IDA_QUICKCALL_MESSAGE, 43, 0); //SetFocusSelectLine
+
+	for(int i=0; i<5; i++){ //can require an unknown delay
+		Sleep(200);
+		SetForegroundWindow( GetConsoleWindow() ); //steal it back. I am assuming you have enough screen realestate to display both at once to avoid flicker back and forth..
+		if( GetForegroundWindow() == GetConsoleWindow() ) break;
+	}
+
 }
 
 int IDASendTextMessage(HWND hwnd, char *buf) 
@@ -423,15 +430,15 @@ HWND IDASrvrHWND(void){
 }
 
 void IDAConnect(void){
+	char buf[100] ={"Unknown"};
 	opts.IDASrvrHwnd = IDASrvrHWND();
 	if(opts.IDASrvrHwnd != 0){
 		opts.IDAImgBase = SendMessage( opts.IDASrvrHwnd, IDA_QUICKCALL_MESSAGE, 8, 0);
-		if(opts.IDAImgBase == 0 || opts.IDAImgBase == opts.baseAddress){
-			printf("Connected to IDA, will sync disasm when stepping in debug shell and breakpoints.\n");
-		}else{
-			printf("Image base for last opened IDA does not match. hwnd: %x imgbase: %x\n", opts.IDASrvrHwnd, opts.IDAImgBase);
-			opts.IDASrvrHwnd = 0;
-		}
+		HWND mainWindow = (HWND)SendMessage( opts.IDASrvrHwnd, IDA_QUICKCALL_MESSAGE, 41, 0);
+		GetWindowTextA(mainWindow, &buf[0], 99);
+		printf("Connected to: %s\n", buf);
+		IDASync(cpu->eip);
+		 
 	}else{
 		printf("No open instances of IDA found. Is IDASrvr plugin installed?\n");
 	}
@@ -616,6 +623,20 @@ void add_malloc(uint32_t base, uint32_t size){
 	mallocs[malloc_cnt].base = base;
 	mallocs[malloc_cnt].size = size;
 	malloc_cnt++;
+}
+
+bool allocExists(uint32_t base){
+	for(int i=0; i<=20; i++){
+		if(mallocs[i].base == base) return true;
+	}
+	return false;
+}
+
+uint32_t allocSize(uint32_t base){
+	for(int i=0; i<=20; i++){
+		if(mallocs[i].base == base) return mallocs[i].size;
+	}
+	return 0;
 }
 
 void mm_hook(uint32_t address){ //memory monitor callback function
@@ -1587,8 +1608,6 @@ void show_debugshell_help(void){
 			"\t+/- - basic calculator to add or subtract 2 hex values\n"
 			"\t.bl - list set breakpoints\n"
 			"\t.bc - clear breakpoint\n"
-			"\t.lp - lookup - get symbol for address\n"  
-			"\t.pl - reverse lookup - get address for symbol (special: peb,dllmap,fs0)\n" 
 			"\t.api - scan memory for api table\n"
 			"\t.seh - shows current value at fs[0]\n"
 			"\t.segs - show values of segment registers\n"
@@ -1596,6 +1615,8 @@ void show_debugshell_help(void){
 			"\t.dllmap - show dll map\n"
 			"\t.poke1 - write a single byte to memory\n"
 			"\t.poke4 - write a 4 byte value to memory\n"
+			"\t.lookup - get symbol for address\n"  
+			"\t.symbol - get address for symbol (special: peb,dllmap,fs0)\n" 
 			"\t.savemem - saves a memdump of specified range to file\n"
 			"\t.idasync - connect IDASrvr plugin and sync view at step or break.\n"
 			"\tq - quit\n\n"
@@ -1707,12 +1728,12 @@ void interactive_command(struct emu *e){
 					}
 				}
 
-				if(strcmp(tmp,"pl")==0){
+				if(strcmp(tmp,"symbol")==0){
 					i = read_string("Enter symbol to lookup address for: ", tmp);
 					symbol_lookup(tmp);
 				}
 
-				if(strcmp(tmp,"lp")==0){
+				if(strcmp(tmp,"lookup")==0){
 					base = read_hex("Enter address to do a lookup on", tmp);
 					if(base > 0){
 						if( fulllookupAddress(base, (char*)&lookup) > 0){
@@ -1788,7 +1809,7 @@ void interactive_command(struct emu *e){
 			else{ 
 				if(base < opts.baseAddress) base += opts.baseAddress; //allow them to enter file offsets			
 				emu_cpu_eip_set(emu_cpu_get(e), base);
-				SyncIDA(base);
+				IDASync(base);
 			}
 		}
 
@@ -1923,7 +1944,7 @@ void debugCPU(struct emu *e, bool showdisasm){
 	if(opts.verbose < 3) return;
 	if(opts.verbose > 3) show_stack();
 
-	SyncIDA( cpu->eip );
+	IDASync( cpu->eip );
 	interactive_command(e);
 
 	return;
@@ -2583,10 +2604,13 @@ int run_sc(void)
 			if(opts.cur_step > opts.steps) break;
 		}
 	
-		for(i=0; i < 10; i++){
-			if(cpu->eip == opts.bpx[i]){
-				opts.verbose = 3;
-				color_printf(myellow, "\tBreakpoint %d hit at: %x\n", i, cpu->eip);
+		if(cpu->eip != 0){
+			for(i=0; i < 10; i++){
+				if(cpu->eip == opts.bpx[i]){
+					opts.verbose = 3;
+					color_printf(myellow, "\tBreakpoint %d hit at: %x\n", i, cpu->eip);
+					break;
+				}
 			}
 		}
 
@@ -4126,7 +4150,8 @@ void loadraw_patch(uint32_t base, char* fpath){
 	fclose(fp);
 
 	printf("RawLoad 0x%x bytes at 0x%x from file %s\n", size,base,fpath);
-	 
+	
+	add_malloc(base, size);
 	emu_memory_write_block(mem, base, buf, size);
 	free(buf);
 

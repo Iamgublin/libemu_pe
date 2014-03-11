@@ -1,2 +1,3 @@
 debug shell make registers show up in top right corner of console window as column or in dialog form?
 antispam on jmp+5 detection?
+give debug shell a real command line parser to avoid all the prompts?

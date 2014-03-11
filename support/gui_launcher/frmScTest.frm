@@ -14,7 +14,7 @@ Begin VB.Form frmscdbg
       Caption         =   "..."
       Height          =   315
       Left            =   9240
-      TabIndex        =   21
+      TabIndex        =   19
       Top             =   60
       Width           =   795
    End
@@ -23,7 +23,7 @@ Begin VB.Form frmscdbg
       Left            =   1260
       Locked          =   -1  'True
       OLEDropMode     =   1  'Manual
-      TabIndex        =   20
+      TabIndex        =   18
       Text            =   "Can drag and drop here"
       Top             =   60
       Width           =   7815
@@ -53,10 +53,25 @@ Begin VB.Form frmscdbg
       TabIndex        =   0
       Top             =   480
       Width           =   10005
+      Begin VB.ComboBox cboManualArgs 
+         Height          =   315
+         Left            =   1935
+         TabIndex        =   25
+         Top             =   1710
+         Width           =   5820
+      End
+      Begin VB.CheckBox chkManualArgs 
+         Caption         =   "Manual  Arguments"
+         Height          =   240
+         Left            =   225
+         TabIndex        =   24
+         Top             =   1710
+         Width           =   1770
+      End
       Begin VB.TextBox txtProcCmdLine 
          Height          =   285
          Left            =   2280
-         TabIndex        =   25
+         TabIndex        =   23
          Top             =   1020
          Width           =   5475
       End
@@ -64,7 +79,7 @@ Begin VB.Form frmscdbg
          Caption         =   "Process Command Line"
          Height          =   255
          Left            =   240
-         TabIndex        =   24
+         TabIndex        =   22
          Top             =   1020
          Width           =   1995
       End
@@ -72,16 +87,9 @@ Begin VB.Form frmscdbg
          Caption         =   "No RW Display"
          Height          =   195
          Left            =   240
-         TabIndex        =   22
+         TabIndex        =   20
          Top             =   720
          Width           =   1395
-      End
-      Begin VB.TextBox txtManualArgs 
-         Height          =   285
-         Left            =   1800
-         TabIndex        =   18
-         Top             =   1680
-         Width           =   5955
       End
       Begin VB.TextBox txtStartOffset 
          Height          =   285
@@ -203,17 +211,9 @@ Begin VB.Form frmscdbg
          ForeColor       =   &H00FF0000&
          Height          =   255
          Left            =   9060
-         TabIndex        =   23
+         TabIndex        =   21
          Top             =   600
          Width           =   855
-      End
-      Begin VB.Label Label1 
-         Caption         =   "Manual  Arguments"
-         Height          =   285
-         Left            =   225
-         TabIndex        =   17
-         Top             =   1740
-         Width           =   1410
       End
       Begin VB.Label Label6 
          Caption         =   "Example"
@@ -239,7 +239,7 @@ Begin VB.Form frmscdbg
       Caption         =   "Shellcode file"
       Height          =   255
       Left            =   120
-      TabIndex        =   19
+      TabIndex        =   17
       Top             =   120
       Width           =   1035
    End
@@ -353,7 +353,7 @@ Dim scfile As String
 Dim sctest As String
 Dim lastcmdline As String
 Dim loadedFile As String
-
+Dim manualArgs() As String
 
 'Private Declare Function WinExec Lib "kernel32" (ByVal lpCmdLine As String, ByVal nCmdShow As Long) As Long
 'Private Declare Function OpenProcess Lib "kernel32" (ByVal dwDesiredAccess As Long, ByVal bInheritHandle As Long, ByVal dwProcessId As Long) As Long
@@ -415,6 +415,81 @@ Private Declare Function CreateProcess Lib "kernel32" Alias "CreateProcessA" (By
 Private Declare Function WaitForSingleObject Lib "kernel32" (ByVal hHandle As Long, ByVal dwMilliseconds As Long) As Long
 Private Declare Function GetShortPathName Lib "kernel32" Alias "GetShortPathNameA" (ByVal lpszLongPath As String, ByVal lpszShortPath As String, ByVal cchBuffer As Long) As Long
 
+
+Function LoadManualArgs()
+    
+    On Error Resume Next
+    Dim f As String, entries() As String, x
+    
+    f = App.path & IIf(isIDE(), "\..\..\", "\") & "manualArgs.txt"
+    If Not FileExists(f) Then Exit Function
+    
+    f = ReadFile(f)
+    entries = Split(f, vbCrLf)
+    For i = 0 To UBound(entries)
+        x = entries(i)
+        If Len(x) > 0 Then
+            push manualArgs, x
+            cboManualArgs.AddItem x
+        End If
+    Next
+    
+    cboManualArgs.Text = cboManualArgs.List(0) 'last one used
+    
+    
+End Function
+
+'add new enties. if its an old entry, we move it to the top of the list..
+Function AddManualArgIfNew(arg As String)
+
+    On Error Resume Next
+    Dim i, entries() As String
+    
+    If Len(arg) = 0 Then Exit Function
+    
+    If Not AryIsEmpty(manualArgs) Then
+        If manualArgs(0) = arg Then Exit Function 'same command as last used..
+    End If
+    
+    push entries, arg 'add new entry to beginning
+    
+    If Not AryIsEmpty(manualArgs) Then
+        For i = 0 To UBound(manualArgs)
+             If manualArgs(i) <> arg Then push entries, manualArgs(i)
+        Next
+    End If
+    
+    manualArgs = entries
+    cboManualArgs.Clear
+    
+    For i = 0 To UBound(manualArgs)
+         cboManualArgs.AddItem manualArgs(i)
+    Next
+    
+    cboManualArgs.Text = arg
+    
+End Function
+
+Function SaveManualArgs()
+    On Error Resume Next
+    Dim f As String, entries() As String
+    
+    Const maxEntries = 50 'arbitrary just dont want list to long..
+    
+    f = App.path & IIf(isIDE(), "\..\..\", "\") & "manualArgs.txt"
+    
+    If UBound(manualArgs) > maxEntries Then
+        Dim startIndex As Long
+        startIndex = UBound(manualArgs) - maxEntries
+        For i = startIndex To UBound(manualArgs)
+            push entries, manualArgs(i)
+        Next
+        manualArgs = entries
+    End If
+    
+    writeFile f, Join(manualArgs, vbCrLf)
+    
+End Function
 
 Private Function SuperShell(ByVal App As String, ByVal WorkDir As String, Optional wait As Boolean = False, Optional dwMilliseconds As Long = 0, Optional start_size As enSW = SW_NORMAL, Optional Priority_Class As enPriority_Class = NORMAL_PRIORITY_CLASS) As Boolean
 
@@ -515,6 +590,8 @@ Private Sub Command1_Click()
     
     On Error Resume Next
     
+    If Len(cboManualArgs.Text) > 0 Then AddManualArgIfNew cboManualArgs.Text
+    
     scfile = loadedFile
     
     If Not fso.FileExists(scfile) Then
@@ -560,7 +637,11 @@ Private Sub Command1_Click()
         cmdline = cmdline & " -fopen " & GetShortName(txtFopen)
     End If
                                 
-    cmdline = cmdline & " -f " & scfile & " " & txtManualArgs
+    cmdline = cmdline & " -f " & scfile
+    
+    If chkManualArgs.Value = 1 Then
+        cmdline = cmdline & " " & cboManualArgs.Text
+    End If
     
     cmdline = "cmd /k chdir /d " & libemu & "\ && " & cmdline
     lastcmdline = cmdline
@@ -581,7 +662,7 @@ End Function
     
 
 Private Sub Form_Load()
-
+    
     mnuPopup.Visible = False
     chkApiTable.Value = GetMySetting("apiscan", 0)
     chkCreateDump.Value = GetMySetting("createdump", 0)
@@ -590,10 +671,25 @@ Private Sub Form_Load()
     chkUnlimitedSteps.Value = GetMySetting("unlimitedsteps", 0)
     ChkMemMon.Value = GetMySetting("memorymonitor", 0)
     chkNoRW.Value = GetMySetting("norw", 0)
-    txtManualArgs = GetMySetting("manualargs", "")
+    chkManualArgs.Value = GetMySetting("chkManualArgs", 0)
+    chkFindSc.Value = GetMySetting("chkFindSc", 0)
+    chkDebugShell.Value = GetMySetting("chkDebugShell", 0)
     txtProcCmdLine = GetMySetting("txtcmdline", "")
+    txtStartOffset = GetMySetting("txtStartOffset", "")
     
+    LoadManualArgs
     Call checkFor_sctest
+    
+    firstrun = GetMySetting("firstRun", 1)
+    If firstrun = 1 Then
+        If MsgBox("This is your first run, would you like to register" & vbCrLf & _
+                  "the shell extension so that .sc files open in this app?" & vbCrLf & vbCrLf & _
+                  "You can do this at any time from the More menu.", vbInformation + vbYesNo) _
+         = vbYes Then
+                mnuMore_Click 18
+        End If
+        SaveMySetting "firstRun", 0
+    End If
     
     If Len(Command) > 0 Then
         c = Replace(Command, """", Empty)
@@ -613,9 +709,13 @@ Private Sub Form_Unload(Cancel As Integer)
      Call SaveMySetting("reportmode", chkReport.Value)
      Call SaveMySetting("unlimitedsteps", chkUnlimitedSteps.Value)
      Call SaveMySetting("memorymonitor", ChkMemMon.Value)
-     Call SaveMySetting("manualargs", txtManualArgs)
      Call SaveMySetting("norw", chkNoRW.Value)
      Call SaveMySetting("txtcmdline", txtProcCmdLine)
+     Call SaveMySetting("chkManualArgs", chkManualArgs.Value)
+     Call SaveMySetting("chkFindSc", chkFindSc.Value)
+     Call SaveMySetting("txtStartOffset", txtStartOffset)
+     Call SaveMySetting("chkDebugShell", chkDebugShell.Value)
+     SaveManualArgs
 End Sub
 
 Private Sub Label3_Click()
@@ -630,7 +730,12 @@ Private Sub Label6_Click(Index As Integer)
     cap = Label6(Index).Caption
     
     If InStr(cap, "Example") > 0 Then
-        x = QuickDecode("ACACD13AD13FD4C3C5C5C5610BF38BDCBC49382A79DAC31BEA4E2B6A1A5226A36A26A35A3685A36A22C321A36A1EA56A56A36A16A3FA2B6A16A3E42B6252A3690AA3F42B71361BD71BE07F7FA3E42B263AA951244D5B5B695D2CA31BA9512B5E7E425C5D2CA313ABEA2EABEB2EADE05EF3ADD75EFF2BDC2BD47FC20D2A2A2A5E505E5A084D524D0A05410A1A081A081A081A0A4F4D5E0A5F4148495A411B1C084D524D2A442AC20B2A2A2A5D29EBC2252A2A2A5F4148495A411B1C084D524D2A442AC22F2A2A2A27AEC9D7D7D7EB7273757AABC67E1BEAA3D6A5626AA3FFDB849A6E837F7C79794402442979797D7BD700ABEE7EADEAEB683C793C203C683C0B3C0A3C093C103C0F3C0E3C")
+        'tftp
+        'x = QuickDecode("ACACD13AD13FD4C3C5C5C5610BF38BDCBC49382A79DAC31BEA4E2B6A1A5226A36A26A35A3685A36A22C321A36A1EA56A56A36A16A3FA2B6A16A3E42B6252A3690AA3F42B71361BD71BE07F7FA3E42B263AA951244D5B5B695D2CA31BA9512B5E7E425C5D2CA313ABEA2EABEB2EADE05EF3ADD75EFF2BDC2BD47FC20D2A2A2A5E505E5A084D524D0A05410A1A081A081A081A0A4F4D5E0A5F4148495A411B1C084D524D2A442AC20B2A2A2A5D29EBC2252A2A2A5F4148495A411B1C084D524D2A442AC22F2A2A2A27AEC9D7D7D7EB7273757AABC67E1BEAA3D6A5626AA3FFDB849A6E837F7C79794402442979797D7BD700ABEE7EADEAEB683C793C203C683C0B3C0A3C093C103C0F3C0E3C")
+        
+        'fire.com
+        x = QuickDecode("C8D4B33C3C3C5CB3DF0BEA60B16A0CB16A38B16A30B14A14358D721E0BC50BFC98085B483A181CFBF5373BFDDACC6A6DB16A2CB17A083BECB17C44BFFC50723BEC6CB17424B1641C3BE9D90873B110B13BEE0BC50BFC98FBF5373BFD04DC4FD03947C40147204FDA64B164203BE95EB13871B164283BE9B140B13BECB380202061615B63626BC5DC646562B12AD1BE67B7BF813B3C3C6C54C53C3C3C540CC973E0C5EFB7A7813B3C3C3BE45416595557B53C523CB7BF813B3C3C6C5418613EDAC5EFB3FE54983C3C3CB7A7353B3C3C696C54CE65B6D3C5EFB3CC6C5498C5B7CFC5EF523BB7BF813B3C3C6C540BB155BDC5EF54EC3D3C3C5480CC0FDCC5EFB7A7813B3C3C6954ED16E729C5EF523C54CC8F9A6EC5EF8C29F72C09FC858C3B833C47C99182F439D67AC6F3BCC108493FBCF940D134BCC5084939BCFD40B2F9D6B2FDD60AFCD6DAD98BF4BB3E983BD35ABC3E983B5ABB2E963B230E9B963B09EA817C3BCDC9B1CAC6B84C47DAE786CB3A858B468B5A82063BB2A8FCC6B280C539E4B2803B39E4B2C07C3B39E4FBD13AB4277E7D724FDA7E7E7D7DDAE3868A46858A3B8346066B6DC99F66543C9C3D853A4763C99F263D903BF72E50B884393CF72CF9")
+        
         x = HexStringUnescape(x)
         p = fso.GetFreeFileName(Environ("temp"), ".sc")
         b = StrConv(x, vbFromUnicode, LANG_US)

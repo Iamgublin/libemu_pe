@@ -138,11 +138,11 @@ Sub FormPos(fform As Form, Optional andSize As Boolean = False, Optional save_mo
 End Sub
 
 Sub SaveMySetting(key, Value)
-    SaveSetting App.EXEName, "Settings", key, Value
+    SaveSetting "gui_launcher", "Settings", key, Value
 End Sub
 
 Function GetMySetting(key, Optional defaultval = "")
-    GetMySetting = GetSetting(App.EXEName, "Settings", key, defaultval)
+    GetMySetting = GetSetting("gui_launcher", "Settings", key, defaultval)
 End Function
 
 
@@ -342,17 +342,16 @@ hell:   ReadFile = ""
 End Function
 
 Function writeFile(path, it) As Boolean 'this one should be binary safe...
-    On Error GoTo hell
+    On Error Resume Next
     Dim b() As Byte
     If FileExists(path) Then Kill path
+    Err.Clear
     f = FreeFile
     b() = StrConv(it, vbFromUnicode, LANG_US)
     Open path For Binary As #f
     Put f, , b()
     Close f
-    writeFile = True
-    Exit Function
-hell: writeFile = False
+    writeFile = IIf(Err.Number = 0, True, False)
 End Function
 
 Sub AppendFile(path, it) 'not binary safe

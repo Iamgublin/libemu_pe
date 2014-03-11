@@ -1,6 +1,9 @@
 
 ---------------[  Changelog for scdbg/libemu  ]---------------
 
+3.3.14  -  note: manually set Multibyte char set, was not set before
+           should not cause problems..but recording just in case..
+           
 3.2.14  -  added support for multiple breakpoints (.bl, .bc, b)
 		   old operation of /las /laa and -vvv are all still valid
 		   

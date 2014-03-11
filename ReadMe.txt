@@ -2,13 +2,16 @@
 This project is a port of the GCC libemu project to compile with 
 Visual Studio 2008
 
-Some features have not been ported over and may not be. 
+Additions include:
+
+140+ new api hooks, 8 new dlls, interactive debug shell, 
+rebuilt PEB, support for file format exploits, support for 
+return address scanners, memory monitor, report mode, dump mode, 
+easily human readable outputs, log after xx capabilities, 
+directory mode, inline analysis of process injection shellcode 
+and more...
 
 Stripped features include: profile, graphing, getpc mode
-
-Also there have been some changes from the original. All hooks
-are now implemented in application code instead of the dll. 
-Actually right now this is a monolithic build. (no dll)
 
 A project file to compile this as a stdcall dll is in the ./dll
 subdirectory. This dll is compatiable with any language which can
