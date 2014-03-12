@@ -55,7 +55,7 @@ INSTR_SET_FLAG_CF(cpu, -) \
 INSTR_SET_FLAG_OF(cpu, -,bits) 
 
 
-
+//increments or decrements esi and edi based on direction flag
 #define INSTR_CALC_EDI_ESI(cpu,bits) \
 { \
 	if ( !CPU_FLAG_ISSET(cpu,f_df) ) \
@@ -197,26 +197,62 @@ int32_t instr_cmps_a7(struct emu_cpu *c, struct emu_cpu_instruction *i)
 			 * Compares word at address DS:(E)SI with word at address ES:(E)DI and sets the status flags accordingly
 			 * CMPSW         
 			 */
+				if ( i->prefixes & PREFIX_F3 )
+				{
+					if ( c->reg[ecx] > 0 )
+					{
+						c->reg[ecx]--;
+						c->repeat_current_instr = true;
 
-			enum emu_segment oldseg = emu_memory_segment_get(c->mem);
+						enum emu_segment oldseg = emu_memory_segment_get(c->mem);
 
-			emu_memory_segment_select(c->mem,s_ds);
-			uint16_t m16a;
-			MEM_WORD_READ(c, c->reg[esi], &m16a);
+						emu_memory_segment_select(c->mem,s_ds);
+						uint16_t m16a;
+						MEM_WORD_READ(c, c->reg[esi], &m16a);
 
-			emu_memory_segment_select(c->mem,s_es);
-			uint16_t m16b;
-			MEM_WORD_READ(c, c->reg[edi], &m16b);
+						emu_memory_segment_select(c->mem,s_es);
+						uint16_t m16b;
+						MEM_WORD_READ(c, c->reg[edi], &m16b);
 
-			emu_memory_segment_select(c->mem,oldseg);
+						emu_memory_segment_select(c->mem,oldseg);
 
-			INSTR_CALC_AND_SET_FLAGS(16,
-									 c,
-									 m16a,
-									 m16b)
+						INSTR_CALC_AND_SET_FLAGS(16,
+												 c,
+												 m16a,
+												 m16b)
 
-			INSTR_CALC_EDI_ESI(c, 16)
+						INSTR_CALC_EDI_ESI(c, 16)
+						
+						/* REPE */						
+						if ( CPU_FLAG_ISSET(c, f_zf) == 0 )
+								c->repeat_current_instr = false;
+					}
+					else
+					{
+						c->repeat_current_instr = false;
+					}
+				}
+				else{   
+						/*16bit non-repeat*/
+						enum emu_segment oldseg = emu_memory_segment_get(c->mem);
 
+						emu_memory_segment_select(c->mem,s_ds);
+						uint16_t m16a;
+						MEM_WORD_READ(c, c->reg[esi], &m16a);
+
+						emu_memory_segment_select(c->mem,s_es);
+						uint16_t m16b;
+						MEM_WORD_READ(c, c->reg[edi], &m16b);
+
+						emu_memory_segment_select(c->mem,oldseg);
+
+						INSTR_CALC_AND_SET_FLAGS(16,
+												 c,
+												 m16a,
+												 m16b)
+
+						INSTR_CALC_EDI_ESI(c, 16)
+				}
 		}
 		else
 		{
@@ -227,26 +263,61 @@ int32_t instr_cmps_a7(struct emu_cpu *c, struct emu_cpu_instruction *i)
 			 * CMPSD         
 			 * Compares doubleword at address DS:(E)SI with doubleword at address ES:(E)DI and sets the status flags accordingly
 			 */
+			if ( i->prefixes & PREFIX_F3 )
+			{
+				if ( c->reg[ecx] > 0 )
+				{
+					c->reg[ecx]--;
+					c->repeat_current_instr = true;
 
-			enum emu_segment oldseg = emu_memory_segment_get(c->mem);
+					enum emu_segment oldseg = emu_memory_segment_get(c->mem);
 
-			emu_memory_segment_select(c->mem,s_ds);
-			uint32_t m32a;
-			MEM_DWORD_READ(c, c->reg[esi], &m32a);
+					emu_memory_segment_select(c->mem,s_ds);
+					uint32_t m32a;
+					MEM_DWORD_READ(c, c->reg[esi], &m32a);
 
-			emu_memory_segment_select(c->mem,s_es);
-			uint32_t m32b;
-			MEM_DWORD_READ(c, c->reg[edi], &m32b);
+					emu_memory_segment_select(c->mem,s_es);
+					uint32_t m32b;
+					MEM_DWORD_READ(c, c->reg[edi], &m32b);
 
-			emu_memory_segment_select(c->mem,oldseg);
+					emu_memory_segment_select(c->mem,oldseg);
 
-			INSTR_CALC_AND_SET_FLAGS(32,
-									 c,
-									 m32a,
-									 m32b)
+					INSTR_CALC_AND_SET_FLAGS(32,
+											 c,
+											 m32a,
+											 m32b)
 
-			INSTR_CALC_EDI_ESI(c, 32)
+					INSTR_CALC_EDI_ESI(c, 32)
 
+					/* REPE */						
+					if ( CPU_FLAG_ISSET(c, f_zf) == 0 )
+							c->repeat_current_instr = false;
+				}
+				else
+				{
+					c->repeat_current_instr = false;
+				}
+			}
+			else{   
+					enum emu_segment oldseg = emu_memory_segment_get(c->mem);
+
+					emu_memory_segment_select(c->mem,s_ds);
+					uint32_t m32a;
+					MEM_DWORD_READ(c, c->reg[esi], &m32a);
+
+					emu_memory_segment_select(c->mem,s_es);
+					uint32_t m32b;
+					MEM_DWORD_READ(c, c->reg[edi], &m32b);
+
+					emu_memory_segment_select(c->mem,oldseg);
+
+					INSTR_CALC_AND_SET_FLAGS(32,
+											 c,
+											 m32a,
+											 m32b)
+
+					INSTR_CALC_EDI_ESI(c, 32)
+			}
 		}
 
 	}

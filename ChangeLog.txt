@@ -1,6 +1,8 @@
 
 ---------------[  Changelog for scdbg/libemu  ]---------------
 
+3.12.14 -  added repe support for instr_cmps_a7
+
 3.3.14  -  note: manually set Multibyte char set, was not set before
            should not cause problems..but recording just in case..
            
