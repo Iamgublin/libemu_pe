@@ -43,6 +43,7 @@
 #include <stdio.h>
 #include <stdarg.h>
 #include <errno.h>
+#include <string>
 
 #include "emu.h"
 #include "emu_memory.h"
@@ -3054,9 +3055,7 @@ void endianSwap(unsigned char* buf, uint32_t sz, char* id){
 void parse_opts(int argc, char* argv[] ){
 
 	int i;
-	int sl=0;
-	char buf[5];
-    
+   
 	//opts structure was already memset(0) in main 
 	opts.sc_file[0] = 0;
 	opts.opts_parsed = 1;
@@ -3089,49 +3088,47 @@ void parse_opts(int argc, char* argv[] ){
 	for(i=1; i < argc; i++){
 
 		bool handled = false;			
-		sl = strlen(argv[i]);
+		//sl = strlen(argv[i]);
 
 		if( argv[i][0] == '-') argv[i][0] = '/'; //standardize
 
-		buf[0] = argv[i][0];
-		buf[1] = argv[i][1];
-		buf[2] = '0';
-		 		
-		if(sl==2 && strstr(buf,"/-") > 0 ){ opts.adjust_getfsize-- ;handled=true;}
-		if(sl==2 && strstr(buf,"/+") > 0 ){ opts.adjust_getfsize++ ;handled=true;}
-		if(sl==2 && strstr(buf,"/i") > 0 ){opts.interactive_hooks = 1;handled=true;}
-		if(sl==2 && strstr(buf,"/v") > 0 ){opts.verbose++; handled=true;}
-		if(sl==2 && strstr(buf,"/r") > 0 ){ opts.report = true; opts.mem_monitor = true;handled=true;}
-		if(sl==2 && strstr(buf,"/u") > 0 ){opts.steps = -1;handled=true;}
-		if(sl==6 && strstr(argv[i],"/eswap") > 0 ){   opts.eSwap = true; handled=true;}
-		if(sl==6 && strstr(argv[i],"/bswap") > 0 ){   opts.bSwap = true; handled=true;}
-		if(sl==4 && strstr(argv[i],"/rop") > 0 ){   opts.rop = true; handled=true;}
-		if(sl==5 && strstr(argv[i],"/norw") > 0 ){   opts.norw = true; handled=true;}
-		if(sl==6 && strstr(argv[i],"/noseh") > 0 ){   opts.noseh = true; handled=true;}
-		if(sl==3 && strstr(argv[i],"/nc") > 0 ){   opts.no_color = true; handled=true;}
-		if(sl==5 && strstr(argv[i],"/sigs") > 0 ){ showSigs(); exit(0); }
-		if(sl==5 && strstr(argv[i],"/auto") > 0 ){ opts.automationRun = true; handled = true; }
-		if(sl==3 && strstr(argv[i],"/b0") > 0 ){   opts.break0  = true;handled=true;}
-		if(sl==4 && strstr(argv[i],"/hex") > 0 ) { opts.show_hexdumps = true;handled=true;}
-		if(sl==7 && strstr(argv[i],"/findsc") > 0 ){ opts.getpc_mode = true;handled=true;}
-		if(sl==5 && strstr(argv[i],"/vvvv") > 0 ){handled=true; opts.verbose = 4;}
-		if(sl==4 && strstr(argv[i],"/vvv") > 0 ) { opts.verbose = 3;handled=true;}
-		if(sl==3 && strstr(argv[i],"/vv")  > 0 ) { opts.verbose = 2;handled=true;}
-		if(sl==3 && strstr(argv[i],"/mm")  > 0 )  {opts.mem_monitor = true;handled=true;}
-		if(sl==5 && strstr(argv[i],"/mdll")  > 0 ){  opts.mem_monitor_dlls  = true;handled=true;}
-		if(sl==4 && strstr(argv[i],"/api")  > 0 ){  opts.findApi = true;handled=true;}
-		if(sl==5 && strstr(argv[i],"/dump")  > 0 ){  opts.hexdump_file = 1;handled=true;}
-		if(sl==6 && strstr(argv[i],"/hooks")  > 0 ){ show_supported_hooks();handled=true;} //supports -v (must specify first though)
-		if(sl==4 && strstr(argv[i],"/cfo")  > 0 ){ opts.CreateFileOverride = true;handled=true;}
-		if(sl==2 && strstr(buf,"/d") > 0 ){ opts.dump_mode = true;handled=true;}
-		if(sl==2 && strstr(buf,"/h") > 0 ){ show_help();handled=true;}
-		if(sl==2 && strstr(buf,"/?") > 0 ){ show_help();handled=true;}
-		if(sl==5 && strstr(argv[i],"/help") > 0 ){ show_help();handled=true;}
-		if(sl==7 && strstr(argv[i],"/dllmap") > 0 ){ nl(); symbol_lookup("dllmap");exit(0);}
-		if(sl==7 && strstr(argv[i],"/nofile") > 0 ){ opts.nofile = true;handled=true;}
-		if(sl==8 && strstr(argv[i],"/idasync") > 0 ){ IDAConnect();handled=true;}
+		std::string opt = argv[i];
 
-		if(sl==5 && strstr(argv[i],"/temp") > 0 ){
+		if(opt == "/-"){ opts.adjust_getfsize-- ;handled=true;}
+		if(opt == "/+"){ opts.adjust_getfsize++ ;handled=true;}
+		if(opt == "/i"){opts.interactive_hooks = 1;handled=true;}
+		if(opt == "/v"){opts.verbose++; handled=true;}
+		if(opt == "/r"){ opts.report = true; opts.mem_monitor = true;handled=true;}
+		if(opt == "/u"){opts.steps = -1;handled=true;}
+		if(opt == "/eswap" ){   opts.eSwap = true; handled=true;}
+		if(opt == "/bswap" ){   opts.bSwap = true; handled=true;}
+		if(opt == "/rop" ){   opts.rop = true; handled=true;}
+		if(opt == "/norw" ){   opts.norw = true; handled=true;}
+		if(opt == "/noseh"){   opts.noseh = true; handled=true;}
+		if(opt == "/nc"){   opts.no_color = true; handled=true;}
+		if(opt == "/sigs"){ showSigs(); exit(0); }
+		if(opt == "/auto"){ opts.automationRun = true; handled = true; }
+		if(opt == "/b0"){   opts.break0  = true;handled=true;}
+		if(opt == "/hex") { opts.show_hexdumps = true;handled=true;}
+		if(opt == "/findsc"){ opts.getpc_mode = true;handled=true;}
+		if(opt == "/vvvv"){handled=true; opts.verbose = 4;}
+		if(opt == "/vvv") { opts.verbose = 3;handled=true;}
+		if(opt == "/vv") { opts.verbose = 2;handled=true;}
+		if(opt == "/mm")  {opts.mem_monitor = true;handled=true;}
+		if(opt == "/mdll" ){  opts.mem_monitor_dlls  = true;handled=true;}
+		if(opt == "/api"){  opts.findApi = true;handled=true;}
+		if(opt == "/dump"){  opts.hexdump_file = 1;handled=true;}
+		if(opt == "/hooks"){ show_supported_hooks();handled=true;} //supports -v (must specify first though)
+		if(opt == "/cfo"){ opts.CreateFileOverride = true;handled=true;}
+		if(opt == "/d"){ opts.dump_mode = true;handled=true;}
+		if(opt == "/h"){ show_help();handled=true;}
+		if(opt == "/?"){ show_help();handled=true;}
+		if(opt == "/help"){ show_help();handled=true;}
+		if(opt == "/dllmap"){ nl(); symbol_lookup("dllmap");exit(0);}
+		if(opt == "/nofile"){ opts.nofile = true;handled=true;}
+		if(opt == "/idasync"){ IDAConnect();handled=true;}
+
+		if(opt == "/temp"){
 			if(i+1 >= argc){
 				printf("Invalid option /temp must specify a folder path as next arg\n");
 				m_exit(0);
@@ -3153,7 +3150,7 @@ void parse_opts(int argc, char* argv[] ){
 			i++;handled=true;
 		}
 
-		if(sl==3 && strstr(argv[i],"/bp") > 0 ){ 
+		if(opt == "/bp"){ 
 			if(i+1 >= argc){
 				printf("Invalid option /bp must specify hex breakpoint addr as next arg\n");
 				m_exit(0);
@@ -3166,7 +3163,7 @@ void parse_opts(int argc, char* argv[] ){
 			i++; handled = true;
 		}
 
-		if(sl==2 && strstr(buf,"/f") > 0 ){
+		if(opt == "/f"){
 			if(i+1 >= argc){
 				printf("Invalid option /f must specify a file path as next arg\n");
 				m_exit(0);
@@ -3176,7 +3173,7 @@ void parse_opts(int argc, char* argv[] ){
 			i++;handled=true;
 		}
 		
-		if(sl==6 && strstr(argv[i],"/patch") > 0 ){
+		if(opt == "/patch"){
 			if(i+1 >= argc){
 				printf("Invalid option /patch must specify a file path as next arg\n");
 				m_exit(0);
@@ -3185,7 +3182,7 @@ void parse_opts(int argc, char* argv[] ){
 			i++;handled=true;
 		}
 
-		if(sl==5 && strstr(argv[i],"/conv") > 0 ){
+		if(opt == "/conv"){
 			if(i+1 >= argc){
 				printf("Invalid option /conv must specify a file path as next arg\n");
 				m_exit(0);
@@ -3194,7 +3191,7 @@ void parse_opts(int argc, char* argv[] ){
 			i++;handled=true;
 		}
 
-		if(sl==7 && strstr(argv[i],"/lookup") > 0 ){
+		if(opt == "/lookup"){
 			if(i+1 >= argc){
 				printf("Invalid option /lookup must specify an API name as next arg\n");
 				m_exit(0);
@@ -3208,7 +3205,7 @@ void parse_opts(int argc, char* argv[] ){
 			
 		}
 		
-		if(sl==4 && strstr(argv[i],"/cmd") > 0 ){
+		if(opt == "/cmd"){
 			if(i+1 >= argc){
 				printf("Invalid option /cmd command line for GetCommandLineA as next arg\n");
 				m_exit(0);
@@ -3217,7 +3214,7 @@ void parse_opts(int argc, char* argv[] ){
 			i++;handled=true;
 		}
 
-		if(sl==4 && strstr(argv[i],"/dir") > 0 ){
+		if(opt == "/dir"){
 			if(i+1 >= argc){
 				printf("Invalid option /dir must specify a folder path as next arg\n");
 				m_exit(0);
@@ -3226,7 +3223,7 @@ void parse_opts(int argc, char* argv[] ){
 			i++;handled=true;
 		}
 
-		if(sl==2 && strstr(buf,"/o") > 0 ){
+		if(opt == "/o"){
 			if(i+1 >= argc){
 				printf("Invalid option /o must specify a hex base addr as next arg\n");
 				m_exit(0);
@@ -3235,7 +3232,7 @@ void parse_opts(int argc, char* argv[] ){
 			i++;handled=true;
 		}
 
-		if(sl==4 && strstr(argv[i],"/min") > 0 ){
+		if(opt == "/min"){
 			if(i+1 >= argc){
 				printf("Invalid option /min must specify min number of decimal steps (findsc mode) as next arg\n");
 				m_exit(0);
@@ -3244,7 +3241,7 @@ void parse_opts(int argc, char* argv[] ){
 			i++;handled=true;
 		}
 
-		if(sl==6 && strstr(argv[i],"/fopen") > 0 ){
+		if(opt == "/fopen"){
 			if(i+1 >= argc){
 				printf("Invalid option /fopen must specify file to open as next arg\n");
 				m_exit(0);
@@ -3264,7 +3261,7 @@ void parse_opts(int argc, char* argv[] ){
 			i++;handled=true;
 		}
 
-		if(sl==5 && strstr(argv[i],"/foff") > 0 ){
+		if(opt == "/foff"){
 			if(i+1 >= argc){
 				printf("Invalid option /foff must specify start file offset as next arg\n");
 				m_exit(0);
@@ -3273,7 +3270,7 @@ void parse_opts(int argc, char* argv[] ){
 			i++;handled=true;
 		}
 
-		if(sl==3 && strstr(argv[i],"/ba") > 0 ){
+		if(opt == "/ba"){
 			if(i+1 >= argc){
 				printf("Invalid option /ba must specify hex breakpoint above addr as next arg\n");
 				m_exit(0);
@@ -3282,7 +3279,7 @@ void parse_opts(int argc, char* argv[] ){
 			i++;handled=true;
 		}
 
-		if(sl==3 && strstr(argv[i],"/bs") > 0 ){
+		if(opt == "/bs"){
 			if(i+1 >= argc){
 				printf("Invalid option /bp must specify hex breakpoint addr as next arg\n");
 				m_exit(0);
@@ -3292,7 +3289,7 @@ void parse_opts(int argc, char* argv[] ){
 			i++;handled=true;
 		}
 
-		if(sl==4 && strstr(argv[i],"/laa") > 0 ){
+		if(opt == "/laa"){
 			if(i+1 >= argc){
 				printf("Invalid option /laa must specify a hex addr as next arg\n");
 				m_exit(0);
@@ -3302,7 +3299,7 @@ void parse_opts(int argc, char* argv[] ){
 			i++;handled=true;
 		}
 
-		if(sl==6 && strstr(argv[i],"/redir") > 0 ){
+		if(opt == "/redir"){
 			if(i+1 >= argc){
 				printf("Invalid option /redir must specify IP:PORT as next arg\n");
 				m_exit(0);
@@ -3325,7 +3322,7 @@ void parse_opts(int argc, char* argv[] ){
 			i++;handled=true;
 		}
 
-		if(sl==4 && strstr(argv[i],"/las") > 0 ){
+		if(opt == "/las"){
 			if(i+1 >= argc){
 				printf("Invalid option /las must specify a integer as next arg\n");
 				m_exit(0);
@@ -3334,7 +3331,7 @@ void parse_opts(int argc, char* argv[] ){
 			i++;handled=true;
 		}
 
-		if(sl==2 && strstr(buf,"/e") > 0 ){
+		if(opt == "/e"){
 			if(i+1 >= argc){
 				printf("Invalid option /e must specify err verbosity as next arg\n");
 				m_exit(0);
@@ -3343,7 +3340,7 @@ void parse_opts(int argc, char* argv[] ){
 			i++;handled=true;
 		}
 
-		if(sl==7 && strstr(argv[i],"/disasm") > 0 ){
+		if(opt == "/disasm"){
 			if(i+1 >= argc){
 				printf("Invalid option /disasm must specify #lines to disassemble as next arg\n");
 				m_exit(0);
@@ -3352,7 +3349,7 @@ void parse_opts(int argc, char* argv[] ){
 			i++;handled=true;
 		}
 
-		if(sl==2 && strstr(buf,"/s") > 0 ){
+		if(opt == "/s"){
 			if(i+1 >= argc){
 				printf("Invalid option /s must specify num of steps as next arg\n");
 				m_exit(0);
@@ -3361,7 +3358,7 @@ void parse_opts(int argc, char* argv[] ){
 			i++;handled=true;
 		}
 
-		if(sl==2 && strstr(buf,"/t") > 0 ){
+		if(opt == "/t"){
 			if(i+1 >= argc){
 				printf("Invalid option /t must specify delay in millisecs as next arg\n");
 				m_exit(0);
@@ -3370,7 +3367,7 @@ void parse_opts(int argc, char* argv[] ){
 			i++;handled=true;
 		}
 
-		if(strstr(argv[i],"/va") > 0 ){
+		if(opt == "/va"){
 			if(i+1 >= argc){
 				printf("Invalid option /va must specify 0xBase-0xSize as next arg\n");
 				m_exit(0);
@@ -3397,7 +3394,7 @@ void parse_opts(int argc, char* argv[] ){
 			}
 		}
 
-		if( (sl==5 && strstr(argv[i],"/poke") > 0) || (sl==5 && strstr(argv[i],"/wint") > 0) ){
+		if( (opt == "/poke") || (opt == "/wint") ){
 			if(i+1 >= argc){
 				printf("Invalid option /wint must specify 0xBase-0xValue as next arg\n");
 				m_exit(0);
@@ -3411,7 +3408,7 @@ void parse_opts(int argc, char* argv[] ){
 			}
 		}
 
-		if( (sl==6 && strstr(argv[i],"/spoke") > 0) || (sl==5 && strstr(argv[i],"/wstr") > 0) ){
+		if( (opt == "/spoke") || (opt == "/wstr") ){
 			if(i+1 >= argc){
 				printf("Invalid option /wstr must specify 0xBase-0xHexString or 0xBase-string as next arg\n");
 				m_exit(0);
@@ -3426,7 +3423,7 @@ void parse_opts(int argc, char* argv[] ){
 		}
 
 
-		if(sl==4 && strstr(argv[i],"/raw") > 0 ){
+		if(opt == "/raw"){
 			if(i+1 >= argc){
 				printf("Invalid option /raw must specify 0xBase-fpath as next arg\n");
 				m_exit(0);
@@ -3486,15 +3483,14 @@ int HexToBin(char* input, int* output){
 void post_parse_opts(int argc, char* argv[] ){
 
 	int i;
-	int sl=0;
-	char buf[5];
  
 	for(i=1; i < argc; i++){
 	
-		sl = strlen(argv[i]);
 		if( argv[i][0] == '-') argv[i][0] = '/'; //standardize
-		 	
-		if(sl==3 && strstr(argv[i],"/bp") > 0 ){ //this is done post to ensure baseAddress is already set
+		
+		std::string opt = argv[i];
+
+		if(opt == "/bp"){ //this is done post to ensure baseAddress is already set
 			if(i+1 >= argc){
 				printf("Invalid option /bp must specify hex breakpoint addr as next arg\n");
 				m_exit(0);
@@ -3512,7 +3508,7 @@ void post_parse_opts(int argc, char* argv[] ){
 		}
 
 
-	    if(sl==4 && strstr(argv[i],"/raw") > 0 ){
+	    if(opt == "/raw"){
 			if(i+1 >= argc){
 				printf("Invalid option /raw must specify 0xBase-fpath as next arg\n");
 				m_exit(0);
@@ -3535,7 +3531,7 @@ void post_parse_opts(int argc, char* argv[] ){
 			}
 		}
 
-		if( (sl==5 && strstr(argv[i],"/poke") > 0) || (sl==5 && strstr(argv[i],"/wint") > 0) ){
+		if( (opt == "/poke") || (opt == "/wint") ){
 			if(i+1 >= argc){
 				printf("Invalid option /wint must specify 0xBase-0xValue as next arg\n");
 				m_exit(0);
@@ -3559,7 +3555,7 @@ void post_parse_opts(int argc, char* argv[] ){
 			}
 		}
 
-		if( (sl==6 && strstr(argv[i],"/spoke") > 0) || (sl==5 && strstr(argv[i],"/wstr") > 0) ){
+		if( (opt == "/spoke") || (opt == "/wstr") ){
 			if(i+1 >= argc){
 				printf("Invalid option /wstr must specify 0xBase-0xHexString or 0xBase-string as next arg\n");
 				m_exit(0);
