@@ -1388,7 +1388,8 @@ int disasm_addr(struct emu *e, int va, int justDisasm=0){  //arbitrary offset
 	int instr_len =0;
 	char disasm[200];
 	struct emu_cpu *cpu = emu_cpu_get(e);
-	
+	bool isBP = false;
+
 	uint32_t retAddr=0;
 	uint32_t m_eip     = va;
 	instr_len = emu_disasm_addr(cpu, m_eip, disasm); 
@@ -1396,7 +1397,11 @@ int disasm_addr(struct emu *e, int va, int justDisasm=0){  //arbitrary offset
 	int foffset = m_eip - opts.baseAddress;
 	if(foffset < 0) foffset = m_eip; //probably a stack address.
 
-	start_color(mgreen);
+	for(int i=0; i < 10; i++){
+		if( opts.bpx[i] == m_eip ){ isBP = true; break; }
+	}
+
+	start_color( (isBP ? mred : mgreen) );
 	if(justDisasm==1){
 		printf("%x   %s\n", m_eip, disasm);
 	}else if(opts.verbose ==1){
@@ -1470,6 +1475,7 @@ unsigned int read_hex(char* prompt, char* buf){
 	}
 
 	if(strstr(buf, "eip") > 0 ) base = cpu->eip;
+	if(strstr(buf, "base") > 0 ) base = opts.baseAddress;
 
 	if(base==0){
 		base = strtol(buf, NULL, 16); //support negative numbers..
