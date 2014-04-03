@@ -12,7 +12,7 @@
 
 #include <stddef.h> //offsetof
 
-	#define dllCount 14
+	#define dllCount 15
 //	#define dllCount 3
 
 //peb       0x00251ea0
@@ -39,6 +39,7 @@ struct emu_env_w32_known_dll known_dlls[] = //do not reorder the first three ent
 	{"user32",  0x7E410000,0x00091000,	}, 
 	{"wininet", 0x3D930000,0xD1000,	},
 	{"psapi", 0x76BF0000,0xB000,	}, /*ends at 76BFB000*/
+	{"imagehlp", 0x76C90000,0x29000,},  
 	{NULL, 0, 0,},
 };
 

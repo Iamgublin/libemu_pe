@@ -1,6 +1,7 @@
 
 ---------------[  Changelog for scdbg/libemu  ]---------------
 
+4.2.14  -  added imagehlp.dll
 3.12.14 -  added repe support for instr_cmps_a7
 
 3.3.14  -  note: manually set Multibyte char set, was not set before
