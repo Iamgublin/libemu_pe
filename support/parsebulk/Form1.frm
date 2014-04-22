@@ -505,6 +505,9 @@ Dim notDetected As String
 Dim urls As String
 Dim LiveLv As ListView
 
+Dim WithEvents stdout As CCmdOutput
+Attribute stdout.VB_VarHelpID = -1
+
 Private Sub Command1_Click()
     On Error Resume Next
     Dim ff() As String
@@ -606,12 +609,15 @@ Private Sub Command2_Click()
     
     On Error Resume Next
     
-    Dim wsh As New WshShell
-    Dim ts As TextStream
+'    Dim wsh As New WshShell
+'    Dim ts As TextStream
+'
+'    wsh.CurrentDirectory = fso.GetParentFolder(exe)
+'    Set ts = wsh.Exec(exe & " -dir """ & Text1 & """").stdout
+'    MsgBox ts.ReadAll
     
-    wsh.CurrentDirectory = fso.GetParentFolder(exe)
-    Set ts = wsh.Exec(exe & " -dir """ & Text1 & """").StdOut
-    MsgBox ts.ReadAll
+    ChDir fso.GetParentFolder(exe)
+    Call stdout.GetCommandOutput(exe & " -dir """ & Text1 & """", True, True)
     Command1_Click
     
 End Sub
@@ -651,6 +657,9 @@ End Sub
 
 Private Sub Form_Load()
     Dim c As String
+    
+    Set stdout = New CCmdOutput
+    
     c = Replace(Command, """", Empty)
     
     If Len(c) > 0 Then
@@ -930,9 +939,16 @@ Private Sub mnuViewHex_Click()
     
 End Sub
 
-Private Sub Text1_OLEDragDrop(Data As DataObject, Effect As Long, Button As Integer, Shift As Integer, X As Single, Y As Single)
+Private Sub stdout_OutPutAvailable(data As String)
+    If data = Chr(12) Then Exit Sub
+    Text2 = Text2 & data
+    Text2.Refresh
+    DoEvents
+End Sub
+
+Private Sub Text1_OLEDragDrop(data As DataObject, Effect As Long, Button As Integer, Shift As Integer, X As Single, Y As Single)
     On Error Resume Next
-    Text1 = Data.files(1)
+    Text1 = data.files(1)
 End Sub
 
 Function Hexdump(ByVal str, Optional hexOnly = 0) As String

@@ -11,6 +11,7 @@ Class=CEntry; CEntry.cls
 Form=Form3.frm
 Class=CHttpPost; CHttpPost.cls
 Form=frmScTest.frm
+Class=CCmdOutput; CCmdOutput.cls
 Startup="Form1"
 ExeName32="parseBulk.exe"
 Path32=".."
@@ -42,3 +43,6 @@ MaxNumberOfThreads=1
 
 [MS Transaction Server]
 AutoRefresh=1
+
+[fastBuild]
+fullPath=D:\_libemu\VS_LIBEMU\support\parseBulk.exe

@@ -3850,6 +3850,7 @@ int main(int argc, char *argv[])
 
 	hCon = GetStdHandle( STD_INPUT_HANDLE );
 	hConOut = GetStdHandle( STD_OUTPUT_HANDLE );
+	setvbuf(stdout, NULL, _IONBF, 0); //autoflush - allows external apps to read cmdline output in realtime..
 
 	DWORD old;
 	GetConsoleMode(hCon, &old);
