@@ -1,5 +1,5 @@
 VERSION 5.00
-Object = "{831FDD16-0C5C-11D2-A9FC-0000F8754DA1}#2.0#0"; "mscomctl.ocx"
+Object = "{831FDD16-0C5C-11D2-A9FC-0000F8754DA1}#2.0#0"; "MSCOMCTL.OCX"
 Begin VB.Form frmHashScan 
    Caption         =   "Hash Scanner"
    ClientHeight    =   4770
@@ -229,7 +229,7 @@ Private Sub cmdScan_Click()
         hashName = c(hashVal) 'hex() can barf on some longs...fuckers
          
         If Len(hashName) > 0 Then
-             Set li = lv.ListItems.Add(, , Hex(i))
+             Set li = lv.ListItems.Add(, , Hex(i - 1)) '-1 for 0 based offset..
              li.SubItems(1) = hashVal
              li.SubItems(2) = hashName
         End If

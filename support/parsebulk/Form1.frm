@@ -1,5 +1,5 @@
 VERSION 5.00
-Object = "{831FDD16-0C5C-11D2-A9FC-0000F8754DA1}#2.0#0"; "mscomctl.ocx"
+Object = "{831FDD16-0C5C-11D2-A9FC-0000F8754DA1}#2.0#0"; "MSCOMCTL.OCX"
 Begin VB.Form Form1 
    Caption         =   "Bulk Analyzer"
    ClientHeight    =   8625
@@ -600,10 +600,20 @@ end_of_loop:
 End Sub
 
 Private Sub Command2_Click()
-       
-    exe = GetSetting("scdbg", "settings", "exe", "D:\_libemu\VS_LIBEMU\scdbg.exe")
+    Dim exe As String
+
+    exe = GetSetting("scdbg", "settings", "exe", "D:\_code\libemu\VS_LIBEMU\scdbg.exe")
     If Not fso.FolderExists(Text1) Then
         MsgBox "Folder doesnt exist"
+        Exit Sub
+    End If
+    
+    If fso.FileExists(App.path & "\..\scdbg.exe") Then exe = App.path & "\..\scdbg.exe"
+    If fso.FileExists(App.path & "\..\..\scdbg.exe") Then exe = App.path & "\..\..\scdbg.exe"
+    If fso.FileExists(App.path & "\..\..\..\scdbg.exe") Then exe = App.path & "\..\..\..\scdbg.exe"
+    
+    If Not fso.FileExists(exe) Then
+        MsgBox "Scdbg exe not found", vbInformation
         Exit Sub
     End If
     

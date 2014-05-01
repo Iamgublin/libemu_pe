@@ -5673,6 +5673,31 @@ int32_t	__stdcall hook_MoveFileWithProgress(struct emu_env_w32 *win, struct emu_
 	return 0;
 }
 
+
+int32_t	__stdcall hook_VirtualFree(struct emu_env_w32 *win, struct emu_env_w32_dll_export *ex)
+{
+	/* 	
+		BOOL WINAPI VirtualFree(
+		  _In_  LPVOID lpAddress,
+		  _In_  SIZE_T dwSize,
+		  _In_  DWORD dwFreeType
+		);
+
+	*/
+
+	uint32_t eip_save = popd();
+	uint32_t addr = popd();
+	uint32_t sz = popd();
+	uint32_t ftype = popd();
+	
+	printf("%x\t%s(addr=%x, sz=%x, type=%x)\n",eip_save, ex->fnname, addr, sz, ftype);
+
+	set_ret(1); 
+    emu_cpu_eip_set(cpu, eip_save);
+	return 0;
+}
+
+
 int32_t	__stdcall hook_VirtualQuery(struct emu_env_w32 *win, struct emu_env_w32_dll_export *ex)
 {
 /*

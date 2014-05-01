@@ -2192,6 +2192,7 @@ void set_hooks(struct emu_env *env){
 	ADDHOOK(ZwAllocateVirtualMemory);
 	ADDHOOK(DeviceIoControl);
 	ADDHOOK(GetSystemTimeAsFileTime);
+	ADDHOOK(VirtualFree);
 
 }
 
