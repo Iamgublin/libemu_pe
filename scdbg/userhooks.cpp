@@ -372,14 +372,30 @@ int32_t	__stdcall hook_GetModuleHandleA(struct emu_env_w32 *win, struct emu_env_
 	int i=0;
 	int found_dll = 0;
 	cpu->reg[eax] = 0; //default = fail
-
-	for (i=0; win->loaded_dlls[i] != NULL; i++)
-	{
-		if (stricmp(win->loaded_dlls[i]->dllname, dllname) == 0)
+    
+	for(int j=0; j < 10; j++){
+		if(opts.llo[j].dllName == 0) break; //end of list reached..
+		if (stricmp(opts.llo[j].dllName, dllname) == 0)
 		{
-			cpu->reg[eax]= win->loaded_dlls[i]->baseaddr;
-			found_dll = 1;
+			cpu->reg[eax] = opts.llo[j].base;
+			found_dll = 1; 
+			start_color(colors::myellow);
+			printf("\tOverriding GetModuleHandle base = %x\n", opts.llo[j].base);
+			end_color();
 			break;
+		}
+	}
+
+	if (found_dll == 0)
+	{
+		for (i=0; win->loaded_dlls[i] != NULL; i++)
+		{
+			if (stricmp(win->loaded_dlls[i]->dllname, dllname) == 0)
+			{
+				cpu->reg[eax]= win->loaded_dlls[i]->baseaddr;
+				found_dll = 1;
+				break;
+			}
 		}
 	}
 	 
@@ -1281,13 +1297,30 @@ int32_t	__stdcall hook_LoadLibrary(struct emu_env_w32 *win, struct emu_env_w32_d
 
 	char *dllname = dllstr->data;
 
-	for (i=0; win->loaded_dlls[i] != NULL; i++)
-	{
-		if (stricmp(win->loaded_dlls[i]->dllname, dllname) == 0)
+	for(int j=0; j < 10; j++){
+		if(opts.llo[j].dllName == 0) break; //end of list reached..
+		struct loadlib_override lo = opts.llo[j];
+		if (stricmp(lo.dllName, dllname) == 0)
 		{
-			cpu->reg[eax] = win->loaded_dlls[i]->baseaddr;
-			found_dll = 1;
+			cpu->reg[eax] = lo.base;
+			found_dll = 1; 
+			start_color(colors::myellow);
+			printf("\tOverriding LoadLibrary base = %x\n", lo.base);
+			end_color();
 			break;
+		}
+	}
+
+	if (found_dll == 0)
+	{
+		for (i=0; win->loaded_dlls[i] != NULL; i++)
+		{
+			if (stricmp(win->loaded_dlls[i]->dllname, dllname) == 0)
+			{
+				cpu->reg[eax] = win->loaded_dlls[i]->baseaddr;
+				found_dll = 1;
+				break;
+			}
 		}
 	}
 	
@@ -5765,6 +5798,30 @@ int32_t	__stdcall hook_VirtualQuery(struct emu_env_w32 *win, struct emu_env_w32_
 	emu_cpu_eip_set(cpu, eip_save);
 	return 0;
 }
+
+int32_t	__stdcall hook_GetVersionEx(struct emu_env_w32 *win, struct emu_env_w32_dll_export *ex)
+{
+	/* 	
+		BOOL WINAPI GetVersionEx(
+		  _Inout_  LPOSVERSIONINFO lpVersionInfo
+		);
+	*/
+
+	uint32_t eip_save = popd();
+	uint32_t lpVersionInfo = popd();
+	
+	printf("%x\t%s(%x)\n", eip_save, ex->fnname, lpVersionInfo);
+
+	OSVERSIONINFO vi;
+	GetVersionExA(&vi);
+
+	emu_memory_write_block(mem, lpVersionInfo, &vi, sizeof(OSVERSIONINFO));
+
+	set_ret(1); 
+    emu_cpu_eip_set(cpu, eip_save);
+	return 0;
+}
+
 
 
 int SysCall_Handler(int callNumber, struct emu_cpu *c){

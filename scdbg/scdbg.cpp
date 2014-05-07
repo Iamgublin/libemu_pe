@@ -1994,6 +1994,7 @@ void set_hooks(struct emu_env *env){
 	HOOKBOTH(CreateProcess);
 	HOOKBOTH(GetStartupInfo);
 	HOOKBOTH(MoveFileWithProgress);
+    HOOKBOTH(GetVersionEx);
 
 	ADDHOOK(ExitProcess);
 	ADDHOOK(memset);
@@ -2935,6 +2936,7 @@ void show_help(void)
 		{"- /+", NULL ,      "increments or decrements GetFileSize, can be used multiple times"},
 		{"va", "0xBase-0xSize","VirtualAlloc memory at 0xBase of 0xSize"}, 
 		{"raw", "0xBase-fpath","Raw Patch Mode: load fpath into mem at 0xBase (not PE aware)"}, 
+		{"llo", "dllName-0xBase","LoadLibrary Override: returns 0xBase for LoadLibrary/GetModuleHandle"}, 
 		{"wint", "0xBase-0xVal","Write 32bit integer 0xValue at 0xBase"}, 
 		{"wstr", "0xBase-Str","Write string at base ex. 0x401000-0x9090EB15CCBB or \"0xBase-ascii string\""}, 
 		{"dllmap", NULL ,     "show the name, base, size, and version of all built in dlls"},
@@ -2942,7 +2944,7 @@ void show_help(void)
 		{"bswap", NULL ,     "byte swaps -f and -wstr input buffers"},
 		{"eswap", NULL ,     "endian swaps -f and -wstr input buffers"},
 		{"conv", "path" , "outputs converted shellcode to file (%u,\\x,bswap,eswap..)"},
-		{"idasync", NULL , "connects to last opened IDA instance on startup"},
+		{"ida", NULL , "connects to last opened IDA instance on startup"},
 	};
 
 	system("cls");
@@ -3133,7 +3135,7 @@ void parse_opts(int argc, char* argv[] ){
 		if(opt == "/help"){ show_help();handled=true;}
 		if(opt == "/dllmap"){ nl(); symbol_lookup("dllmap");exit(0);}
 		if(opt == "/nofile"){ opts.nofile = true;handled=true;}
-		if(opt == "/idasync"){ IDAConnect();handled=true;}
+		if(opt == "/idasync" || opt == "/ida"){ IDAConnect();handled=true;}
 
 		if(opt == "/temp"){
 			if(i+1 >= argc){
@@ -3399,6 +3401,41 @@ void parse_opts(int argc, char* argv[] ){
 				printf("Invalid option /va must specify 0xBase-0xSize as next arg\n");
 				m_exit(0);
 			}
+			free(ag);
+		}
+
+		if(opt == "/llo"){
+			if(i+1 >= argc){
+				printf("Invalid option /llo must specify dllName-0xBase as next arg\n");
+				m_exit(0);
+			}
+		    char *ag = strdup(argv[i+1]);
+			char *sz;
+			int j=0;
+			loadlib_override lo;
+			uint32_t base=0;
+			if (( sz = strstr(ag, "-")) != NULL)
+			{
+				*sz = '\0';
+				sz++;
+				lo.dllName = strdup(ag);
+				lo.base = strtoul(sz, NULL, 16);
+				for(j=0; j < 10; j++){
+					if(opts.llo[j].dllName == 0){
+						opts.llo[j] = lo;
+						printf("LoadLib Override %d (dll=%s, base=%x)\n", j, lo.dllName, lo.base);
+						break;
+					}
+				}
+				if(j==10){
+					printf("To many /llo parameters could not add %s\n", lo.dllName);
+				} 
+				i++;handled=true;
+			}else{
+				printf("Invalid option /llo must specify dllName-0xBase as next arg\n");
+				m_exit(0);
+			}
+			free(ag);
 		}
 
 		if( (opt == "/poke") || (opt == "/wint") ){
@@ -4137,10 +4174,23 @@ reinit:
 void loadraw_patch(uint32_t base, char* fpath){
 
 	FILE *fp;
+	char* pFolder;
+	char* tmp_path;
 
 	if (fpath == NULL) return;
 	
 	fp = fopen(fpath, "rb");
+	
+	if(fp==0){
+		//lets try loading it from the shellcode home directory too..(maybe not abs path)
+		pFolder = GetParentFolder(opts.sc_file);
+		tmp_path = SafeMalloc(strlen(pFolder) + 50 + strlen(fpath));
+		sprintf(tmp_path, "%s\\%s", pFolder, fpath);
+		fp = fopen(tmp_path, "rb");
+		free(pFolder);
+		free(tmp_path);
+	}
+	
 	if(fp==0){
 		start_color(myellow);
 		printf("RawLoad Failed to open file %s\n",fpath);
