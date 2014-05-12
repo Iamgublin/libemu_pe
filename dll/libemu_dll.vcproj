@@ -2,7 +2,7 @@
 <VisualStudioProject
 	ProjectType="Visual C++"
 	Version="9.00"
-	Name="libemu_dll"
+	Name="vslibemu"
 	ProjectGUID="{A931AA30-EFED-4157-B4EF-6B5EDBB15EE3}"
 	RootNamespace="VSLIBEMU"
 	Keyword="Win32Proj"
@@ -18,7 +18,7 @@
 	<Configurations>
 		<Configuration
 			Name="Debug|Win32"
-			OutputDirectory="Debug"
+			OutputDirectory="$(SolutionDir)"
 			IntermediateDirectory="Debug"
 			ConfigurationType="2"
 			>
@@ -41,8 +41,8 @@
 				Name="VCCLCompilerTool"
 				AdditionalOptions="/D BYTE_ORDER /D LIL_ENDIAN"
 				Optimization="0"
-				AdditionalIncludeDirectories="./../libemu/include;./../libemu/libdasm"
-				PreprocessorDefinitions="WIN32;_DEBUG;_WINDOWS;_USRDLL;LIBEMU_DLL_EXPORTS;BYTE_ORDER LIL_ENDIAN"
+				AdditionalIncludeDirectories="$(VC_IncludePath);./../libemu/include;./../libemu/libdasm"
+				PreprocessorDefinitions="WIN32;_DEBUG;_WINDOWS;_USRDLL;LIBEMU_DLL_EXPORTS;BYTE_ORDER;LITTLE_ENDIAN"
 				MinimalRebuild="true"
 				BasicRuntimeChecks="3"
 				RuntimeLibrary="1"
@@ -63,7 +63,7 @@
 			/>
 			<Tool
 				Name="VCLinkerTool"
-				OutputFile="./vslibemu.dll"
+				OutputFile="$(OutDir)\$(ProjectName).dll"
 				LinkIncremental="2"
 				ModuleDefinitionFile="exports.def"
 				GenerateDebugInformation="true"
@@ -94,7 +94,7 @@
 		</Configuration>
 		<Configuration
 			Name="Release|Win32"
-			OutputDirectory="Release"
+			OutputDirectory="$(SolutionDir)"
 			IntermediateDirectory="Release"
 			ConfigurationType="2"
 			>
@@ -116,8 +116,8 @@
 			<Tool
 				Name="VCCLCompilerTool"
 				AdditionalOptions="/D BYTE_ORDER /D LIL_ENDIAN"
-				AdditionalIncludeDirectories="./../libemu/include;./../libemu/libdasm"
-				PreprocessorDefinitions="WIN32;NDEBUG;_WINDOWS;_USRDLL;LIBEMU_DLL_EXPORTS;BYTE_ORDER LIL_ENDIAN"
+				AdditionalIncludeDirectories="$(VC_IncludePath);./../libemu/include;./../libemu/libdasm"
+				PreprocessorDefinitions="WIN32;NDEBUG;_WINDOWS;_USRDLL;LIBEMU_DLL_EXPORTS;BYTE_ORDER;LITTLE_ENDIAN"
 				RuntimeLibrary="0"
 				UsePrecompiledHeader="0"
 				WarningLevel="3"
@@ -136,7 +136,7 @@
 			/>
 			<Tool
 				Name="VCLinkerTool"
-				OutputFile="./vslibemu.dll"
+				OutputFile="$(OutDir)\$(ProjectName).dll"
 				LinkIncremental="2"
 				ModuleDefinitionFile="exports.def"
 				GenerateDebugInformation="true"
@@ -329,7 +329,7 @@
 			</File>
 		</Filter>
 		<Filter
-			Name="opcoodes"
+			Name="opcodes"
 			>
 			<File
 				RelativePath=".\..\libemu\opcodes\aaa.cpp"
