@@ -42,15 +42,17 @@
 				Name="VCCLCompilerTool"
 				AdditionalOptions="/D LIL_ENDIAN /D BYTE_ORDER"
 				Optimization="0"
+				InlineFunctionExpansion="0"
 				AdditionalIncludeDirectories="$(VC_IncludePath);./libemu\libdasm;./libemu\include"
 				PreprocessorDefinitions="WIN32;_DEBUG;_CONSOLE;"
+				GeneratePreprocessedFile="0"
 				MinimalRebuild="true"
 				BasicRuntimeChecks="3"
 				RuntimeLibrary="3"
 				UsePrecompiledHeader="0"
 				WarningLevel="3"
 				Detect64BitPortabilityProblems="true"
-				DebugInformationFormat="4"
+				DebugInformationFormat="3"
 			/>
 			<Tool
 				Name="VCManagedResourceCompilerTool"

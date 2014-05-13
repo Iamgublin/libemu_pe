@@ -319,7 +319,7 @@ struct emu_cpu_instruction_info ii_onebyte[0x100] = {
 	/* f3 */ {prefix_fn, 0, {0, 0, 0, 0, 0, 0, 0, 0}}, /* prefixes must use prefix_fn - repe implemented per opcode check  - dz 5.16.11 */
 	/* f4 */ {0, 0, {0, 0, 0, 0, 0, 0, 0, 0}},
 	/* f5 */ {instr_cmc_f5, "cmc", {0, 0, 0, 0, 0, 0, 0, 0}},
-	/* f6 */ {instr_group_3_f6, "group3", {0, 0, II_MOD_REG_RM, 0, 0, 0, 1, 0}},
+	/* f6 */ {instr_group_3_f6, "group3", {0, 1, II_MOD_REG_RM, 0, 0, 0, 1, 0}}, /* master131 bug fix: https://github.com/dzzie/VS_LIBEMU/issues/3  dz - I tested all of the group3 handlers with this patch and they all seem ok */
 	/* f7 */ {instr_group_3_f7, "group3", {0, 0, II_MOD_REG_RM, 0, 0, 0, 1, 0}},
 	/* f8 */ {instr_clc_f8, "clc", {0, 0, 0, 0, 0, 0, 0, 0}},
 	/* f9 */ {instr_stc_f9, "stc", {0, 0, 0, 0, 0, 0, 0, 0}},
