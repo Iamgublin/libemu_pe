@@ -65,6 +65,7 @@ extern int32_t instr_movs_a5(struct emu_cpu *c, struct emu_cpu_instruction *i);
 extern int32_t instr_cmpxchg_0fb1(struct emu_cpu *c, struct emu_cpu_instruction *i);
 extern int32_t instr_rdtsc_0f31(struct emu_cpu *c, struct emu_cpu_instruction *i);
 extern int32_t instr_imul_69(struct emu_cpu *c, struct emu_cpu_instruction *i);
+extern int32_t instr_imul_0f_af(struct emu_cpu *c, struct emu_cpu_instruction *i);
 
 struct emu_cpu_instruction_info ii_onebyte[0x100] = {
 	/* 00 */ {instr_add_00, "add", {0, 0, II_MOD_REG_RM, 0, 0, 0, 0, 0}},
@@ -507,7 +508,7 @@ struct emu_cpu_instruction_info ii_twobyte[0x100] = {
 	/* ac */ {0, 0, {0, 0, 0, 0, 0, 0, 0, 0}},
 	/* ad */ {0, 0, {0, 0, 0, 0, 0, 0, 0, 0}},
 	/* ae */ {0, 0, {0, 0, 0, 0, 0, 0, 0, 0}},
-	/* af */ {0, 0, {0, 0, 0, 0, 0, 0, 0, 0}},
+	/* af */ {instr_imul_0f_af, "imul", {0, 0, II_MOD_REG_RM, 0, 0, 0, 0, 0 }}, //master131 re-enabled 5.13.14 https://github.com/dzzie/VS_LIBEMU/issues/3
 	/* b0 */ {0, 0, {0, 0, 0, 0, 0, 0, 0, 0}}, //CMPXCHG r/m8, r8  
 	/* b1 */ {instr_cmpxchg_0fb1, "cmpxchg", {0, 0, II_MOD_REG_RM, 0, 0, 0, 0, 0}}, //CMPXCHG r/m16 r/32
 	/* b2 */ {0, 0, {0, 0, 0, 0, 0, 0, 0, 0}},
