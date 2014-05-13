@@ -30,7 +30,8 @@
 
 #define INSTR_CALC(bits, a, cpu) \
 UINTOF(bits) operand_a = a; \
-UINTOF(bits) operation_result = 0-operand_a; 
+UINTOF(bits) operation_result = 0-operand_a; \
+a = operation_result;
 
 #define INSTR_SET_FLAG_OF(cpu, bits) \
 { \
@@ -71,9 +72,13 @@ UINTOF(bits) operation_result = 0-operand_a;
 
 /*Intel Architecture Software Developer's Manual Volume 2: Instruction Set Reference (24319102.PDF) page 494*/
 
+// 5.13.14 dzzie bugfix now setting result: a = operation_result; 
+// The CF flag set to 0 if the source operand is 0; otherwise it is set to 1. (not matching olly/windbg)
+// The OF, SF, ZF, AF, and PF flags are set according to the result.          (AF flag never set)
+
 #define INSTR_CALC_AND_SET_FLAGS(bits, cpu, a)	\
-INSTR_CALC(bits, a, cpu) \
 INSTR_SET_FLAG_CF(cpu, a) \
+INSTR_CALC(bits, a, cpu) \
 INSTR_SET_FLAG_OF(cpu, bits) \
 INSTR_SET_FLAG_SF(cpu) \
 INSTR_SET_FLAG_ZF(cpu) \
