@@ -25,6 +25,9 @@
  *
  *******************************************************************************/
 #include <windows.h>
+#include <hash_map>
+#include <string>
+
 #include <stdlib.h>
 #include <string.h>
 #include <errno.h>
@@ -35,9 +38,6 @@
 #include "emu.h"
 #include "emu_cpu.h"
 #include "emu_memory.h"
-extern "C"{
-	#include "emu_hashtable.h"
-}
 #include "emu_env.h"
 #include "emu_env_w32.h"
 #include "emu_env_w32_dll.h"
@@ -648,16 +648,15 @@ struct emu_env_w32_dll_export *emu_env_w32_eip_check(struct emu_env *env)
 			logDebug(env->emu, "eip %08x is within %s\n",eip, env->win->loaded_dlls[numdlls]->dllname);
 			struct emu_env_w32_dll *dll = env->win->loaded_dlls[numdlls];
 
-			struct emu_hashtable_item *ehi = emu_hashtable_search(dll->exports_by_fnptr, (void *)(uintptr_t)(eip - dll->baseaddr));
-			//void* ehi= NULL;
+			void* ehi = (*dll->exports_by_fnptr)[eip - dll->baseaddr];
 			if ( ehi == NULL )
 			{
 				//hook detection and cleanup code added 5.15.12 dzzie..sucks but we have to support it :/
 				bool ignore = false;
 				if((int)HookDetection_callback!=0){
-					ehi = emu_hashtable_search(dll->exports_by_fnptr, (void *)(uintptr_t)(eip - dll->baseaddr-5));
+					ehi = (*dll->exports_by_fnptr)[eip - dll->baseaddr-5];
 					if ( ehi != NULL ){
-						struct emu_env_w32_dll_export *ex = (struct emu_env_w32_dll_export *)ehi->value;
+						struct emu_env_w32_dll_export *ex = (struct emu_env_w32_dll_export *)ehi;
 						if( ex != NULL){
 							if (ex->fnhook != NULL ){
 								//if the call back handles it (returns 1) then it supports working around
@@ -673,7 +672,7 @@ struct emu_env_w32_dll_export *emu_env_w32_eip_check(struct emu_env *env)
 				}
 			}
 
-			struct emu_env_w32_dll_export *ex = (struct emu_env_w32_dll_export *)ehi->value;
+			struct emu_env_w32_dll_export *ex = (struct emu_env_w32_dll_export *)ehi;
 
 			if( ex == NULL){
 				return NULL; //this shouldnt happen because the lookup was successful..
@@ -720,14 +719,12 @@ int32_t emu_env_w32_export_new_hook_ordinal(struct emu_env *env,
 
 		if (strncmp(dll->dllname, dllname, strlen(dll->dllname)) == 0)
 		{
-			struct emu_hashtable *eh = dll->exports_by_ordinal;
-			struct emu_hashtable_item *ehi = emu_hashtable_search(eh, (void *)ordinal);
-			
-			
+			void* ehi = (*dll->exports_by_ordinal)[ordinal];
+
 			if (ehi != NULL)
 			{
 				//printf("hooked %s\n",  exportname);
-				struct emu_env_w32_dll_export *ex = (struct emu_env_w32_dll_export *)ehi->value;
+				struct emu_env_w32_dll_export *ex = (struct emu_env_w32_dll_export *)ehi;
 				if(ex != NULL){
 					ex->fnhook = fnhook;
 				}
@@ -757,12 +754,12 @@ int32_t emu_env_w32_export_new_hook(struct emu_env *env,
 	{
 		if (1)//dllname == NULL || strncasecmp(env->loaded_dlls[numdlls]->dllname, dllname, strlen(env->loaded_dlls[numdlls]->dllname)) == 0)
 		{
-			struct emu_hashtable_item *ehi = emu_hashtable_search(env->win->loaded_dlls[numdlls]->exports_by_fnname, (void *)exportname);
+			void* ehi = (*env->win->loaded_dlls[numdlls]->exports_by_fnname)[exportname];
 			
 			if (ehi != NULL)
 			{
 				//printf("hooked %s\n",  exportname);
-				struct emu_env_w32_dll_export *ex = (struct emu_env_w32_dll_export *)ehi->value;
+				struct emu_env_w32_dll_export *ex = (struct emu_env_w32_dll_export *)ehi;
 				if(ex != NULL){
 					ex->fnhook = fnhook;
 					ex->userdata = userdata;

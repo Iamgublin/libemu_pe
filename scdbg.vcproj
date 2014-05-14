@@ -127,6 +127,7 @@
 				WarningLevel="3"
 				Detect64BitPortabilityProblems="true"
 				DebugInformationFormat="3"
+				ForcedIncludeFiles=""
 			/>
 			<Tool
 				Name="VCManagedResourceCompilerTool"
@@ -170,7 +171,7 @@
 			/>
 			<Tool
 				Name="VCPostBuildEventTool"
-				CommandLine="upx $(TargetPath)"
+				CommandLine="upx &quot;$(TargetPath)&quot;"
 			/>
 		</Configuration>
 	</Configurations>
@@ -444,15 +445,7 @@
 					>
 				</File>
 				<File
-					RelativePath=".\libemu\include\emu_hashtable.h"
-					>
-				</File>
-				<File
 					RelativePath=".\libemu\include\emu_instruction.h"
-					>
-				</File>
-				<File
-					RelativePath=".\libemu\include\emu_list.h"
 					>
 				</File>
 				<File
@@ -513,10 +506,6 @@
 				</File>
 				<File
 					RelativePath=".\libemu\src\emu_env_w32_dll.cpp"
-					>
-				</File>
-				<File
-					RelativePath=".\libemu\src\emu_hashtable.c"
 					>
 				</File>
 				<File

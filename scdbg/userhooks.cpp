@@ -30,12 +30,25 @@
 #pragma warning(disable: 4267)
 #pragma warning(disable: 4482)
 
+#include <hash_map>
+#include <string>
 #include <stdint.h>
 #include <stdio.h>
 #include <stdarg.h>
 #include <errno.h>
 #include <Shlobj.h>
 #include <time.h>
+#include "options.h"
+#include <stdint.h>
+#include <stdarg.h>
+#include <string.h>
+#include <ctype.h>
+#include <winsock.h>
+#include <windows.h>
+#include <wininet.h>
+#include <Shlobj.h>
+#include <TlHelp32.h>
+
 #include "emu.h"
 #include "emu_memory.h"
 #include "emu_cpu.h"
@@ -47,21 +60,6 @@
 #include "emu_env_w32_dll.h"
 #include "emu_env_w32_dll_export.h"
 #include "emu_string.h"
-
-extern "C"{
-	#include "emu_hashtable.h"
-}
-
-#include "options.h"
-#include <stdint.h>
-#include <stdarg.h>
-#include <string.h>
-#include <ctype.h>
-#include <winsock.h>
-#include <windows.h>
-#include <wininet.h>
-#include <Shlobj.h>
-#include <TlHelp32.h>
 
 extern uint32_t FS_SEGMENT_DEFAULT_OFFSET;
 extern void hexdump(unsigned char*, int);
@@ -2278,15 +2276,15 @@ int32_t	__stdcall hook_GetProcAddress(struct emu_env_w32 *win, struct emu_env_w3
 		{
 			if( procname->size == 0 ){ //either an error or an ordinal
 				ordinal = procname->emu_offset;
-				struct emu_hashtable_item *ehi = emu_hashtable_search(dll->exports_by_ordinal, (void *)ordinal);
+				void* ehi = (*dll->exports_by_ordinal)[ordinal];
 				if ( ehi == NULL ) break;
-				struct emu_env_w32_dll_export *ex = (struct emu_env_w32_dll_export *)ehi->value;
+				struct emu_env_w32_dll_export *ex = (struct emu_env_w32_dll_export *)ehi;
 				set_ret(dll->baseaddr + ex->virtualaddr);
 				break;
 			}else{
-				struct emu_hashtable_item *ehi = emu_hashtable_search(dll->exports_by_fnname, (void *)emu_string_char(procname));
+				void* ehi = (*dll->exports_by_fnname)[emu_string_char(procname)];
 				if ( ehi == NULL ) break;
-				struct emu_env_w32_dll_export *ex = (struct emu_env_w32_dll_export *)ehi->value;
+				struct emu_env_w32_dll_export *ex = (struct emu_env_w32_dll_export *)ehi;
 				//logDebug(win->emu, "found %s at addr %08x\n",emu_string_char(procname), dll->baseaddr + hook->hook.win->virtualaddr );
 				set_ret(dll->baseaddr + ex->virtualaddr);
 				break;

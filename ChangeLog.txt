@@ -1,6 +1,15 @@
 
 ---------------[  Changelog for scdbg/libemu  ]---------------
 
+5.14.14 -  removed emu_hashtable and emu_list in favor of stdext::hash_map 
+           (VS2010+ hated the macros in emu_list.h)
+
+5.13.14 -  master131 bugfixes: enabled instr_imul_0f_af; opcode 0xf6 test ah w_size fix; tweaks to build files 
+		   neg opcode 0xf6 set result bugfix 
+		   hook: GetVersionExA/W, new opt -llo (LoadLibrary Overrride), -raw now also looks in shellcode home dir for file specified
+		   hook: VirtualFree, guiLauncher.frmHashScan bugfix
+		   autoflush console output for external apps realtime read
+		    
 4.2.14  -  added imagehlp.dll
 3.12.14 -  added repe support for instr_cmps_a7
 

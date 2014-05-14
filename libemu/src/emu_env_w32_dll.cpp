@@ -27,14 +27,13 @@
 
 #include <stdlib.h>
 #include <string.h>
+#include <hash_map>
+#include <string>
 
 #include "emu.h"
 #include "emu_env.h"
 #include "emu_env_w32_dll.h"
 #include "emu_env_w32_dll_export.h"
-extern "C"{
-	#include "emu_hashtable.h"
-}
 
 struct emu_env_w32_dll *emu_env_w32_dll_new(void)
 {
@@ -45,9 +44,9 @@ struct emu_env_w32_dll *emu_env_w32_dll_new(void)
 
 void emu_env_w32_dll_free(struct emu_env_w32_dll *dll)
 {
-	emu_hashtable_free(dll->exports_by_fnptr);
-	emu_hashtable_free(dll->exports_by_fnname);
-	emu_hashtable_free(dll->exports_by_ordinal);
+	(*dll->exports_by_fnptr).clear();
+	(*dll->exports_by_fnname).clear();
+	(*dll->exports_by_ordinal).clear();
 	free(dll->exportx);
 //	free(dll->hooks);
 	free(dll->dllname);
@@ -78,9 +77,9 @@ void emu_env_w32_dll_exports_copy(struct emu_env_w32_dll *to,struct emu_env_w32_
 //	to->hooks = (struct emu_env_hook*)malloc(sizeof(struct emu_env_hook) * size);
 	memcpy(to->exportx, from, sizeof(struct emu_env_w32_dll_export) * size);
 
-	to->exports_by_ordinal = emu_hashtable_new(size, emu_hashtable_ptr_hash,    emu_hashtable_ptr_cmp);
-	to->exports_by_fnptr   = emu_hashtable_new(size, emu_hashtable_ptr_hash,    emu_hashtable_ptr_cmp);
-	to->exports_by_fnname  = emu_hashtable_new(size, emu_hashtable_string_hash, emu_hashtable_string_cmp);
+	to->exports_by_ordinal = new stdext::hash_map<uint32_t,void*>;
+	to->exports_by_fnptr   = new stdext::hash_map<uint32_t,void*>;
+	to->exports_by_fnname  = new stdext::hash_map<std::string,void*>;
 
 	for (i=0;from[i].fnname != 0; i++)
 	{
@@ -91,8 +90,8 @@ void emu_env_w32_dll_exports_copy(struct emu_env_w32_dll *to,struct emu_env_w32_
 
 		//emu_hashtable_insert(to->exports_by_fnptr, (void *)(uintptr_t)from[i].virtualaddr, hook);
 		//emu_hashtable_insert(to->exports_by_fnname, (void *)(uintptr_t)from[i].fnname, hook);
-		emu_hashtable_insert(to->exports_by_fnptr, (void *)(uintptr_t)from[i].virtualaddr, ex);
-		emu_hashtable_insert(to->exports_by_fnname, (void *)(uintptr_t)from[i].fnname, ex);
-		emu_hashtable_insert(to->exports_by_ordinal, (void *)(uintptr_t)from[i].ordinal, ex);
+		(*to->exports_by_fnptr)[from[i].virtualaddr] = &to->exportx[i];
+		(*to->exports_by_fnname)[from[i].fnname]     = &to->exportx[i];
+		(*to->exports_by_ordinal)[from[i].ordinal]   = &to->exportx[i];
 	}
 }

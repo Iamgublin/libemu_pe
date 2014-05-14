@@ -37,13 +37,17 @@
 		  - multi breakpoint support would be nice..current log after trick is a hack
 */
 
-
+#include <windows.h>
+#include <hash_map>
 #include <stdlib.h>
 #include <stdint.h>
 #include <stdio.h>
 #include <stdarg.h>
 #include <errno.h>
 #include <string>
+#include <io.h>
+#include <signal.h>
+#include <conio.h>
 
 #include "emu.h"
 #include "emu_memory.h"
@@ -57,21 +61,12 @@
 #include "emu_env_w32_dll_export.h"
 #include "emu_string.h"
 #include "stdint.h"
-
-extern "C"{
-	#include "emu_hashtable.h"
-}
+#include "options.h"
 
 #define INT32_MAX 0x7fffffff
 #define F(x) (1 << (x))
 #define CPU_FLAG_ISSET(cpu_p, fl) ((cpu_p)->eflags & (1 << (fl)))
 #define FLAG(fl) (1 << (fl))
-
-#include "options.h"
-#include <io.h>
-#include <signal.h>
-#include <windows.h>
-#include <conio.h>
 
 #pragma warning(disable: 4311)
 #pragma warning(disable: 4482)
@@ -803,9 +798,9 @@ uint32_t symbol2addr(char* symbol){
 	int numdlls=0;
 	while ( env->win->loaded_dlls[numdlls] != 0 ){
 		struct emu_env_w32_dll *dll = env->win->loaded_dlls[numdlls]; 
-		struct emu_hashtable_item *ehi = emu_hashtable_search(dll->exports_by_fnname, (void *)symbol);	
+		void* ehi = (*dll->exports_by_fnname)[symbol];	
 		if ( ehi != 0 ){ 
-			struct emu_env_w32_dll_export *ex = (struct emu_env_w32_dll_export *)ehi->value;
+			struct emu_env_w32_dll_export *ex = (struct emu_env_w32_dll_export *)ehi;
 			return dll->baseaddr + ex->virtualaddr;
 		}	
 		numdlls++;
@@ -843,11 +838,11 @@ void symbol_lookup(char* symbol){
 				return;
 			}
 			
-			struct emu_hashtable_item *ehi = emu_hashtable_search(dll->exports_by_fnname, (void *)symbol);
+			void* ehi = (*dll->exports_by_fnname)[symbol];
 			
 			if ( ehi != 0 ){
 				int dllBase = dll->baseaddr; 
-				struct emu_env_w32_dll_export *ex = (struct emu_env_w32_dll_export *)ehi->value;
+				struct emu_env_w32_dll_export *ex = (struct emu_env_w32_dll_export *)ehi;
 				printf("\tAddress found: %s - > %x\n", symbol, dllBase + ex->virtualaddr);
 				return;
 			}	
@@ -902,11 +897,11 @@ int fulllookupAddress(int eip, char* buf255){
 				            env->win->loaded_dlls[numdlls]->imagesize )
 		{
 			struct emu_env_w32_dll *dll = env->win->loaded_dlls[numdlls];
-			struct emu_hashtable_item *ehi = emu_hashtable_search(dll->exports_by_fnptr, (void *)(uintptr_t)(eip - dll->baseaddr));
+			void* ehi = (*dll->exports_by_fnptr)[eip - dll->baseaddr];
 
 			if ( ehi == 0 )	return 0;
 
-			struct emu_env_w32_dll_export *ex = (struct emu_env_w32_dll_export *)ehi->value;
+			struct emu_env_w32_dll_export *ex = (struct emu_env_w32_dll_export *)ehi;
 			strncpy(buf255, ex->fnname, 254);
 			return 1;
 
@@ -2435,7 +2430,7 @@ int find_sc(void){ //loose brute force let user decide...
 			cpu->eip = opts.baseAddress + i;
 			s = mini_run(limit,&tmpr,debug); //   v-- start offset must be at least 10 bytes away from final eip rva - (excludes tight loops from garbage)
 			//if(debug) printf("s=%x pe=%d se=%d ", s, parse_error, step_error);
-			if(s > opts.min_steps && abs(opts.baseAddress + i - cpu->eip ) > 10 /*&& cpu->eip > (opts.baseAddress + i + opts.min_steps)*/ ){
+			if(s > opts.min_steps && abs((long)(opts.baseAddress + i - cpu->eip) ) > 10 /*&& cpu->eip > (opts.baseAddress + i + opts.min_steps)*/ ){
 				if(last_step_cnt >= s && (last_offset+1) == i ){ //try not to spam
 					last_offset++;
 				}else{
