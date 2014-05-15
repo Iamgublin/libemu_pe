@@ -37,8 +37,6 @@ EXPORTS
 	emu_env_w32_eip_check
 	emu_env_w32_dll_new
 	emu_env_w32_dll_free
-	emu_hashtable_new
-	emu_hashtable_search
 	emu_logging_get
 	emu_log_new
 	emu_log_free

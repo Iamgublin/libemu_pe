@@ -232,9 +232,9 @@ struct emu_env_w32_dll
 	uint32_t	baseaddr;
 
 	struct emu_env_w32_dll_export *exportx;
-	/*struct emu_hashtable*/ void *exports_by_fnptr;    //havent done the hashtable defs yet in this .h
-	/*struct emu_hashtable*/ void *exports_by_fnname;
-	/*struct emu_hashtable*/ void *exports_by_ordial;
+	/* std::hash_map<uint32_t, void*>    */ void *exports_by_fnptr;    //havent done the hashtable defs yet in this .h
+	/* std::hash_map<std::string, void*> */ void *exports_by_fnname;
+	/* std::hash_map<uint32_t, void*>    */ void *exports_by_ordial;
 };
 
 struct emu_env_w32
@@ -355,18 +355,6 @@ void emu_env_w32_dll_exports_copy(struct emu_env_w32_dll *to, struct emu_env_w32
 struct emu_env_w32_dll_export *emu_env_w32_dll_export_new(void);
 void emu_env_w32_dll_export_copy(struct emu_env_w32_dll_export *to, struct emu_env_w32_dll_export *from);
 void emu_env_w32_dll_export_free(struct emu_env_w32_dll_export *exp);
-
-/*
-typedef bool (*emu_hashtable_cmp_cb)(void *a, void *b);
-typedef uint32_t (*emu_hashtable_hash_cb)(void *key);
-typedef void (*emu_hashtable_destructor)(void *data);
-
-struct emu_hashtable *emu_hashtable_new(uint32_t size, 
-											   emu_hashtable_hash_cb hash, 
-											   emu_hashtable_cmp_cb cmp);
-											   
-struct emu_hashtable_item *emu_hashtable_search(struct emu_hashtable *eh, void *key);
-*/
 
 extern struct emu_logging *emu_logging_get(struct emu *e);
 struct emu_logging *emu_log_new(void);
