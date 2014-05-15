@@ -66,7 +66,6 @@ struct run_time_options
 	HWND IDASrvrHwnd;
 	uint32_t IDAImgBase;
 	uint32_t bpx[10];
-	uint32_t bpCnt;
 	loadlib_override llo[10];
 
 	struct{

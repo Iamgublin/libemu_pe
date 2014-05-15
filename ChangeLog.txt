@@ -1,6 +1,8 @@
 
 ---------------[  Changelog for scdbg/libemu  ]---------------
 
+5.15.14 -  cleaned up multi bpx code a little, not worth complexity of std::list
+
 5.14.14 -  removed emu_hashtable and emu_list in favor of stdext::hash_map 
            (VS2010+ hated the macros in emu_list.h)
 

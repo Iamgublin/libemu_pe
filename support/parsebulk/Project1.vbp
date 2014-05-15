@@ -45,4 +45,4 @@ MaxNumberOfThreads=1
 AutoRefresh=1
 
 [fastBuild]
-fullPath=D:\_libemu\VS_LIBEMU\support\parseBulk.exe
+fullPath=D:\_code\libemu\VS_LIBEMU\support\parseBulk.exe

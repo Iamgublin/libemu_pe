@@ -187,6 +187,13 @@ void nl(void){ printf("\n"); }
 void restore_terminal(int arg)    { SetConsoleMode(hCon, orgt); }
 void atexit_restore_terminal(void){ SetConsoleMode(hCon, orgt); }
 
+int findFreeBPXSlot(void){
+	for(int i=0; i < 10; i++){
+		if(opts.bpx[i] == 0) return i;
+	}
+	return -1;
+}
+
 void start_color(enum colors c){
 	//char* cc[] = {"\033[37;1m", "\033[32;1m", "\033[31;1m", "\033[33;1m", "\033[34;1m", "\033[35;1m"};
 	if(opts.no_color) return;
@@ -1831,7 +1838,7 @@ void interactive_command(struct emu *e){
 			if(i > 0){
 				base = symbol2addr(tmp);
 				if(base==0) base = strtol(tmp, NULL, 16); //not a symbol must be a hex num
-				if(base < opts.baseAddress) base+= opts.baseAddress; //assume it was a file offset..
+				if(base < opts.size) base+= opts.baseAddress; //assume it was a file offset..
 				for(i=0; i < 10; i++){
 					if(opts.bpx[i] == 0){
 						opts.bpx[i] = base;
@@ -3087,7 +3094,6 @@ void parse_opts(int argc, char* argv[] ){
     opts.eSwap = false;
 	opts.bSwap = false;
 	opts.convert_outPath = 0;
-	opts.bpCnt = 0;
 
 	for(i=1; i < argc; i++){
 
@@ -3159,7 +3165,7 @@ void parse_opts(int argc, char* argv[] ){
 				printf("Invalid option /bp must specify hex breakpoint addr as next arg\n");
 				m_exit(0);
 			}
-			if(opts.bpCnt == 10){
+			if(findFreeBPXSlot() == -1){
 				printf("Only 10 breakpoints are supported\n");
 				m_exit(0);
 			}
@@ -3521,8 +3527,9 @@ int HexToBin(char* input, int* output){
 
 void post_parse_opts(int argc, char* argv[] ){
 
-	int i;
- 
+	int i, bpi;
+	uint32_t bp; 
+
 	for(i=1; i < argc; i++){
 	
 		if( argv[i][0] == '-') argv[i][0] = '/'; //standardize
@@ -3534,15 +3541,20 @@ void post_parse_opts(int argc, char* argv[] ){
 				printf("Invalid option /bp must specify hex breakpoint addr as next arg\n");
 				m_exit(0);
 			}
-			if(opts.bpCnt == 10){
+			bpi= findFreeBPXSlot();
+			if(bpi == -1){
 				printf("Only 10 breakpoints are supported\n");
 				m_exit(0);
 			}
-			opts.bpx[opts.bpCnt] = symbol2addr(argv[i+1]);
-			if(opts.bpx[opts.bpCnt] == 0) opts.bpx[opts.bpCnt] = strtol(argv[i+1], NULL, 16);     //it wasnt a symbol must be a hex offset
-			if(opts.bpx[opts.bpCnt] < opts.baseAddress) opts.bpx[opts.bpCnt] += opts.baseAddress; //assume it was a file offset
-			printf("Breakpoint %d set at %x\n", opts.bpCnt, opts.bpx[opts.bpCnt]);
-			opts.bpCnt++;
+			bp = symbol2addr(argv[i+1]);
+			if(bp == 0) bp = strtol(argv[i+1], NULL, 16);     //it wasnt a symbol must be a hex offset
+			if(bp == 0){
+				color_printf(myellow, "Could not set breakpoint %s\n", argv[i+1]);
+				m_exit(0);
+			}
+			if(bp < opts.size) bp += opts.baseAddress; //assume it was a file offset
+			opts.bpx[bpi] = bp;
+			printf("Breakpoint %d set at %x\n", bpi, opts.bpx[bpi]);
 			i++;
 		}
 
