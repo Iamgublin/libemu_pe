@@ -76,6 +76,7 @@ extern void end_color(void);
 extern char* getDumpPath(char* extension);
 extern bool allocExists(uint32_t base);
 extern uint32_t allocSize(uint32_t base);
+extern void color_printf(colors c, const char *format, ...);
 
 enum colors{ mwhite=15, mgreen=10, mred=12, myellow=14, mblue=9, mpurple=5 };
 
@@ -373,13 +374,11 @@ int32_t	__stdcall hook_GetModuleHandleA(struct emu_env_w32 *win, struct emu_env_
     
 	for(int j=0; j < 10; j++){
 		if(opts.llo[j].dllName == 0) break; //end of list reached..
-		if (stricmp(opts.llo[j].dllName, dllname) == 0)
+		if (strstr(dllname, opts.llo[j].dllName) != 0) //in case of full paths
 		{
 			cpu->reg[eax] = opts.llo[j].base;
 			found_dll = 1; 
-			start_color(colors::myellow);
-			printf("\tOverriding GetModuleHandle base = %x\n", opts.llo[j].base);
-			end_color();
+			color_printf(myellow, "\tOverriding GetModuleHandle base = %x\n", opts.llo[j].base);
 			break;
 		}
 	}
@@ -1298,13 +1297,11 @@ int32_t	__stdcall hook_LoadLibrary(struct emu_env_w32 *win, struct emu_env_w32_d
 	for(int j=0; j < 10; j++){
 		if(opts.llo[j].dllName == 0) break; //end of list reached..
 		struct loadlib_override lo = opts.llo[j];
-		if (stricmp(lo.dllName, dllname) == 0)
+		if (strstr(dllname, lo.dllName) != 0)
 		{
 			cpu->reg[eax] = lo.base;
 			found_dll = 1; 
-			start_color(colors::myellow);
-			printf("\tOverriding LoadLibrary base = %x\n", lo.base);
-			end_color();
+			color_printf(myellow, "\tOverriding LoadLibrary base = %x\n", lo.base);
 			break;
 		}
 	}
@@ -5820,7 +5817,41 @@ int32_t	__stdcall hook_GetVersionEx(struct emu_env_w32 *win, struct emu_env_w32_
 	return 0;
 }
 
+int32_t	__stdcall hook_CreateMutex(struct emu_env_w32 *win, struct emu_env_w32_dll_export *ex)
+{
+/*
+	HANDLE WINAPI CreateMutex(
+	  _In_opt_  LPSECURITY_ATTRIBUTES lpMutexAttributes,
+	  _In_      BOOL bInitialOwner,
+	  _In_opt_  LPCTSTR lpName
+	);
+*/
+	uint32_t eip_save = popd();
+	uint32_t attributes = popd();
+	uint32_t owner = popd();
+	struct emu_string* path = isWapi(ex->fnname) ?  popwstring() : popstring();
 
+	uint32_t ret = rand();
+
+	printf("%x\t%s(%x, %x, %s) = %x\n",eip_save, ex->fnname, attributes, owner, path->data, ret);
+	
+	emu_string_free(path);
+	cpu->reg[eax] = ret;
+	emu_cpu_eip_set(cpu, eip_save);
+	return 0;
+}
+
+int32_t	__stdcall hook_RtlGetLastWin32Error(struct emu_env_w32 *win, struct emu_env_w32_dll_export *ex)
+{
+/*
+	HANDLE WINAPI RtlGetLastWin32Error(void)
+*/
+	uint32_t eip_save = popd();
+	printf("%x\t%s() = 0\n", eip_save, ex->fnname);	
+	cpu->reg[eax] = 0;
+	emu_cpu_eip_set(cpu, eip_save);
+	return 0;
+}
 
 int SysCall_Handler(int callNumber, struct emu_cpu *c){
 	

@@ -1997,6 +1997,7 @@ void set_hooks(struct emu_env *env){
 	HOOKBOTH(GetStartupInfo);
 	HOOKBOTH(MoveFileWithProgress);
     HOOKBOTH(GetVersionEx);
+	HOOKBOTH(CreateMutex);
 
 	ADDHOOK(ExitProcess);
 	ADDHOOK(memset);
@@ -2196,6 +2197,7 @@ void set_hooks(struct emu_env *env){
 	ADDHOOK(DeviceIoControl);
 	ADDHOOK(GetSystemTimeAsFileTime);
 	ADDHOOK(VirtualFree);
+	ADDHOOK(RtlGetLastWin32Error);
 
 }
 
@@ -2666,6 +2668,8 @@ int run_sc(void)
 
 		ex = emu_env_w32_eip_check(env); //will execute the api hook if one is set..
 
+		if(ex != NULL && opts.time_delay > 0) Sleep(opts.time_delay); //if it was an api and delay set, then delay..(even for v0)
+
 		//ignore UnhandledExceptionFilter && MessageBeep
 		if ( ex != NULL  && cpu->eip != 0x7c862e62 && cpu->eip != 0x7e431f7b) 
 		{				
@@ -2700,49 +2704,39 @@ int run_sc(void)
 //--- PARSE
 			ret = emu_cpu_parse(emu_cpu_get(e));
 
-			if(ret == -1){ parse_ok = false; }  // FOR SEH
-
-
-			struct emu_env_hook *hook =NULL;
-
-			if ( ret != -1 )
+			if(ret == -1){
+				parse_ok = false; // FOR SEH
+			}
+			else
 			{
-				if ( hook != NULL )
-				{
-					;
-				}
-				else
-				{
+//---- STEP 
+				ret = emu_cpu_step(emu_cpu_get(e));
 
-/*----- STEP------*/    ret = emu_cpu_step(emu_cpu_get(e));
-
-						if(ret != -1)  //step was ok
-						{ 
-							previous_eip = last_good_eip;
-							last_good_eip = emu_cpu_eip_get(emu_cpu_get(e)); //used in case of seh exception
-							if(opts.exec_till_ret == true){
-								emu_disasm_addr(emu_cpu_get(e),last_good_eip,disasm);
-								if(strstr(disasm,"ret") > 0){
-									opts.exec_till_ret = false;
-									opts.verbose = 3; //interactive dbg prompt
-									//show_disasm(e);
-									color_printf(myellow, "Exec till return hit!\n");
-								}
-							}
-							if(opts.break_at_instr != 0){
-								emu_disasm_addr(emu_cpu_get(e),last_good_eip,disasm);
-								if(strstr(disasm, opts.break_at_instr) > 0){
-									opts.verbose = 3; //interactive dbg prompt
-									//show_disasm(e);
-									color_printf(myellow, "Break at instruction hit!\n");
-								}
-							}
-							firstchance = true;						//step was ok..give it another chance at exception.
-							//if(opts.verbose > 0) debugCPU(e,false);	//now show the registers after the instruction executed 
+				if(ret != -1)  //step was ok
+				{ 
+					previous_eip = last_good_eip;
+					last_good_eip = emu_cpu_eip_get(emu_cpu_get(e)); //used in case of seh exception
+					if(opts.exec_till_ret == true){
+						emu_disasm_addr(emu_cpu_get(e),last_good_eip,disasm);
+						if(strstr(disasm,"ret") > 0){
+							opts.exec_till_ret = false;
+							opts.verbose = 3; //interactive dbg prompt
+							//show_disasm(e);
+							color_printf(myellow, "Exec till return hit!\n");
 						}
-					
-				} //end hook != null
-				
+					}
+					if(opts.break_at_instr != 0){
+						emu_disasm_addr(emu_cpu_get(e),last_good_eip,disasm);
+						if(strstr(disasm, opts.break_at_instr) > 0){
+							opts.verbose = 3; //interactive dbg prompt
+							//show_disasm(e);
+							color_printf(myellow, "Break at instruction hit!\n");
+						}
+					}
+					firstchance = true;						//step was ok..give it another chance at exception.
+					//if(opts.verbose > 0) debugCPU(e,false);	//now show the registers after the instruction executed 
+				}
+	
 			} // end ret != -1
 
 
@@ -2931,7 +2925,7 @@ void show_help(void)
 		{"redir", "ip:port", "redirect connect to ip (port optional)"},
 		{"s", "int"	     ,   "max number of steps to run (def=2000000, -1 unlimited)"},	
 		{"sigs", NULL	 ,   "show signatures (can be used with -disasm)"},	
-		{"t", "int"	     ,   "time to delay (ms) between steps when v=1 or 2"},
+		{"t", "int"	     ,   "MS to delay between steps (v1-2) or api (v0)"},
 		{"temp", "folder",   "use folder as temp path for interactive mode file writes"},
 		{"u", NULL ,         "unlimited steps (same as -s -1)"},
 		{"v",  NULL		 ,   "verbosity, can be used up to 4 times, ex. /v /v /vv"},
@@ -3421,6 +3415,10 @@ void parse_opts(int argc, char* argv[] ){
 				sz++;
 				lo.dllName = strdup(ag);
 				lo.base = strtoul(sz, NULL, 16);
+				if(lo.base == 0){
+					color_printf(myellow, "LoadLib Override dll base can not be 0 dll = %s\n", lo.dllName);
+					m_exit(0);
+				}
 				for(j=0; j < 10; j++){
 					if(opts.llo[j].dllName == 0){
 						opts.llo[j] = lo;

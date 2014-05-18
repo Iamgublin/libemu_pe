@@ -7,6 +7,10 @@ A precompiled binary is available, but may not be frequently updated.
 The main codebase does still have some printfs and such in it, so
 if you decide to go this route you may want to recompile and tweak it.
 
+The following is probably the best way to override the printfs
+
+http://sandsprite.com/blogs/index.php?uid=11&pid=304
+
 Also watch out in case any function types change from the main source
 and the header files, exports, and declaration statements in the VB and C#
 projects. 
