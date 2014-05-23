@@ -37,7 +37,8 @@
 int32_t prefix_repef3_alerter(struct emu_cpu *c, struct emu_cpu_instruction *i){
 
 	switch(i->opc){
-		case 0xAE: //scasb (ae)
+		case 0xAE: //scasb (ae)   5.17.11 - dz 
+		case 0xAF: //scasw/d (af) 5.22.14 - dz
 		case 0xa6: //instr_cmps_a6
 		case 0xA4: //instr_movsb (a4)
 		case 0xA5: //instr_movs_a5 (a5 movsd/movsw)
@@ -60,7 +61,8 @@ int32_t prefix_repnef2_alerter(struct emu_cpu *c, struct emu_cpu_instruction *i)
 	switch(i->opc){
 		case 0xA4: //instr_movsb (a4)		
 		case 0xab: //instr_stos_ab
-		case 0xae: break; //scasb 0xAe
+		case 0xae: //scasb 0xAe        5.17.11 - dz 
+		case 0xAF: //scasw/d (af)      5.22.14 - dz
 		case 0xAA: break; //stoss_aa
 		
 

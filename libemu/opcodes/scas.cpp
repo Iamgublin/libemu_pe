@@ -41,7 +41,34 @@ UINTOF(bits) operand_b = b;
 #include "emu_cpu_stack.h"
 #include "emu_memory.h"
 
-/*Intel Architecture Software Developer's Manual Volume 2: Instruction Set Reference (24319102.PDF) page 669*/
+/*Intel Architecture Software Developer's Manual Volume 2: Instruction Set Reference (24319102.PDF) page 669
+
+http://courses.engr.illinois.edu/ece390/archive/spr2002/books/labmanual/inst-ref-scasb.html
+
+B.141 SCASB, SCASW, SCASD: Scan String
+
+    SCASB                         ; AE                   [8086]
+    SCASW                         ; o16 AF               [8086]
+    SCASD                         ; o32 AF               [386]
+
+	SCASB compares the byte in AL with the byte at [ES:DI] or [ES:EDI], and sets the flags accordingly. 
+	It then increments or decrements (depending on the direction flag: increments if the flag is clear, 
+	decrements if it is set) DI (or EDI).
+
+	The register used is DI if the address size is 16 bits, and EDI if it is 32 bits. If you need to use
+	an address size not equal to the current BITS setting, you can use an explicit a16 or a32 prefix.
+
+	Segment override prefixes have no effect for this instruction: the use of ES for the load from [DI] 
+	or [EDI] cannot be overridden.
+
+	SCASW and SCASD work in the same way, but they compare a word to AX or a doubleword to EAX instead of 
+	a byte to AL, and increment or decrement the addressing registers by 2 or 4 instead of 1.
+
+	The REPE and REPNE prefixes (equivalently, REPZ and REPNZ) may be used to repeat the instruction up 
+	to CX (or ECX - again, the address size chooses which) times until the first unequal or equal byte 
+	is found.
+
+*/
 
 #define INSTR_CALC_AND_SET_FLAGS(bits, cpu, a, b) \
 INSTR_CALC(bits, a, b) \
@@ -60,7 +87,7 @@ else \
 	cpu->reg[edi]-=bits/8; \
 }
 
-
+//repxx support added 5.17.11 dz 
 int32_t instr_scas_ae(struct emu_cpu *c, struct emu_cpu_instruction *i)
 {
 	if ( i->prefixes & PREFIX_ADSIZE )
@@ -75,16 +102,8 @@ int32_t instr_scas_ae(struct emu_cpu *c, struct emu_cpu_instruction *i)
 		return 0;
 	}
 	 
-	/* AE 
-	 * Compare AL with byte at ES:EDI and set status flags
-	 * SCAS m8  
-	 * Compare AL with byte at ES:EDI and set status flags
-	 * SCASB    
-	 */
-	
-	/*
-		repxx support added 5.17.11 dz - each iter, edi++, ecx-- and the rep ends if ecx == 0
-	*/
+	// SCASB (8bit)
+
 	if ( i->prefixes & PREFIX_F2 || i->prefixes & PREFIX_F3){			
 		c->repeat_current_instr = true;
 	}
@@ -93,51 +112,35 @@ int32_t instr_scas_ae(struct emu_cpu *c, struct emu_cpu_instruction *i)
 	emu_memory_segment_select(c->mem,s_es);
 
 	uint8_t m8;
+	uint8_t match = *c->reg8[al];
+
 	MEM_BYTE_READ(c, c->reg[edi], &m8);
-
 	emu_memory_segment_select(c->mem,oldseg);
-
-	INSTR_CALC_AND_SET_FLAGS(8,
-							 c,
-							 *c->reg8[al],
-							 m8)
+	INSTR_CALC_AND_SET_FLAGS(8, c, *c->reg8[al], m8)
 	INSTR_CALC_EDI(c, 8)
 	 
 	if ( i->prefixes & PREFIX_F2 || i->prefixes & PREFIX_F3) 
 	{
-		//no flags were set in olly when repx terminated...
-		uint8_t cur_al;
-		uint8_t match = *c->reg8[al];
-		MEM_BYTE_READ(c, c->reg[edi], &cur_al);
-
 		c->reg[ecx]--;
 		if( c->reg[ecx] == 0 ){
 			c->repeat_current_instr = false;
 		}
 		else{
 			if( i->prefixes & PREFIX_F2){
-				if(cur_al == match ){
-					c->repeat_current_instr = false;
-					c->reg[edi]++; 
-					c->reg[ecx]--;
-				}
+				if(m8 == match ) c->repeat_current_instr = false;
 			}
 
 			if( i->prefixes & PREFIX_F3){
-				if(cur_al != match ){
-					c->repeat_current_instr = false;
-					c->reg[edi]++; 
-					c->reg[ecx]--;
-				}
+				if(m8 != match ) c->repeat_current_instr = false;
 			}
 		}
 
 	}
-		
+
 	return 0;
 }
 
-
+// repxx support added 5.22.14 dz
 int32_t instr_scas_af(struct emu_cpu *c, struct emu_cpu_instruction *i)
 {
 	if ( i->prefixes & PREFIX_ADSIZE )
@@ -166,53 +169,75 @@ int32_t instr_scas_af(struct emu_cpu *c, struct emu_cpu_instruction *i)
 
 	}else
 	{
+
+		if ( i->prefixes & PREFIX_F2 || i->prefixes & PREFIX_F3){			
+			c->repeat_current_instr = true;
+		}
+
 		if ( i->prefixes & PREFIX_OPSIZE )
 		{
-			/* AF 
-			 * Compare AX with word at ES:EDI and set status flags
-			 * SCAS m16 
-			 * Compare AX with word at ES:EDI and set status flags
-			 * SCASW    
-			 */
-
+			// SCASW (16bit)
 			enum emu_segment oldseg = emu_memory_segment_get(c->mem);
 			emu_memory_segment_select(c->mem,s_es);
 
 			uint16_t m16;
+			uint16_t match = *c->reg16[ax];
+
 			MEM_WORD_READ(c, c->reg[edi], &m16);
-
 			emu_memory_segment_select(c->mem,oldseg);
-
-			INSTR_CALC_AND_SET_FLAGS(8,
-									 c,
-									 *c->reg16[ax],
-									 m16)
-
+			INSTR_CALC_AND_SET_FLAGS(16, c, *c->reg16[ax], m16)
 			INSTR_CALC_EDI(c, 16)
+
+			if ( i->prefixes & PREFIX_F2 || i->prefixes & PREFIX_F3) 
+			{
+				c->reg[ecx]--;
+				if( c->reg[ecx] == 0 ){
+					c->repeat_current_instr = false;
+				}
+				else{
+					if( i->prefixes & PREFIX_F2){
+						if(m16 == match ) c->repeat_current_instr = false;
+					}
+
+					if( i->prefixes & PREFIX_F3){
+						if(m16 != match ) c->repeat_current_instr = false;
+					}
+				}
+
+			}
+
 		}
 		else
 		{
-			/* AF 
-			 * Compare EAX with doubleword at ES:EDI and set status flags
-			 * SCAS m32 
-			 * Compare EAX with doubleword at ES:EDI and set status flags
-			 * SCASD    
-			 */
-
+			// SCASD (32bit)
 			enum emu_segment oldseg = emu_memory_segment_get(c->mem);
 			emu_memory_segment_select(c->mem,s_es);
 
 			uint32_t m32;
+			uint32_t match = c->reg[eax];
+
 			MEM_DWORD_READ(c, c->reg[edi], &m32);
-
 			emu_memory_segment_select(c->mem,oldseg);
-
-			INSTR_CALC_AND_SET_FLAGS(32,
-									 c,
-									 c->reg[eax],
-									 m32)
-
+			INSTR_CALC_AND_SET_FLAGS(32, c, c->reg[eax], m32)
 			INSTR_CALC_EDI(c, 32)
+
+			if ( i->prefixes & PREFIX_F2 || i->prefixes & PREFIX_F3) 
+			{
+				c->reg[ecx]--;
+				if( c->reg[ecx] == 0 ){
+					c->repeat_current_instr = false;
+				}
+				else{
+					if( i->prefixes & PREFIX_F2){
+						if(m32 == match ) c->repeat_current_instr = false;
+					}
+
+					if( i->prefixes & PREFIX_F3){
+						if(m32 != match ) c->repeat_current_instr = false;
+					}
+				}
+
+			}
 		}
 	}
 	return 0;

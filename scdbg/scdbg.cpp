@@ -3888,6 +3888,7 @@ int main(int argc, char *argv[])
 	memset(&opts,0,sizeof(struct run_time_options));
     
 	min_window_size();
+	SetConsoleTitle("scdbg - http://sandsprite.com"); //so you only have to set quick edit mode once for this caption..
 	SetConsoleCtrlHandler(ctrl_c_handler, TRUE); //http://msdn.microsoft.com/en-us/library/ms686016
 	IDA_QUICKCALL_MESSAGE = RegisterWindowMessageA("IDA_QUICKCALL");
 
@@ -4081,9 +4082,25 @@ reinit:
 	
 	if(opts.hexdump_file == 1){
 		hexdump_color = true; //highlights possible start addresses (90,E8,E9)
-		if(opts.offset >= opts.size ) opts.offset = 0;
-		if(!opts.automationRun) if(opts.offset > 0) printf("Starting at offset %x\n", opts.offset);
-		if(!opts.automationRun) real_hexdump(opts.scode+opts.offset, opts.size-opts.offset,0,false);
+		if(opts.nofile){
+			//we will have to scan for first 00 00 00 00 to get size..
+			char* tmp = SafeMalloc(0x300);
+			if(emu_memory_read_block(mem, opts.baseAddress+opts.offset, tmp, 0x300) == -1){
+				printf("failed to read memory\n");
+				return 0;
+			}
+			int sz;
+			int v=0;
+			for(sz=0; sz < 0x300; sz++){
+				memcpy(&v, &tmp[sz], 4);
+				if(v==0) break;
+			}
+			if(!opts.automationRun) real_hexdump((unsigned char*)tmp, sz, opts.baseAddress+opts.offset, false);
+		}else{
+			if(opts.offset >= opts.size ) opts.offset = 0;
+			if(!opts.automationRun) if(opts.offset > 0) printf("Starting at offset %x\n", opts.offset);
+			if(!opts.automationRun) real_hexdump(opts.scode+opts.offset, opts.size-opts.offset,0,false);
+		}
 		return 0;
 	}
 
