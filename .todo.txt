@@ -1,3 +1,11 @@
-debug shell make registers show up in top right corner of console window as column or in dialog form?
+
+debug shell additions:
+---------------------------
+.shapshot - all the underlying structure is already in place except flags save
+for jxx   - .jmp to force a jump
+
+if i was really fancy, dbg shell would show in lower half of console, api in top, and registers on right..
+but you would loose scroll back ability..
+
 antispam on jmp+5 detection?
 give debug shell a real command line parser to avoid all the prompts?

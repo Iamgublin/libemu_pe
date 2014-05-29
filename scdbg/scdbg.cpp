@@ -1600,10 +1600,10 @@ void show_debugshell_help(void){
 			"\ts - step, continues execution, ENTER also works\n"
 			"\tc - reset step counter\n"
 			"\tr - execute till return (v=0 recommended)\n"
-			"\tu - unassembled address\n"
+			"\tu - unassembled x instructions at address (default eip)\n"
 			"\tb - sets next free breakpoint (10 max)\n"
 			"\tm - reset max step count (-1 = infinate)\n"
-			"\te - set eip\n"
+			"\te - set eip (file offset or VA)\n"
 			"\tw - dWord dump,(32bit ints) prompted for hex base addr and then size\n"
 			"\td - Dump Memory (hex dump) prompted for hex base addr and then size\n"
 			"\tx - execute x steps (use with reset step count)\n"
@@ -1618,8 +1618,10 @@ void show_debugshell_help(void){
 			"\t.bl - list set breakpoints\n"
 			"\t.bc - clear breakpoint\n"
 			"\t.api - scan memory for api table\n"
+			"\t.nop - nops out instruction at address (default eip)\n"
 			"\t.seh - shows current value at fs[0]\n"
 			"\t.segs - show values of segment registers\n"
+			"\t.skip - skips current instruction and goes to next\n"
 			"\t.reg - manually set register value\n"
 			"\t.dllmap - show dll map\n"
 			"\t.poke1 - write a single byte to memory\n"
@@ -1716,6 +1718,28 @@ void interactive_command(struct emu *e){
 				if(strcmp(tmp,"savemem")==0) savemem();
 				if(strcmp(tmp,"dllmap")==0) symbol_lookup("dllmap");
 				if(strcmp(tmp,"idasync")==0) IDAConnect();
+				
+				if(strcmp(tmp,"nop")==0){
+                    base = read_hex("Instruction to NOP (default eip)", tmp);
+					if(base==0) base = cpu->eip;
+					size = get_instr_length(base);
+					//printf("opcode size for %x = %d\n",base,size);
+					if(size == 0){ 
+						printf("Failed to disasm address\n");
+					}else{
+						for(i=0;i<size;i++) emu_memory_write_byte(mem, base+i, 0x90);
+					}
+				}
+				
+				if(strcmp(tmp,"skip")==0){
+					size = get_instr_length(cpu->eip);
+					if(size == 0){ 
+						printf("Failed to disasm address eip\n");
+					}else{
+						cpu->eip += size;
+						debugCPU(e,true);
+					}
+				}
 
 				if(strcmp(tmp,"bl")==0){
 					printf("Listing set breakpoints:\n");
@@ -1813,18 +1837,24 @@ void interactive_command(struct emu *e){
 		}
 
 		if(c=='e'){
-			base = read_hex("Set eip", tmp);
+			base = read_hex("Set eip (VA or file offset) ", tmp);
 			if(base==0){ printf("Failed to get value...\n");}
 			else{ 
 				if(base < opts.baseAddress) base += opts.baseAddress; //allow them to enter file offsets			
 				emu_cpu_eip_set(emu_cpu_get(e), base);
+				disasm_addr_simple(base);
 				IDASync(base);
 			}
 		}
 
 		if(c=='u'){
-			base = read_hex("Disassemble address",tmp);
-			size = read_int("Number of instructions to dump (max 100)", tmp);
+			base = read_hex("Disassemble address (default eip)",tmp);
+			if(base==0){
+				base = cpu->eip; size = 5;
+			}else{
+				size = read_int("Number of instructions to dump (max 100)", tmp);
+				if(size==0) size = 5;
+			}
 			if(size > 100) size = 100;
 			for(i=0;i<size;i++){
 				bytes_read = disasm_addr(e,base,1);

@@ -1040,10 +1040,10 @@ uint32_t emu_disasm_addr(struct emu_cpu *c, uint32_t eip, char *str)
 		if(inst.op1.type == OPERAND_TYPE_IMMEDIATE){
 			if(getJmpTarget(str+32) < eip){
 				strcat(str,"   ^^");  
-				instrsize = strlen(str);
+				//instrsize = strlen(str); <-- this should be opcode count not strlen..oops
 			}else{
 				strcat(str,"  vv");
-				instrsize = strlen(str);
+				//instrsize = strlen(str);
 			}
 		}
 	}
