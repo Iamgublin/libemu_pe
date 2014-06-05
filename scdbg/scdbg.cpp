@@ -2028,6 +2028,7 @@ void set_hooks(struct emu_env *env){
 	HOOKBOTH(MoveFileWithProgress);
     HOOKBOTH(GetVersionEx);
 	HOOKBOTH(CreateMutex);
+	HOOKBOTH(OpenMutex);
 
 	ADDHOOK(ExitProcess);
 	ADDHOOK(memset);

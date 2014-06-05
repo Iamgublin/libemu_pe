@@ -5853,6 +5853,30 @@ int32_t	__stdcall hook_RtlGetLastWin32Error(struct emu_env_w32 *win, struct emu_
 	return 0;
 }
 
+int32_t	__stdcall hook_OpenMutex(struct emu_env_w32 *win, struct emu_env_w32_dll_export *ex)
+{
+/*
+	HANDLE WINAPI OpenMutex(
+	  _In_  DWORD dwDesiredAccess,
+	  _In_  BOOL bInheritHandle,
+	  _In_  LPCTSTR lpName
+	);
+*/
+	uint32_t eip_save = popd();
+	uint32_t access = popd();
+	uint32_t inherit = popd();
+	struct emu_string* name = isWapi(ex->fnname) ?  popwstring() : popstring();
+
+	uint32_t ret = 0; //we want this to show a failure..
+
+	printf("%x\t%s(%x, %x, %s) = %x\n",eip_save, ex->fnname, access, inherit, name->data, ret);
+	
+	emu_string_free(name);
+	cpu->reg[eax] = ret;
+	emu_cpu_eip_set(cpu, eip_save);
+	return 0;
+}
+
 int SysCall_Handler(int callNumber, struct emu_cpu *c){
 	
 	uint32_t service = c->reg[eax]; 
