@@ -3524,19 +3524,21 @@ void parse_opts(int argc, char* argv[] ){
 }
 
 char* strlower(char* input){
-	char* alwaysWritable = (char*)malloc(strlen(input)+1);
-	char* p = alwaysWritable;
-	strcpy(alwaysWritable, input);
-	while(*p){*p = tolower(*p);p++;}
-	return alwaysWritable;
+	int sz = strlen(input)+10;
+	//printf("allocing %d", sz);
+	char* writable = SafeMalloc(sz);
+	memset(writable,0,sz);
+	for(int i=0; i < sz; i++) writable[i] = tolower(input[i]);
+	return writable;
 }
 
 int HexToBin(char* input, int* output){
 
-	int sl =  strlen(input) / 2;
-	void *buf = malloc(sl+10);
-    memset(buf,0,sl+10);
+	int sl =  strlen(input)+10;
+	void *buf = malloc(sl);
+    memset(buf,0,sl);
 
+	//printf("tolower\n");
 	char *lower = strlower(input);
 	char *h = lower; /* this will walk through the hex string */
 	unsigned char *b = (unsigned char*)buf; /* point inside the buffer */
@@ -3544,10 +3546,13 @@ int HexToBin(char* input, int* output){
 	/* offset into this string is the numeric value */
 	char xlate[] = "0123456789abcdef";
 
-	for ( ; *h; h += 2, ++b) /* go by twos through the hex string */
-	   *b = ((strchr(xlate, *h) - xlate) * 16) /* multiply leading digit by 16 */
-		   + ((strchr(xlate, *(h+1)) - xlate));
+	//printf("translating..\n");
+	for ( ; *h; h += 2){ /* go by twos through the hex string multiply leading digit by 16 */
+	   *b = ((strchr(xlate, *h) - xlate) * 16) + ((strchr(xlate, *(h+1)) - xlate));
+	    b++;
+	}
 
+	//printf("freeing lower..");
 	free(lower);
 	*output = (int)buf;
 	return sl;
@@ -3740,10 +3745,13 @@ void loadsc(void){
 		start_color(colors::myellow);
 		printf("Detected %%u encoding input format converting...\n");
 		end_color();
+		//printf("stripping..\n");
 		opts.size = stripChars((unsigned char*)opts.scode, &tmp, opts.size, "\n\r\t,%u\";\' +\\"); 
 		free(opts.scode);
+		printf("to bin..\n");
 		opts.size = HexToBin((char*)tmp, &tmp2);
 		opts.scode = (unsigned char*)tmp2;
+		//printf("swapping..\n");
 		byteSwap(opts.scode, opts.size, "%u encoded"); 
 	}else if(opts.scode[j] == '%' && opts.scode[j+3] == '%'){
 		start_color(colors::myellow);
