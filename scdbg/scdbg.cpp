@@ -39,6 +39,7 @@
 
 #include <windows.h>
 #include <hash_map>
+#include <algorithm>
 #include <stdlib.h>
 #include <stdint.h>
 #include <stdio.h>
@@ -2972,6 +2973,7 @@ void show_help(void)
 		{"eswap", NULL ,     "endian swaps -f and -wstr input buffers"},
 		{"conv", "path" , "outputs converted shellcode to file (%u,\\x,bswap,eswap..)"},
 		{"ida", NULL , "connects to last opened IDA instance on startup"},
+		{"[reg]", "value" , "sets init register value ex: -eax 0x20 -ebx 20 -ecx base"},
 	};
 
 	system("cls");
@@ -3083,6 +3085,29 @@ void endianSwap(unsigned char* buf, uint32_t sz, char* id){
 }
 
 
+void SetRegisterDefault(int index, char* arg1)
+{
+	std::string opt;
+	if(!arg1) return;
+
+	opt = arg1;
+	std::transform(opt.begin(), opt.end(), opt.begin(), tolower);
+
+	if(opt == "base"){ //note: if you use /o to modify default, it must be used before this option in cmdline
+		regs[index] = opts.baseAddress;
+		return;
+	}
+	//what more peb? [dllname]?
+
+	if(arg1[0] == '0' && tolower(arg1[1]) == 'x'){
+		regs[index] = strtoul(arg1, NULL, 16);
+		return;
+	}
+	
+	regs[index] = strtoul(arg1, NULL, 10);
+
+}
+
 /*
 	this func may be a bit verbose and ugly, but I cant crash it or get it to bug out
 	so I cant gather the will to change it. plus I have no shame 
@@ -3128,6 +3153,7 @@ void parse_opts(int argc, char* argv[] ){
 		if( argv[i][0] == '-') argv[i][0] = '/'; //standardize
 
 		std::string opt = argv[i];
+		std::transform(opt.begin(), opt.end(), opt.begin(), tolower);
 
 		if(opt == "/-"){ opts.adjust_getfsize-- ;handled=true;}
 		if(opt == "/+"){ opts.adjust_getfsize++ ;handled=true;}
@@ -3165,19 +3191,19 @@ void parse_opts(int argc, char* argv[] ){
 
 		if(opt == "/temp"){
 			if(i+1 >= argc){
-				printf("Invalid option /temp must specify a folder path as next arg\n");
+				color_printf(myellow, "Invalid option /temp must specify a folder path as next arg\n");
 				m_exit(0);
 			}
 			opts.temp_dir = strdup(argv[i+1]);
 			if( !FolderExists(opts.temp_dir) ){
 				start_color(myellow);
-				printf("/temp argument must be a valid folder path.\nFolder not found: %s", opts.temp_dir);
+				color_printf(myellow, "/temp argument must be a valid folder path.\nFolder not found: %s", opts.temp_dir);
 				end_color();
 				m_exit(0);
 			}
 			if( strlen(opts.temp_dir) > 255){
 				start_color(myellow);
-				printf("Sorry /temp argument must be less than 255 chars in length.."); //im lazy
+				color_printf(myellow, "Sorry /temp argument must be less than 255 chars in length.."); //im lazy
 				end_color();
 				m_exit(0);
 			}
@@ -3187,11 +3213,11 @@ void parse_opts(int argc, char* argv[] ){
 
 		if(opt == "/bp"){ 
 			if(i+1 >= argc){
-				printf("Invalid option /bp must specify hex breakpoint addr as next arg\n");
+				color_printf(myellow, "Invalid option /bp must specify hex breakpoint addr as next arg\n");
 				m_exit(0);
 			}
 			if(findFreeBPXSlot() == -1){
-				printf("Only 10 breakpoints are supported\n");
+				color_printf(myellow, "Only 10 breakpoints are supported\n");
 				m_exit(0);
 			}
 			//validated here but handled in post to ensure baseaddress already set
@@ -3200,7 +3226,7 @@ void parse_opts(int argc, char* argv[] ){
 
 		if(opt == "/f"){
 			if(i+1 >= argc){
-				printf("Invalid option /f must specify a file path as next arg\n");
+				color_printf(myellow, "Invalid option /f must specify a file path as next arg\n");
 				m_exit(0);
 			}
 			strncpy(opts.sc_file, argv[i+1],499);
@@ -3210,7 +3236,7 @@ void parse_opts(int argc, char* argv[] ){
 		
 		if(opt == "/patch"){
 			if(i+1 >= argc){
-				printf("Invalid option /patch must specify a file path as next arg\n");
+				color_printf(myellow, "Invalid option /patch must specify a file path as next arg\n");
 				m_exit(0);
 			}
 			opts.patch_file = strdup(argv[i+1]);
@@ -3219,7 +3245,7 @@ void parse_opts(int argc, char* argv[] ){
 
 		if(opt == "/conv"){
 			if(i+1 >= argc){
-				printf("Invalid option /conv must specify a file path as next arg\n");
+				color_printf(myellow, "Invalid option /conv must specify a file path as next arg\n");
 				m_exit(0);
 			}
 			opts.convert_outPath = strdup(argv[i+1]);
@@ -3228,21 +3254,21 @@ void parse_opts(int argc, char* argv[] ){
 
 		if(opt == "/lookup"){
 			if(i+1 >= argc){
-				printf("Invalid option /lookup must specify an API name as next arg\n");
+				color_printf(myellow, "Invalid option /lookup must specify an API name as next arg\n");
 				m_exit(0);
 			}
 			uint32_t addr = symbol2addr(argv[i+1]);
 			if( addr == 0)
-				printf("\nNo results found for: %s\n\n",argv[i+1]);
+				color_printf(myellow, "\nNo results found for: %s\n\n",argv[i+1]);
 			else
-				printf("\n%s = 0x%x\n\n",argv[i+1],addr);
+				color_printf(myellow, "\n%s = 0x%x\n\n",argv[i+1],addr);
 			m_exit(0);
 			
 		}
 		
 		if(opt == "/cmd"){
 			if(i+1 >= argc){
-				printf("Invalid option /cmd command line for GetCommandLineA as next arg\n");
+				color_printf(myellow, "Invalid option /cmd command line for GetCommandLineA as next arg\n");
 				m_exit(0);
 			}
 			opts.cmdline = strdup(argv[i+1]);
@@ -3251,7 +3277,7 @@ void parse_opts(int argc, char* argv[] ){
 
 		if(opt == "/dir"){
 			if(i+1 >= argc){
-				printf("Invalid option /dir must specify a folder path as next arg\n");
+				color_printf(myellow, "Invalid option /dir must specify a folder path as next arg\n");
 				m_exit(0);
 			}
 			opts.scan_dir = strdup(argv[i+1]);
@@ -3260,7 +3286,7 @@ void parse_opts(int argc, char* argv[] ){
 
 		if(opt == "/o"){
 			if(i+1 >= argc){
-				printf("Invalid option /o must specify a hex base addr as next arg\n");
+				color_printf(myellow, "Invalid option /o must specify a hex base addr as next arg\n");
 				m_exit(0);
 			}
 		    opts.baseAddress = strtol(argv[i+1], NULL, 16);			
@@ -3269,7 +3295,7 @@ void parse_opts(int argc, char* argv[] ){
 
 		if(opt == "/min"){
 			if(i+1 >= argc){
-				printf("Invalid option /min must specify min number of decimal steps (findsc mode) as next arg\n");
+				color_printf(myellow, "Invalid option /min must specify min number of decimal steps (findsc mode) as next arg\n");
 				m_exit(0);
 			}
 		    opts.min_steps = atoi(argv[i+1]);			
@@ -3287,18 +3313,16 @@ void parse_opts(int argc, char* argv[] ){
 			opts.fopen_fsize = GetFileSize(opts.h_fopen,0);//file_length(opts.fopen);
 			//if((int)opts.fopen < 1){
 			if( opts.h_fopen == INVALID_HANDLE_VALUE){
-				start_color(myellow);
-				printf("FAILED TO OPEN %s", argv[i+1]);
-				end_color();
+				color_printf(myellow, "FAILED TO OPEN %s", argv[i+1]);
 				m_exit(0);
 			}
-			if(!opts.automationRun) printf("fopen(%s) = %x\n", argv[i+1], (int)opts.h_fopen);
+			if(!opts.automationRun) color_printf(myellow, "fopen(%s) = %x\n", argv[i+1], (int)opts.h_fopen);
 			i++;handled=true;
 		}
 
 		if(opt == "/foff"){
 			if(i+1 >= argc){
-				printf("Invalid option /foff must specify start file offset as next arg\n");
+				color_printf(myellow, "Invalid option /foff must specify start file offset as next arg\n");
 				m_exit(0);
 			}
 			opts.offset = strtol(argv[i+1], NULL, 16);
@@ -3307,7 +3331,7 @@ void parse_opts(int argc, char* argv[] ){
 
 		if(opt == "/ba"){
 			if(i+1 >= argc){
-				printf("Invalid option /ba must specify hex breakpoint above addr as next arg\n");
+				color_printf(myellow, "Invalid option /ba must specify hex breakpoint above addr as next arg\n");
 				m_exit(0);
 			}
 			opts.break_above = strtol(argv[i+1], NULL, 16);
@@ -3316,7 +3340,7 @@ void parse_opts(int argc, char* argv[] ){
 
 		if(opt == "/bs"){
 			if(i+1 >= argc){
-				printf("Invalid option /bp must specify hex breakpoint addr as next arg\n");
+				color_printf(myellow, "Invalid option /bp must specify hex breakpoint addr as next arg\n");
 				m_exit(0);
 			}
 		    opts.log_after_step = atoi(argv[i+1]);
@@ -3326,7 +3350,7 @@ void parse_opts(int argc, char* argv[] ){
 
 		if(opt == "/laa"){
 			if(i+1 >= argc){
-				printf("Invalid option /laa must specify a hex addr as next arg\n");
+				color_printf(myellow, "Invalid option /laa must specify a hex addr as next arg\n");
 				m_exit(0);
 			}
 			opts.log_after_va = symbol2addr(argv[i+1]);
@@ -3336,7 +3360,7 @@ void parse_opts(int argc, char* argv[] ){
 
 		if(opt == "/redir"){
 			if(i+1 >= argc){
-				printf("Invalid option /redir must specify IP:PORT as next arg\n");
+				color_printf(myellow, "Invalid option /redir must specify IP:PORT as next arg\n");
 				m_exit(0);
 			}
 		    opts.override.host = strdup(argv[i+1]);
@@ -3359,7 +3383,7 @@ void parse_opts(int argc, char* argv[] ){
 
 		if(opt == "/las"){
 			if(i+1 >= argc){
-				printf("Invalid option /las must specify a integer as next arg\n");
+				color_printf(myellow, "Invalid option /las must specify a integer as next arg\n");
 				m_exit(0);
 			}
 		    opts.log_after_step  = atoi(argv[i+1]);		
@@ -3368,7 +3392,7 @@ void parse_opts(int argc, char* argv[] ){
 
 		if(opt == "/e"){
 			if(i+1 >= argc){
-				printf("Invalid option /e must specify err verbosity as next arg\n");
+				color_printf(myellow, "Invalid option /e must specify err verbosity as next arg\n");
 				m_exit(0);
 			}
 		    opts.verbosity_onerr = atoi(argv[i+1]);			
@@ -3377,7 +3401,7 @@ void parse_opts(int argc, char* argv[] ){
 
 		if(opt == "/disasm"){
 			if(i+1 >= argc){
-				printf("Invalid option /disasm must specify #lines to disassemble as next arg\n");
+				color_printf(myellow, "Invalid option /disasm must specify #lines to disassemble as next arg\n");
 				m_exit(0);
 			}
 		    opts.disasm_mode = atoi(argv[i+1]);			
@@ -3386,7 +3410,7 @@ void parse_opts(int argc, char* argv[] ){
 
 		if(opt == "/s"){
 			if(i+1 >= argc){
-				printf("Invalid option /s must specify num of steps as next arg\n");
+				color_printf(myellow, "Invalid option /s must specify num of steps as next arg\n");
 				m_exit(0);
 			}
 		    opts.steps = atoi(argv[i+1]);	
@@ -3395,7 +3419,7 @@ void parse_opts(int argc, char* argv[] ){
 
 		if(opt == "/t"){
 			if(i+1 >= argc){
-				printf("Invalid option /t must specify delay in millisecs as next arg\n");
+				color_printf(myellow, "Invalid option /t must specify delay in millisecs as next arg\n");
 				m_exit(0);
 			}
 		    opts.time_delay = atoi(argv[i+1]);		
@@ -3404,7 +3428,7 @@ void parse_opts(int argc, char* argv[] ){
 
 		if(opt == "/va"){
 			if(i+1 >= argc){
-				printf("Invalid option /va must specify 0xBase-0xSize as next arg\n");
+				color_printf(myellow, "Invalid option /va must specify 0xBase-0xSize as next arg\n");
 				m_exit(0);
 			}
 		    char *ag = strdup(argv[i+1]);
@@ -3417,14 +3441,14 @@ void parse_opts(int argc, char* argv[] ){
 				sz++;
 				size = strtol(sz, NULL, 16);
 				base = strtoul(ag, NULL, 16);
-				printf("VirtualAlloc(base=%x, size=%x) (endsAt %x)\n", base, size, base+size);
+				color_printf(myellow, "VirtualAlloc(base=%x, size=%x) (endsAt %x)\n", base, size, base+size);
 				char* tmp = (char*)malloc(size);
 				memset(tmp,0,size);
                 emu_memory_write_block(mem, base, tmp, size);
 				i++;handled=true;
 
 			}else{
-				printf("Invalid option /va must specify 0xBase-0xSize as next arg\n");
+				color_printf(myellow, "Invalid option /va must specify 0xBase-0xSize as next arg\n");
 				m_exit(0);
 			}
 			free(ag);
@@ -3432,7 +3456,7 @@ void parse_opts(int argc, char* argv[] ){
 
 		if(opt == "/llo"){
 			if(i+1 >= argc){
-				printf("Invalid option /llo must specify dllName-0xBase as next arg\n");
+				color_printf(myellow, "Invalid option /llo must specify dllName-0xBase as next arg\n");
 				m_exit(0);
 			}
 		    char *ag = strdup(argv[i+1]);
@@ -3453,16 +3477,16 @@ void parse_opts(int argc, char* argv[] ){
 				for(j=0; j < 10; j++){
 					if(opts.llo[j].dllName == 0){
 						opts.llo[j] = lo;
-						printf("LoadLib Override %d (dll=%s, base=%x)\n", j, lo.dllName, lo.base);
+						color_printf(myellow, "LoadLib Override %d (dll=%s, base=%x)\n", j, lo.dllName, lo.base);
 						break;
 					}
 				}
 				if(j==10){
-					printf("To many /llo parameters could not add %s\n", lo.dllName);
+					color_printf(myellow, "To many /llo parameters could not add %s\n", lo.dllName);
 				} 
 				i++;handled=true;
 			}else{
-				printf("Invalid option /llo must specify dllName-0xBase as next arg\n");
+				color_printf(myellow, "Invalid option /llo must specify dllName-0xBase as next arg\n");
 				m_exit(0);
 			}
 			free(ag);
@@ -3470,28 +3494,28 @@ void parse_opts(int argc, char* argv[] ){
 
 		if( (opt == "/poke") || (opt == "/wint") ){
 			if(i+1 >= argc){
-				printf("Invalid option /wint must specify 0xBase-0xValue as next arg\n");
+				color_printf(myellow, "Invalid option /wint must specify 0xBase-0xValue as next arg\n");
 				m_exit(0);
 			}
 			if ( strstr(argv[i+1], "-") != NULL)
 			{
 				i++;handled=true; //validated here, but handed in post_parse_opts after loadsc()
 			}else{
-				printf("Invalid option /wint must specify 0xBase:0xValue as next arg\n");
+				color_printf(myellow, "Invalid option /wint must specify 0xBase:0xValue as next arg\n");
 				m_exit(0);
 			}
 		}
 
 		if( (opt == "/spoke") || (opt == "/wstr") ){
 			if(i+1 >= argc){
-				printf("Invalid option /wstr must specify 0xBase-0xHexString or 0xBase-string as next arg\n");
+				color_printf(myellow, "Invalid option /wstr must specify 0xBase-0xHexString or 0xBase-string as next arg\n");
 				m_exit(0);
 			}
 			if ( strstr(argv[i+1], "-") != NULL)
 			{
 				i++;handled=true; //validated here, but handed in post_parse_opts after loadsc()
 			}else{
-				printf("Invalid option /wstr must specify 0xBase-0xHexString or 0xBase-string as next arg\n");
+				color_printf(myellow, "Invalid option /wstr must specify 0xBase-0xHexString or 0xBase-string as next arg\n");
 				m_exit(0);
 			}
 		}
@@ -3499,22 +3523,40 @@ void parse_opts(int argc, char* argv[] ){
 
 		if(opt == "/raw"){
 			if(i+1 >= argc){
-				printf("Invalid option /raw must specify 0xBase-fpath as next arg\n");
+				color_printf(myellow, "Invalid option /raw must specify 0xBase-fpath as next arg\n");
 				m_exit(0);
 			}
 			if ( strstr(argv[i+1], "-") != NULL)
 			{
 				i++;handled=true; //validated here, but handed in post_parse_opts after loadsc()
 			}else{
-				printf("Invalid option /raw must specify 0xBase-fpath as next arg\n");
+				color_printf(myellow, "Invalid option /raw must specify 0xBase-fpath as next arg\n");
 				m_exit(0);
 			}
 		}
 
+		//this one has to be last because it modifies opt argument..
+		if(!handled){		
+			int j;
+			opt.erase(0,1); //remove the / switch character
+			for(j = 0; j < 8; j++) if(opt == regm[j]) break;
+			if(j ==4 || j ==5){
+				//this can cause a crash i will look for it latter..disabled for now..
+				color_printf(myellow, "/ebp and /esp are not currently supported..\n");
+				m_exit(0);
+			}
+			if(j < 8){ //it was a valid register name we have its index..
+				if(i+1 >= argc){
+					color_printf(myellow, "Invalid option /%s must specify a value as next arg\n", regm[j]);
+					m_exit(0);
+				}
+				SetRegisterDefault(j, argv[i+1]);
+				handled = true; i++; 
+			}
+		}
+
 		if( !handled ){
-			start_color(myellow);
-			printf("Unknown Option %s\n\n", argv[i]);
-			end_color();
+			color_printf(myellow, "Unknown Option %s\n\n", argv[i]);
 			m_exit(0);
 		}
 
