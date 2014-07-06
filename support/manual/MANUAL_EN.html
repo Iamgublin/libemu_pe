@@ -23,6 +23,7 @@
 <li><b><a href="#dumps">Memory Dumps</a></b>
 <li><b><a href="#ida">IDA Integration</a></b>
 <li><b><a href="#verbosity">Verbosity levels</a></b>
+<li><b><a href="#regs">Initial register values</a></b>
 <li><b><a href="#lookup">ordinal lookups</a></b>
 <li><b><a href="#api">-api mode</a></b>
 <li><b><a href="#inject">Process Injection Shellcode</a></b>
@@ -351,6 +352,28 @@ Several help videos are available:
 	debug shell commands v 1 and then r for run. (You can also slow down execution to keep the asm coming at
 	a readable pace by setting a t 3 timeout interval). The debug shell g (go) command will automatically set 
 	v=0 and r
+	<br><br>
+	
+<a name="regs"></a>
+<font size=+3><b>Initial register values </font><a href="#top">top</a></b>
+<br><br>
+	Most shellcode is designed to be initial register value independant.
+	<br><br>
+	In an effort to avoid emulation, some require specific values at startup. One variant in
+	particular use a register already pointing to the start of the shellcode buffer in order to
+	avoid having to use get_pc code which AV has strong detections for.
+	<br><br>
+	You can set initial values of registers from the command line. using hex, decimal or keyword values.
+	eg: -eax 0xdeadBeef or -ebx 12345 or -ecx base. 
+	<br><br>
+	
+	Esp and EBP can not be set in this manner. The base keyword uses the shellcodes base offset. If you modify
+	the shellcodes base offset with the -o switch, it must be specified in teh command line before the register
+	switch is set. 
+	<br><br>
+	
+	If you want to set all general registers to the same default value you can use -reg [value] switch. By default
+	all general registers are set to 0.
 	<br><br>
 	
 <a name="lookup"></a>

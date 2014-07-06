@@ -2973,7 +2973,7 @@ void show_help(void)
 		{"eswap", NULL ,     "endian swaps -f and -wstr input buffers"},
 		{"conv", "path" , "outputs converted shellcode to file (%u,\\x,bswap,eswap..)"},
 		{"ida", NULL , "connects to last opened IDA instance on startup"},
-		{"[reg]", "value" , "sets init register value ex: -eax 0x20 -ebx 20 -ecx base"},
+		{"[reg]", "value" , "sets init register value ex: -eax 0x20 -ebx 20 -ecx base -reg base"},
 	};
 
 	system("cls");
@@ -3539,19 +3539,28 @@ void parse_opts(int argc, char* argv[] ){
 		if(!handled){		
 			int j;
 			opt.erase(0,1); //remove the / switch character
-			for(j = 0; j < 8; j++) if(opt == regm[j]) break;
-			if(j ==4 || j ==5){
-				//this can cause a crash i will look for it latter..disabled for now..
-				color_printf(myellow, "/ebp and /esp are not currently supported..\n");
-				m_exit(0);
-			}
-			if(j < 8){ //it was a valid register name we have its index..
+			if(opt=="reg"){ //set all the registers except stack ones the value specified..
 				if(i+1 >= argc){
-					color_printf(myellow, "Invalid option /%s must specify a value as next arg\n", regm[j]);
+						color_printf(myellow, "Invalid option /%s must specify a value as next arg\n", regm[j]);
+						m_exit(0);
+				}
+				for(j = 0; j < 8; j++) if(j != ebp && j != esp ) SetRegisterDefault(j, argv[i+1]);
+                handled = true; i++; 
+			}else{
+				for(j = 0; j < 8; j++) if(opt == regm[j]) break;
+				if(j == ebp || j == esp){
+					//this can cause a crash i will look for it latter..disabled for now..
+					color_printf(myellow, "/ebp and /esp are not currently supported..\n");
 					m_exit(0);
 				}
-				SetRegisterDefault(j, argv[i+1]);
-				handled = true; i++; 
+				if(j < 8){ //it was a valid register name we have its index..
+					if(i+1 >= argc){
+						color_printf(myellow, "Invalid option /%s must specify a value as next arg\n", regm[j]);
+						m_exit(0);
+					}
+					SetRegisterDefault(j, argv[i+1]);
+					handled = true; i++; 
+				}
 			}
 		}
 
