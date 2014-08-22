@@ -2030,6 +2030,7 @@ void set_hooks(struct emu_env *env){
     HOOKBOTH(GetVersionEx);
 	HOOKBOTH(CreateMutex);
 	HOOKBOTH(OpenMutex);
+	HOOKBOTH(RegDeleteKey);
 
 	ADDHOOK(ExitProcess);
 	ADDHOOK(memset);
@@ -2230,6 +2231,7 @@ void set_hooks(struct emu_env *env){
 	ADDHOOK(GetSystemTimeAsFileTime);
 	ADDHOOK(VirtualFree);
 	ADDHOOK(RtlGetLastWin32Error);
+	ADDHOOK(ZwSetContextThread);
 
 }
 

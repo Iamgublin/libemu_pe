@@ -1,6 +1,8 @@
 
 ---------------[  Changelog for scdbg/libemu  ]---------------
 
+8.4.14  -  ZwSetContextThread, RegDeleteKeyA/W
+
 5.22.14 -  repxx support for instr_scas_af, -dump now works with -nofile
 
 5.15.14 -  cleaned up multi bpx code a little, not worth complexity of std::list

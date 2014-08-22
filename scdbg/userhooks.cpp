@@ -5877,6 +5877,51 @@ int32_t	__stdcall hook_OpenMutex(struct emu_env_w32 *win, struct emu_env_w32_dll
 	return 0;
 }
 
+int32_t	__stdcall hook_ZwSetContextThread(struct emu_env_w32 *win, struct emu_env_w32_dll_export *ex)
+{
+/*
+	NTSYSAPI NTSTATUS NTAPI ZwSetContextThread 	( 	
+	    _In_ HANDLE  	ThreadHandle,
+		_In_ PCONTEXT  	Context 
+	) 	
+*/
+	uint32_t eip_save = popd();
+	uint32_t h = popd();
+	uint32_t pContext = popd();
+	uint32_t ret = 0;  
+
+	printf("%x\t%s(%x, %x)\n",eip_save, ex->fnname, h, pContext);
+
+	cpu->reg[eax] = ret;
+	emu_cpu_eip_set(cpu, eip_save);
+	return 0;
+}
+
+int32_t	__stdcall hook_RegDeleteKey(struct emu_env_w32 *win, struct emu_env_w32_dll_export *ex)
+{
+/*
+	LONG WINAPI RegDeleteKey(
+	  _In_  HKEY hKey,
+	  _In_  LPCTSTR lpSubKey
+	);
+*/
+	uint32_t eip_save = popd();
+	uint32_t h = popd();
+	struct emu_string* subkey = isWapi(ex->fnname) ?  popwstring() : popstring();
+	char* hive = getHive(h);
+
+	uint32_t ret = ERROR_SUCCESS;  
+
+	printf("%x\t%s(%s, %s)\n",eip_save, ex->fnname, hive, subkey);
+
+	emu_string_free(subkey);
+	free(hive);
+
+	cpu->reg[eax] = ret;
+	emu_cpu_eip_set(cpu, eip_save);
+	return 0;
+}
+
 int SysCall_Handler(int callNumber, struct emu_cpu *c){
 	
 	uint32_t service = c->reg[eax]; 
