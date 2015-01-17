@@ -78,7 +78,7 @@ Begin VB.Form Form1
       View            =   3
       LabelEdit       =   1
       LabelWrap       =   -1  'True
-      HideSelection   =   0   'False
+      HideSelection   =   -1  'True
       FullRowSelect   =   -1  'True
       GridLines       =   -1  'True
       _Version        =   393217
@@ -127,7 +127,7 @@ Begin VB.Form Form1
       View            =   3
       LabelEdit       =   1
       LabelWrap       =   -1  'True
-      HideSelection   =   0   'False
+      HideSelection   =   -1  'True
       FullRowSelect   =   -1  'True
       GridLines       =   -1  'True
       _Version        =   393217
@@ -151,7 +151,7 @@ Begin VB.Form Form1
       View            =   3
       LabelEdit       =   1
       LabelWrap       =   -1  'True
-      HideSelection   =   0   'False
+      HideSelection   =   -1  'True
       FullRowSelect   =   -1  'True
       GridLines       =   -1  'True
       _Version        =   393217
@@ -175,7 +175,7 @@ Begin VB.Form Form1
       View            =   3
       LabelEdit       =   1
       LabelWrap       =   -1  'True
-      HideSelection   =   0   'False
+      HideSelection   =   -1  'True
       FullRowSelect   =   -1  'True
       GridLines       =   -1  'True
       _Version        =   393217
@@ -199,7 +199,7 @@ Begin VB.Form Form1
       View            =   3
       LabelEdit       =   1
       LabelWrap       =   -1  'True
-      HideSelection   =   0   'False
+      HideSelection   =   -1  'True
       FullRowSelect   =   -1  'True
       GridLines       =   -1  'True
       _Version        =   393217
@@ -223,7 +223,7 @@ Begin VB.Form Form1
       View            =   3
       LabelEdit       =   1
       LabelWrap       =   -1  'True
-      HideSelection   =   0   'False
+      HideSelection   =   -1  'True
       FullRowSelect   =   -1  'True
       GridLines       =   -1  'True
       _Version        =   393217
@@ -247,7 +247,7 @@ Begin VB.Form Form1
       View            =   3
       LabelEdit       =   1
       LabelWrap       =   -1  'True
-      HideSelection   =   0   'False
+      HideSelection   =   -1  'True
       FullRowSelect   =   -1  'True
       GridLines       =   -1  'True
       _Version        =   393217
@@ -271,7 +271,7 @@ Begin VB.Form Form1
       View            =   3
       LabelEdit       =   1
       LabelWrap       =   -1  'True
-      HideSelection   =   0   'False
+      HideSelection   =   -1  'True
       FullRowSelect   =   -1  'True
       GridLines       =   -1  'True
       _Version        =   393217
@@ -295,7 +295,7 @@ Begin VB.Form Form1
       View            =   3
       LabelEdit       =   1
       LabelWrap       =   -1  'True
-      HideSelection   =   0   'False
+      HideSelection   =   -1  'True
       FullRowSelect   =   -1  'True
       GridLines       =   -1  'True
       _Version        =   393217
@@ -790,52 +790,58 @@ Private Sub lvFileScanner_MouseUp(Button As Integer, Shift As Integer, X As Sing
 End Sub
 '*************************************************************************
 
+Private Sub setLivelv(lv As ListView)
+    If Not LiveLv Is Nothing Then LiveLv.HideSelection = True
+    Set LiveLv = lv
+    LiveLv.HideSelection = False
+End Sub
+
 Private Sub lvOpcode_ItemClick(ByVal Item As MSComctlLib.ListItem)
     On Error Resume Next
     Text2 = Item.Tag
-    Set LiveLv = lvOpcode
+    setLivelv lvOpcode
 End Sub
 
 Private Sub lvNoAccess_ItemClick(ByVal Item As MSComctlLib.ListItem)
     On Error Resume Next
     Text2 = Item.Tag
-    Set LiveLv = lvNoAccess
+    setLivelv lvNoAccess
 End Sub
 Private Sub lvoverstep_ItemClick(ByVal Item As MSComctlLib.ListItem)
     On Error Resume Next
     Text2 = Item.Tag
-    Set LiveLv = lvOverStep
+    setLivelv lvOverStep
 End Sub
 
 Private Sub lvunhooked_ItemClick(ByVal Item As MSComctlLib.ListItem)
     On Error Resume Next
     Text2 = Item.Tag
-    Set LiveLv = lvUnhooked
+    setLivelv lvUnhooked
 End Sub
 Private Sub lvnomem_ItemClick(ByVal Item As MSComctlLib.ListItem)
     On Error Resume Next
     Text2 = Item.Tag
-    Set LiveLv = lvNoMem
+    setLivelv lvNoMem
 End Sub
 Private Sub lvnot_ItemClick(ByVal Item As MSComctlLib.ListItem)
     On Error Resume Next
     Text2 = Item.Tag
-    Set LiveLv = LvNot
+    setLivelv LvNot
 End Sub
 Private Sub lvDownload_ItemClick(ByVal Item As MSComctlLib.ListItem)
     On Error Resume Next
     Text2 = Item.Tag
-    Set LiveLv = lvDownload
+    setLivelv lvDownload
 End Sub
 Private Sub lvFiles_ItemClick(ByVal Item As MSComctlLib.ListItem)
     On Error Resume Next
     Text2 = Item.Tag
-    Set LiveLv = lvFiles
+    setLivelv lvFiles
 End Sub
 Private Sub lvFileScanner_ItemClick(ByVal Item As MSComctlLib.ListItem)
     On Error Resume Next
     Text2 = Item.Tag
-    Set LiveLv = lvFileScanner
+    setLivelv lvFileScanner
 End Sub
 '*************************************************************************
 

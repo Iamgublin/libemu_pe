@@ -1479,6 +1479,7 @@ unsigned int read_hex(char* prompt, char* buf){
 
 	if(strstr(buf, "eip") > 0 ) base = cpu->eip;
 	if(strstr(buf, "base") > 0 ) base = opts.baseAddress;
+	if(strstr(buf, "size") > 0 ) base = opts.size;
 
 	if(base==0){
 		base = strtol(buf, NULL, 16); //support negative numbers..
@@ -2031,6 +2032,7 @@ void set_hooks(struct emu_env *env){
 	HOOKBOTH(CreateMutex);
 	HOOKBOTH(OpenMutex);
 	HOOKBOTH(RegDeleteKey);
+    HOOKBOTH(GetModuleHandle);
 
 	ADDHOOK(ExitProcess);
 	ADDHOOK(memset);
@@ -2091,7 +2093,6 @@ void set_hooks(struct emu_env *env){
 	GENERICHOOK(DeleteService);
 	GENERICHOOK(AdjustTokenPrivileges)
 
-	ADDHOOK(GetModuleHandleA);
 	ADDHOOK(MessageBoxA);
 	ADDHOOK(ShellExecuteA);
 	ADDHOOK(SHGetSpecialFolderPathA);

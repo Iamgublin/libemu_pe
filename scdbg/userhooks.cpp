@@ -362,11 +362,11 @@ char* processNameForPid(uint32_t pid){
 	return strdup("");
 }
 
-int32_t	__stdcall hook_GetModuleHandleA(struct emu_env_w32 *win, struct emu_env_w32_dll_export *ex)
+int32_t	__stdcall hook_GetModuleHandle(struct emu_env_w32 *win, struct emu_env_w32_dll_export *ex)
 {   //HMODULE WINAPI GetModuleHandle( __in_opt  LPCTSTR lpModuleName);
 	uint32_t eip_save = popd();
-	struct emu_string *s_filename = popstring();
-	char *dllname = emu_string_char(s_filename);
+	struct emu_string *s_filename = isWapi(ex->fnname) ?  popwstring() : popstring();
+    char *dllname = emu_string_char(s_filename);
 
 	int i=0;
 	int found_dll = 0;
@@ -405,7 +405,7 @@ int32_t	__stdcall hook_GetModuleHandleA(struct emu_env_w32 *win, struct emu_env_
         }
 	}
 
-	printf("%x\tGetModuleHandleA(%s)\n",eip_save,  dllname);
+	printf("%x\t%s(%s)\n",eip_save, ex->fnname, dllname);
 	if (found_dll == 0) printf("\tUnknown Dll - Not implemented by libemu\n");
 
 	emu_string_free(s_filename);
