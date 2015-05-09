@@ -1,6 +1,8 @@
 
 ---------------[  Changelog for scdbg/libemu  ]---------------
 
+5.9.15  -  added winhttp.dll, dbg shell .allocs command, bugfix LoadLibrary/GetModuleHandle _strnicmp
+		   
 8.4.14  -  ZwSetContextThread, RegDeleteKeyA/W
 
 5.22.14 -  repxx support for instr_scas_af, -dump now works with -nofile

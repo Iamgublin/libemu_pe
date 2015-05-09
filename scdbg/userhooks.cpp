@@ -387,7 +387,8 @@ int32_t	__stdcall hook_GetModuleHandle(struct emu_env_w32 *win, struct emu_env_w
 	{
 		for (i=0; win->loaded_dlls[i] != NULL; i++)
 		{
-			if (stricmp(win->loaded_dlls[i]->dllname, dllname) == 0)
+			if( _strnicmp(dllname, win->loaded_dlls[i]->dllname, strlen(win->loaded_dlls[i]->dllname)) == 0)
+			//if (stricmp(win->loaded_dlls[i]->dllname, dllname) == 0)
 			{
 				cpu->reg[eax]= win->loaded_dlls[i]->baseaddr;
 				found_dll = 1;
@@ -1306,11 +1307,14 @@ int32_t	__stdcall hook_LoadLibrary(struct emu_env_w32 *win, struct emu_env_w32_d
 		}
 	}
 
+	
+
 	if (found_dll == 0)
 	{
 		for (i=0; win->loaded_dlls[i] != NULL; i++)
 		{
-			if (stricmp(win->loaded_dlls[i]->dllname, dllname) == 0)
+			if( _strnicmp(dllname, win->loaded_dlls[i]->dllname, strlen(win->loaded_dlls[i]->dllname)) == 0)
+			//if (strstr(win->loaded_dlls[i]->dllname, dllname) == 0) //internal name array doesnt have dll extension, sc one can..5.9.15
 			{
 				cpu->reg[eax] = win->loaded_dlls[i]->baseaddr;
 				found_dll = 1;

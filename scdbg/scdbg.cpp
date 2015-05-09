@@ -1632,6 +1632,7 @@ void show_debugshell_help(void){
 			"\t.symbol - get address for symbol (special: peb,dllmap,fs0)\n" 
 			"\t.savemem - saves a memdump of specified range to file\n"
 			"\t.idasync - connect IDASrvr plugin and sync view at step or break.\n"
+			"\t.allocs - list memory allocations made\n"
 			"\tq - quit\n\n"
 		  );
 }
@@ -1721,6 +1722,16 @@ void interactive_command(struct emu *e){
 				if(strcmp(tmp,"dllmap")==0) symbol_lookup("dllmap");
 				if(strcmp(tmp,"idasync")==0) IDAConnect();
 				
+				if(strcmp(tmp,"allocs")==0){
+					if(malloc_cnt==0){
+						printf("No Allocs have been made.\n");
+					}else{
+						for(i=0; i<malloc_cnt; i++){
+							printf("%d  base=%08x  size=%08x\n", i, mallocs[i].base, mallocs[i].size);
+						}
+					}
+				}
+
 				if(strcmp(tmp,"nop")==0){
                     base = read_hex("Instruction to NOP (default eip)", tmp);
 					if(base==0) base = cpu->eip;
@@ -1763,12 +1774,12 @@ void interactive_command(struct emu *e){
 					}
 				}
 
-				if(strcmp(tmp,"symbol")==0){
+				if(strstr(tmp,"symbol")!=0){ //in case they try to enter .symbol [name] 
 					i = read_string("Enter symbol to lookup address for: ", tmp);
 					symbol_lookup(tmp);
 				}
 
-				if(strcmp(tmp,"lookup")==0){
+				if(strstr(tmp,"lookup")!=0){ //in case they try to enter .lookup [address] 
 					base = read_hex("Enter address to do a lookup on", tmp);
 					if(base > 0){
 						if( fulllookupAddress(base, (char*)&lookup) > 0){
