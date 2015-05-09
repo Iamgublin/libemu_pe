@@ -29,6 +29,7 @@
 #pragma warning(disable: 4312)
 #pragma warning(disable: 4267)
 #pragma warning(disable: 4482)
+#pragma comment(lib, "Winhttp.lib")
 
 #include <hash_map>
 #include <string>
@@ -48,6 +49,7 @@
 #include <wininet.h>
 #include <Shlobj.h>
 #include <TlHelp32.h>
+//#include <Winhttp.h>
 
 #include "emu.h"
 #include "emu_memory.h"
@@ -5937,4 +5939,210 @@ int SysCall_Handler(int callNumber, struct emu_cpu *c){
 	return -1; //unhandled will break
 	
 
+}
+
+
+int32_t	__stdcall hook_WinHttpCrackUrl(struct emu_env_w32 *win, struct emu_env_w32_dll_export *ex)
+{
+/*
+	BOOL WINAPI WinHttpCrackUrl(
+	  _In_    LPCWSTR          pwszUrl,
+	  _In_    DWORD            dwUrlLength,
+	  _In_    DWORD            dwFlags,
+	  _Inout_ LPURL_COMPONENTS lpUrlComponents
+	);
+*/
+	uint32_t eip_save = popd();
+	struct emu_string* url = popwstring();
+	uint32_t leng = popd();
+	uint32_t flags = popd();
+	uint32_t lpComp = popd();
+
+	uint32_t ret = TRUE;  
+
+	printf("%x\t%s(%s, %x, %x, %x)\n",eip_save, ex->fnname, url->data, leng, flags, lpComp);
+
+	//safe_stringbuf
+	URL_COMPONENTS uc;
+	char* hName = "scdbg.com\x0";
+	char* path = "\\dummy\\path.php\x0";
+
+	memset(&uc, 0, sizeof(URL_COMPONENTS));
+	uc.dwStructSize = sizeof(URL_COMPONENTS);
+	uc.lpszHostName = (LPSTR)safe_stringbuf;
+	uc.dwHostNameLength = strlen(hName);
+	uc.lpszUrlPath = (LPSTR)(safe_stringbuf + uc.dwHostNameLength + 1);
+	uc.dwUrlPathLength = strlen(path);
+
+	emu_memory_write_block(mem, (uint32_t)uc.lpszHostName, hName, uc.dwHostNameLength+1);
+	emu_memory_write_block(mem, (uint32_t)uc.lpszUrlPath, path, uc.dwUrlPathLength+1);
+	emu_memory_write_block(mem, lpComp, &uc, sizeof(URL_COMPONENTS));
+
+	emu_string_free(url);
+
+	cpu->reg[eax] = ret;
+	emu_cpu_eip_set(cpu, eip_save);
+	return 0;
+}
+
+int32_t	__stdcall hook_WinHttpOpen(struct emu_env_w32 *win, struct emu_env_w32_dll_export *ex)
+{
+/*
+	HINTERNET WINAPI WinHttpOpen(
+	  _In_opt_ LPCWSTR pwszUserAgent,
+	  _In_     DWORD   dwAccessType,
+	  _In_     LPCWSTR pwszProxyName,
+	  _In_     LPCWSTR pwszProxyBypass,
+	  _In_     DWORD   dwFlags
+	);
+*/
+	uint32_t eip_save = popd();
+
+	struct emu_string* UserAgent = popwstring();
+	uint32_t atype = popd();
+	struct emu_string* ProxyName = popwstring();
+	struct emu_string* ProxyBypass = popwstring();
+	uint32_t flags = popd();
+
+	uint32_t ret = rand();  
+
+	printf("%x\t%s(%s, %x, %s, %s, %x) = %x\n",eip_save, ex->fnname,UserAgent, atype,ProxyName,ProxyBypass, flags, ret);
+
+	emu_string_free(UserAgent);
+	emu_string_free(ProxyName);
+	emu_string_free(ProxyBypass);
+
+	cpu->reg[eax] = ret;
+	emu_cpu_eip_set(cpu, eip_save);
+	return 0;
+}
+
+int32_t	__stdcall hook_WinHttpGetIEProxyConfigForCurrentUser(struct emu_env_w32 *win, struct emu_env_w32_dll_export *ex)
+{
+/*
+	BOOL WINAPI WinHttpGetIEProxyConfigForCurrentUser(
+	  _Inout_ WINHTTP_CURRENT_USER_IE_PROXY_CONFIG *pProxyConfig
+	);
+*/
+	uint32_t eip_save = popd();
+	uint32_t lpConfig = popd();
+	
+	uint32_t ret = TRUE;  
+
+	printf("%x\t%s(%x)\n",eip_save, ex->fnname,lpConfig);
+    
+	char* /*WINHTTP_CURRENT_USER_IE_PROXY_CONFIG*/ cfg[14];
+	memset(&cfg,0, sizeof(cfg));
+	emu_memory_write_block(mem, lpConfig, &cfg, sizeof(cfg));
+
+	cpu->reg[eax] = ret;
+	emu_cpu_eip_set(cpu, eip_save);
+	return 0;
+}
+
+int32_t	__stdcall hook_WinHttpConnect(struct emu_env_w32 *win, struct emu_env_w32_dll_export *ex)
+{
+/*
+	HINTERNET WINAPI WinHttpConnect(
+	  _In_       HINTERNET     hSession,
+	  _In_       LPCWSTR       pswzServerName,
+	  _In_       INTERNET_PORT nServerPort,
+	  _Reserved_ DWORD         dwReserved
+	);
+*/
+	uint32_t eip_save = popd();
+	uint32_t sess = popd();
+	struct emu_string* server = popwstring();
+	uint32_t port = popd();
+	uint32_t resv = popd();
+
+	uint32_t ret = rand();  
+
+	printf("%x\t%s(%x, %s (%x) , %x, %x) = %X\n",eip_save, ex->fnname, sess, server->data, server->emu_offset, port, resv, ret);
+
+	emu_string_free(server);
+	cpu->reg[eax] = ret;
+	emu_cpu_eip_set(cpu, eip_save);
+	return 0;
+}
+
+int32_t	__stdcall hook_WinHttpOpenRequest(struct emu_env_w32 *win, struct emu_env_w32_dll_export *ex)
+{
+/*
+	HINTERNET WINAPI WinHttpOpenRequest(
+	  _In_ HINTERNET hConnect,
+	  _In_ LPCWSTR   pwszVerb,
+	  _In_ LPCWSTR   pwszObjectName,
+	  _In_ LPCWSTR   pwszVersion,
+	  _In_ LPCWSTR   pwszReferrer,
+	  _In_ LPCWSTR   *ppwszAcceptTypes,
+	  _In_ DWORD     dwFlags
+	);
+*/
+	uint32_t eip_save = popd();
+	uint32_t h = popd();
+	struct emu_string* args[5];
+	for(int i=0; i < 5; i++) args[i] = popwstring();
+	uint32_t flags = popd();
+
+	uint32_t ret = rand();  
+
+	printf("%x\t%s(%x, ",eip_save, ex->fnname, h);
+	for(int i=0; i < 5; i++) printf("%s, ", args[i]->data);
+	printf("%x) = %x\n",flags, ret);
+
+	for(int i=0; i < 5; i++) emu_string_free(args[i]);
+	cpu->reg[eax] = ret;
+	emu_cpu_eip_set(cpu, eip_save);
+	return 0;
+}
+
+int32_t	__stdcall hook_WinHttpSendRequest(struct emu_env_w32 *win, struct emu_env_w32_dll_export *ex)
+{
+/*
+	BOOL WINAPI WinHttpSendRequest(
+	  _In_     HINTERNET hRequest,
+	  _In_opt_ LPCWSTR   pwszHeaders,
+	  _In_     DWORD     dwHeadersLength,
+	  _In_opt_ LPVOID    lpOptional,
+	  _In_     DWORD     dwOptionalLength,
+	  _In_     DWORD     dwTotalLength,
+	  _In_     DWORD_PTR dwContext
+	);
+*/
+	uint32_t eip_save = popd();
+	uint32_t h = popd();
+	struct emu_string* headers = popwstring();
+	uint32_t blah = popd();
+	for(int i=0; i < 4; i++) blah = popd(); //tired...
+
+	uint32_t ret = TRUE;  
+
+	printf("%x\t%s(%x, %s)\n",eip_save, ex->fnname, h, headers->data);
+
+	emu_string_free(headers);
+	cpu->reg[eax] = ret;
+	emu_cpu_eip_set(cpu, eip_save);
+	return 0;
+}
+
+int32_t	__stdcall hook_WinHttpReceiveResponse(struct emu_env_w32 *win, struct emu_env_w32_dll_export *ex)
+{
+/*
+	BOOL WINAPI WinHttpReceiveResponse(
+	  _In_       HINTERNET hRequest,
+	  _Reserved_ LPVOID    lpReserved
+	);
+*/
+	uint32_t eip_save = popd();
+	uint32_t h = popd();
+	uint32_t resv = popd();
+
+	uint32_t ret = TRUE;  
+
+	printf("%x\t%s()\n",eip_save, ex->fnname);
+
+	cpu->reg[eax] = ret;
+	emu_cpu_eip_set(cpu, eip_save);
+	return 0;
 }

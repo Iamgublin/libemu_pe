@@ -72,6 +72,11 @@
 #pragma warning(disable: 4311)
 #pragma warning(disable: 4482)
 
+
+
+
+
+
 struct hh{
 	uint32_t eip;
 	uint32_t addr;
@@ -2244,7 +2249,14 @@ void set_hooks(struct emu_env *env){
 	ADDHOOK(VirtualFree);
 	ADDHOOK(RtlGetLastWin32Error);
 	ADDHOOK(ZwSetContextThread);
-
+	ADDHOOK(WinHttpCrackUrl);
+	ADDHOOK(WinHttpOpen);
+	ADDHOOK(WinHttpGetIEProxyConfigForCurrentUser);
+	ADDHOOK(WinHttpConnect);
+	ADDHOOK(WinHttpOpenRequest);
+	ADDHOOK(WinHttpSendRequest);
+	ADDHOOK(WinHttpReceiveResponse);
+	//ADDHOOK(WinHttpQueryHeaders);
 }
 
 /* we just cant really support every shellcode can we :( 
