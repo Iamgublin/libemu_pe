@@ -2256,7 +2256,8 @@ void set_hooks(struct emu_env *env){
 	ADDHOOK(WinHttpOpenRequest);
 	ADDHOOK(WinHttpSendRequest);
 	ADDHOOK(WinHttpReceiveResponse);
-	//ADDHOOK(WinHttpQueryHeaders);
+	ADDHOOK(WinHttpQueryHeaders);
+	ADDHOOK(WinHttpCloseHandle);
 }
 
 /* we just cant really support every shellcode can we :( 

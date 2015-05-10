@@ -5941,7 +5941,9 @@ int SysCall_Handler(int callNumber, struct emu_cpu *c){
 
 }
 
-
+//note the winhttp api is really more complex than i care to emulate...
+//these are bare bones to try to coax as much as we can out of the shellcode with the 
+//least amount of labor.
 int32_t	__stdcall hook_WinHttpCrackUrl(struct emu_env_w32 *win, struct emu_env_w32_dll_export *ex)
 {
 /*
@@ -5965,7 +5967,7 @@ int32_t	__stdcall hook_WinHttpCrackUrl(struct emu_env_w32 *win, struct emu_env_w
 	//safe_stringbuf
 	URL_COMPONENTS uc;
 	char* hName = "scdbg.com\x0";
-	char* path = "\\dummy\\path.php\x0";
+	char* path = "\\dummy.php\x0";
 
 	memset(&uc, 0, sizeof(URL_COMPONENTS));
 	uc.dwStructSize = sizeof(URL_COMPONENTS);
@@ -6146,3 +6148,75 @@ int32_t	__stdcall hook_WinHttpReceiveResponse(struct emu_env_w32 *win, struct em
 	emu_cpu_eip_set(cpu, eip_save);
 	return 0;
 }
+
+int32_t	__stdcall hook_WinHttpQueryHeaders(struct emu_env_w32 *win, struct emu_env_w32_dll_export *ex)
+{
+/*
+	BOOL WINAPI WinHttpQueryHeaders(
+	  _In_     HINTERNET hRequest,
+	  _In_     DWORD     dwInfoLevel,
+	  _In_opt_ LPCWSTR   pwszName,
+	  _Out_    LPVOID    lpBuffer,
+	  _Inout_  LPDWORD   lpdwBufferLength,
+	  _Inout_  LPDWORD   lpdwIndex
+	);
+*/
+	uint32_t eip_save = popd();
+	uint32_t h = popd();
+	uint32_t infoLevel = popd();
+	struct emu_string* header = popwstring();
+	uint32_t lpbuf = popd();
+	uint32_t bufLen = popd();
+	uint32_t index = popd();
+
+	uint32_t ret = TRUE;  
+
+	char* resp ="HTTP/1.1 200 OK\n" 
+				"Date: Sat, 09 May 2015 17:42:18 GMT\n" 
+				"Server: Apache/2.0.64 (Unix)\n" 
+				"Cache-control: private\n" 
+				"Content-Length: 13\n" 
+				"Connection: close\n" 
+				"Content-Type: text/html\n" 
+				"\n" 
+				"dummy content";
+
+
+	printf("%x\t%s(%x, info: %x, name: %s, %x, %x, %x)\n",eip_save, ex->fnname, h, infoLevel, header->data, lpbuf, bufLen, index);
+
+	if(header->emu_offset == 0){
+		emu_memory_write_dword(mem, lpbuf, strlen(resp));
+	}else{
+		if(bufLen <= strlen(resp)){
+			emu_memory_write_block(mem, lpbuf, resp, strlen(resp));
+		}else{
+			ret = ERROR_INSUFFICIENT_BUFFER;
+			emu_memory_write_dword(mem, lpbuf, strlen(resp));
+		}
+	}
+
+	emu_string_free(header);
+	cpu->reg[eax] = ret;
+	emu_cpu_eip_set(cpu, eip_save);
+	return 0;
+}
+
+int32_t	__stdcall hook_WinHttpCloseHandle(struct emu_env_w32 *win, struct emu_env_w32_dll_export *ex)
+{
+/*
+	BOOL WINAPI WinHttpCloseHandle(
+	  _In_ HINTERNET hInternet
+	);
+*/
+	uint32_t eip_save = popd();
+	uint32_t h = popd();
+
+	uint32_t ret = TRUE;  
+
+	printf("%x\t%s(%x)\n",eip_save, ex->fnname, h);
+
+	cpu->reg[eax] = ret;
+	emu_cpu_eip_set(cpu, eip_save);
+	return 0;
+}
+
