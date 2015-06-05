@@ -1114,7 +1114,7 @@ char* getDumpPath(char* extension){
 void do_memdump(void){
 	
 	unsigned char* tmp ;
-	char* tmp_path;
+	char* tmp_path = 0;
 	char* extension[200];
 	int ii;
 	FILE *fp;
@@ -1185,7 +1185,7 @@ void do_memdump(void){
 			
 	}
 
-	free(tmp_path);
+	//if(tmp_path) free(tmp_path);
 }
 
 int file_length(FILE *f)
