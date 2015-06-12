@@ -6220,3 +6220,44 @@ int32_t	__stdcall hook_WinHttpCloseHandle(struct emu_env_w32 *win, struct emu_en
 	return 0;
 }
 
+int32_t	__stdcall hook_lstrcatW(struct emu_env_w32 *win, struct emu_env_w32_dll_export *ex)
+{
+	/*  LPTSTR WINAPI lstrcat(
+		  __inout  LPTSTR lpString1,
+		  __in     LPTSTR lpString2
+		);
+		 
+	*/
+	uint32_t eip_save = popd();
+	struct emu_string* s1 = popwstring();
+	struct emu_string* s2 = popwstring();
+
+	/*
+	uint32_t addr1 = popd();
+	uint32_t addr2 = popd();
+
+	char* b1 = 0;
+	char* b2 = 0;
+
+	uint32_t sz1 = emu_memory_read_wide_string_to_buf(mem, addr1, b1, 1256);
+	uint32_t sz2 = emu_memory_read_wide_string_to_buf(mem, addr1, b2, 1256);
+	*/
+
+	 
+	printf("%x\t%s(%s, %s)\n", eip_save, ex->fnname , s1->data, s2->data);
+
+	int sz = s1->size + s2->size + 10;
+	char* buf = SafeMalloc(sz);
+	
+	if(s1->size > 0) strncpy(buf, s1->data, s1->size);
+	if(s2->size > 0) strncat(buf, s2->data, s2->size);
+	emu_memory_write_block(mem,s1->emu_offset,buf,strlen(buf)+1);
+	free(buf);
+
+	emu_string_free(s1);
+	emu_string_free(s2);
+	set_ret(s1->emu_offset); 
+	emu_cpu_eip_set(cpu, eip_save);
+	return 0;
+
+}
