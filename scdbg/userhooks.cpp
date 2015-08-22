@@ -5440,6 +5440,7 @@ int32_t	__stdcall hook_CreateToolhelp32Snapshot(struct emu_env_w32 *win, struct 
 		  _In_  DWORD dwFlags,
 		  _In_  DWORD th32ProcessID
 		);
+		we could return a handle to a real snapshot so we could see what it wanted to inject into...
 	*/
 
 	uint32_t eip_save = popd();
@@ -6261,3 +6262,50 @@ int32_t	__stdcall hook_lstrcatW(struct emu_env_w32 *win, struct emu_env_w32_dll_
 	return 0;
 
 }
+
+int32_t	__stdcall hook_IsWow64Process(struct emu_env_w32 *win, struct emu_env_w32_dll_export *ex)
+{
+/*
+	BOOL WINAPI IsWow64Process(
+	  _In_  HANDLE hProcess,
+	  _Out_ PBOOL  Wow64Process
+	);
+*/
+	uint32_t eip_save = popd();
+	uint32_t h = popd();
+	uint32_t lp = popd();
+
+	printf("%x\t%s(%x)\n",eip_save, ex->fnname, h);
+
+	emu_memory_write_byte(mem, lp, FALSE);
+	cpu->reg[eax] = TRUE;
+	emu_cpu_eip_set(cpu, eip_save);
+	return 0;
+}
+
+
+int32_t	__stdcall hook_Process32First(struct emu_env_w32 *win, struct emu_env_w32_dll_export *ex)
+{
+/*
+	BOOL WINAPI Process32First(
+	  _In_    HANDLE           hSnapshot,
+	  _Inout_ LPPROCESSENTRY32 lppe
+	);
+*/
+	uint32_t eip_save = popd();
+	uint32_t h = popd();
+	uint32_t lp = popd();
+
+	PROCESSENTRY32 pe32;
+	memset(&pe32, 0, sizeof(PROCESSENTRY32));
+	pe32.th32ProcessID = 0x666;
+	strcpy(pe32.szExeFile,"iexplore.exe");
+
+	printf("%x\t%s(%x)\n",eip_save, ex->fnname, h);
+
+	emu_memory_write_block(mem, lp, &pe32, sizeof(PROCESSENTRY32) );
+	cpu->reg[eax] = TRUE;
+	emu_cpu_eip_set(cpu, eip_save);
+	return 0;
+}
+

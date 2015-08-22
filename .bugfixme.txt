@@ -1,0 +1,73 @@
+
+John Locke
+pkedpker@gmail.com
+
+
+on
+http://src.carnivore.it/libemu/tree/src/functions/neg.c
+line 34-35 you're are missing
+this line below
+a = operation_result; 
+
+which never gives the result of the NEG operation
+
+then on
+http://src.carnivore.it/libemu/tree/src/functions/stoscc.c
+all over you need the wrappers
+
+if (c->reg[ecx] > 0 )
+			{
+				c->reg[ecx]--;
+				c->repeat_current_instr = true;
+
+...
+
+}
+			else
+				c->repeat_current_instr = false;
+
+
+on all the functions in that file I believe since all these REP/STOS commands keep running the same operation over and over again until ECX == 0
+
+---------------------------------------
+I found a bug while adding in your pop.cpp
+
+https://github.com/dzzie/VS_LIBEMU/blob/af357d43777f9bf024322e0d384f66741c86ab1f/libemu/opcodes/pop.cpp
+
+look at lines 135 and 149
+
+how can j < 8 (infinite loop)
+
+original looks like this too haha figured wth you trying to do there.
+for( j = 7; j >= 0; j-- )
+
+
+----------------------------------------
+
+https://github.com/dzzie/VS_LIBEMU/blob/af357d43777f9bf024322e0d384f66741c86ab1f/libemu/src/emu_cpu.cpp#L891
+
+This looks good
+
+if( c->instr.cpu.prefixes & PREFIX_FS_OVR )
+{
+	emu_memory_segment_select(c->mem, s_fs);
+}
+		
+if( c->instr.cpu.prefixes & PREFIX_ES_OVR ) // <-- that was no fun to find! dzzie 4.10.13 
+{
+	emu_memory_segment_select(c->mem, s_es);
+
+}
+
+but then about 5 lines under it you do
+
+if( c->instr.cpu.prefixes & PREFIX_FS_OVR )
+{
+	emu_memory_segment_select(c->mem, s_cs);
+}
+
+if( c->instr.cpu.prefixes & PREFIX_ES_OVR ) //dzzie 4.10.13 
+{
+	emu_memory_segment_select(c->mem, s_cs);
+}
+
