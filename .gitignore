@@ -11,7 +11,8 @@
 */obj/*
 *Debug*
 *sc/*
-*.zip
+sc.zip
+scdbg.zip
 *.opt
 *.ilk
 *.exp

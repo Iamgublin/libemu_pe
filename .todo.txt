@@ -9,3 +9,7 @@ but you would loose scroll back ability..
 
 antispam on jmp+5 detection?
 give debug shell a real command line parser to avoid all the prompts?
+
+----------------------------
+see .bugfixme.txt
+see add_fpu_instructions.zip
