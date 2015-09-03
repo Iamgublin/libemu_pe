@@ -10,6 +10,17 @@ Begin VB.Form Form1
    ScaleHeight     =   8625
    ScaleWidth      =   15330
    StartUpPosition =   3  'Windows Default
+   Begin MSComctlLib.ProgressBar pb 
+      Height          =   330
+      Left            =   6525
+      TabIndex        =   33
+      Top             =   495
+      Width           =   7935
+      _ExtentX        =   13996
+      _ExtentY        =   582
+      _Version        =   393216
+      Appearance      =   1
+   End
    Begin VB.CommandButton Command6 
       Caption         =   "Strip"
       Height          =   255
@@ -532,6 +543,10 @@ Private Sub Command1_Click()
     notDetected = Empty
     urls = Empty
     
+    pb.Visible = True
+    pb.Max = UBound(ff)
+    pb.value = 0
+    
     For Each f In ff
         If Len(f) = 0 Or Not fso.FileExists(CStr(f)) Then GoTo end_of_loop
         
@@ -584,8 +599,13 @@ Private Sub Command1_Click()
         End If
         
 end_of_loop:
+        pb.value = pb.value + 1
+        pb.Refresh
+        DoEvents
     Next
     
+    pb.value = 0
+    pb.Visible = False
     lvOpcode.ColumnHeaders(1).Text = lvOpcode.ListItems.Count
     lvNoMem.ColumnHeaders(1).Text = lvNoMem.ListItems.Count
     lvFiles.ColumnHeaders(1).Text = lvFiles.ListItems.Count
@@ -627,8 +647,20 @@ Private Sub Command2_Click()
 '    MsgBox ts.ReadAll
     
     ChDir fso.GetParentFolder(exe)
+    
+    Dim ff() As String
+    
+    ff() = fso.GetFolderFiles(Text1, "*.sc")
+    pb.Max = UBound(ff)
+    pb.value = 0
+    pb.Visible = True
+    
     Call stdout.GetCommandOutput(exe & " -dir """ & Text1 & """", True, True)
+    
     Command1_Click
+    
+    pb.value = 0
+    pb.Visible = False
     
 End Sub
 
@@ -1029,3 +1061,7 @@ init: ReDim ary(0): ary(0) = value
 End Sub
 
 
+Private Sub Text2_Change()
+    On Error Resume Next
+    pb.value = pb.value + 1
+End Sub
