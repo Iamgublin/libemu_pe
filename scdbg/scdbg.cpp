@@ -2996,6 +2996,7 @@ void show_help(void)
 		{"va", "0xBase-0xSize","VirtualAlloc memory at 0xBase of 0xSize"}, 
 		{"raw", "0xBase-fpath","Raw Patch Mode: load fpath into mem at 0xBase (not PE aware)"}, 
 		{"llo", "dllName-0xBase","LoadLibrary Override: returns 0xBase for LoadLibrary/GetModuleHandle"}, 
+		{"wbyte",  "0xBase-0xVal","Write 8bit 0xValue at 0xBase (/wb shortcut supported)"}, 
 		{"wint", "0xBase-0xVal","Write 32bit integer 0xValue at 0xBase"}, 
 		{"wstr", "0xBase-Str","Write string at base ex. 0x401000-0x9090EB15CCBB or \"0xBase-ascii string\""}, 
 		{"dllmap", NULL ,     "show the name, base, size, and version of all built in dlls"},
@@ -3532,7 +3533,21 @@ void parse_opts(int argc, char* argv[] ){
 			{
 				i++;handled=true; //validated here, but handed in post_parse_opts after loadsc()
 			}else{
-				color_printf(myellow, "Invalid option /wint must specify 0xBase:0xValue as next arg\n");
+				color_printf(myellow, "Invalid option /wint must specify 0xBase-0xValue as next arg\n");
+				m_exit(0);
+			}
+		}
+
+		if( (opt == "/wb") || (opt == "/wbyte") ){
+			if(i+1 >= argc){
+				color_printf(myellow, "Invalid option /wbyte must specify 0xBase-0xValue as next arg\n");
+				m_exit(0);
+			}
+			if ( strstr(argv[i+1], "-") != NULL)
+			{
+				i++;handled=true; //validated here, but handed in post_parse_opts after loadsc()
+			}else{
+				color_printf(myellow, "Invalid option /wbyte must specify 0xBase-0xValue as next arg\n");
 				m_exit(0);
 			}
 		}
@@ -3715,6 +3730,30 @@ void post_parse_opts(int argc, char* argv[] ){
 				base = strtoul(ag, NULL, 16);
 				//printf("Write Int base=%x, value=%x\n", base, value);
                 emu_memory_write_dword(mem, base, value);
+				i++;
+			}else{
+				printf("Invalid option /wint must specify 0xBase-0xValue as next arg\n");
+				m_exit(0);
+			}
+		}
+
+		if( (opt == "/wb") || (opt == "/wbyte") ){
+			if(i+1 >= argc){
+				printf("Invalid option /wbyte must specify 0xBase-0xValue as next arg\n");
+				m_exit(0);
+			}
+		    char *ag = strdup(argv[i+1]);
+			char *sz;
+			uint32_t value=0;
+			uint32_t base=0;
+			if (( sz = strstr(ag, "-")) != NULL)
+			{
+				*sz = '\0';
+				sz++;
+				value = strtoul(sz, NULL, 16) & 0x000000FF;
+				base = strtoul(ag, NULL, 16);
+				//printf("Write Int base=%x, value=%x\n", base, value);
+                emu_memory_write_byte(mem, base, (uint8_t)value);
 				i++;
 			}else{
 				printf("Invalid option /wint must specify 0xBase-0xValue as next arg\n");
