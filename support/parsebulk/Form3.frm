@@ -1,5 +1,5 @@
 VERSION 5.00
-Object = "{831FDD16-0C5C-11D2-A9FC-0000F8754DA1}#2.0#0"; "mscomctl.ocx"
+Object = "{831FDD16-0C5C-11D2-A9FC-0000F8754DA1}#2.0#0"; "MSCOMCTL.OCX"
 Begin VB.Form Form3 
    Caption         =   "Form3"
    ClientHeight    =   4890
@@ -148,6 +148,8 @@ Private Sub Command1_Click()
      
      Dim li As ListItem
      Dim e As CEntry
+     
+     Set urls = New Collection
      
      If Len(txtUrl) = 0 Then
         MsgBox "Must set server script first"

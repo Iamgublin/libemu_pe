@@ -2261,6 +2261,8 @@ void set_hooks(struct emu_env *env){
 	ADDHOOK(lstrcatW);
 	ADDHOOK(IsWow64Process);
 	ADDHOOK(Process32First);
+	ADDHOOK(GetDesktopWindow);
+	ADDHOOK(InternetErrorDlg);
 
 }
 

@@ -6309,3 +6309,39 @@ int32_t	__stdcall hook_Process32First(struct emu_env_w32 *win, struct emu_env_w3
 	return 0;
 }
 
+int32_t	__stdcall hook_GetDesktopWindow(struct emu_env_w32 *win, struct emu_env_w32_dll_export *ex)
+{
+/*
+	HWND GetDesktopWindow()
+*/ 
+	uint32_t eip_save = popd();
+	printf("%x\t%s()\n",eip_save, ex->fnname);
+	cpu->reg[eax] = 0x11223344;
+	emu_cpu_eip_set(cpu, eip_save);
+	return 0;
+}
+
+int32_t	__stdcall hook_InternetErrorDlg(struct emu_env_w32 *win, struct emu_env_w32_dll_export *ex)
+{
+/*
+	INTERNETAPI_(DWORD) InternetErrorDlg(
+		__in HWND hWnd,
+		__inout_opt HINTERNET hRequest,
+		__in DWORD dwError,
+		__in DWORD dwFlags,
+		__inout_opt LPVOID * lppvData
+    );
+*/
+	uint32_t eip_save = popd();
+	uint32_t hWnd = popd();
+	uint32_t hRequest = popd();
+	uint32_t dwError = popd();
+	uint32_t dwFlags = popd();
+	uint32_t lppvData = popd();
+
+	printf("%x\t%s(%x, %x, %x, %x, %x)\n",eip_save, ex->fnname, hWnd, hRequest, dwError, dwFlags, lppvData );
+
+	cpu->reg[eax] = 0x11223344;
+	emu_cpu_eip_set(cpu, eip_save);
+	return 0;
+}

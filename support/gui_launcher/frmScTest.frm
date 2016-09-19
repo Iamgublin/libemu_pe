@@ -355,6 +355,8 @@ Dim lastcmdline As String
 Dim loadedFile As String
 Dim manualArgs() As String
 
+'under wine scdbg itself seems to work ok, but getshortpathname is wacked, and shell(cmd /k) does not work..
+
 'Private Declare Function WinExec Lib "kernel32" (ByVal lpCmdLine As String, ByVal nCmdShow As Long) As Long
 'Private Declare Function OpenProcess Lib "kernel32" (ByVal dwDesiredAccess As Long, ByVal bInheritHandle As Long, ByVal dwProcessId As Long) As Long
 'Private Declare Function WaitForSingleObject Lib "kernel32" (ByVal hHandle As Long, ByVal dwMilliseconds As Long) As Long
@@ -519,7 +521,7 @@ End Function
 Public Function GetShortName(sFile As String) As String
     Dim sShortFile As String * 500
     Dim lResult As Long
-
+    
     'Make a call to the GetShortPathName API
     lResult = GetShortPathName(sFile, sShortFile, Len(sShortFile))
 

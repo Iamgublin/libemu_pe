@@ -24,12 +24,12 @@ Public Missing As Boolean
 Public tvNode As Node
 Public ExtractedUrl As String
 
-Function LoadRaw(Data) As Boolean
+Function LoadRaw(data) As Boolean
     '1253    11.15.11 - 4:51am   1xx.2xx.95.116  2274    cc34d9be7ad27b1614ac4daac89343b4
     
     On Error Resume Next
     
-    tmp = Split(Data, vbTab)
+    tmp = Split(data, vbTab)
     ID = CLng(tmp(0))
     SDate = tmp(1)
     ip = tmp(2)
@@ -49,6 +49,17 @@ Function LoadRaw(Data) As Boolean
             b = InStr(a, scLog, ")")
             X = Mid(scLog, a, b - a)
             ExtractedUrl = Trim(Split(X, ",")(0))
+        End If
+        
+        If Len(ExtractedUrl) = 0 Then
+            a = InStr(scLog, "InternetConnectA")
+            If a > 0 Then
+                a = a + Len("InternetConnectA")
+                b = InStr(a, scLog, ")")
+                If b > 0 Then
+                    ExtractedUrl = Trim(Mid(scLog, a, b - a))
+                End If
+            End If
         End If
         
     Else
