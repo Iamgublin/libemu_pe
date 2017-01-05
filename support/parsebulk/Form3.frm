@@ -1,15 +1,23 @@
 VERSION 5.00
-Object = "{831FDD16-0C5C-11D2-A9FC-0000F8754DA1}#2.0#0"; "MSCOMCTL.OCX"
+Object = "{831FDD16-0C5C-11D2-A9FC-0000F8754DA1}#2.0#0"; "mscomctl.ocx"
 Begin VB.Form Form3 
    Caption         =   "Form3"
    ClientHeight    =   4890
    ClientLeft      =   60
-   ClientTop       =   345
+   ClientTop       =   630
    ClientWidth     =   10890
    LinkTopic       =   "Form3"
    ScaleHeight     =   4890
    ScaleWidth      =   10890
-   StartUpPosition =   3  'Windows Default
+   StartUpPosition =   2  'CenterScreen
+   Begin VB.CommandButton cmdLoad 
+      Caption         =   "Parse"
+      Height          =   375
+      Left            =   8040
+      TabIndex        =   10
+      Top             =   390
+      Width           =   1125
+   End
    Begin VB.TextBox txtPass 
       Height          =   285
       Left            =   6840
@@ -27,9 +35,9 @@ Begin VB.Form Form3
    Begin VB.CheckBox chkProcessed 
       Caption         =   "Mark Processed"
       Height          =   255
-      Left            =   9120
+      Left            =   9330
       TabIndex        =   4
-      Top             =   0
+      Top             =   60
       Width           =   1575
    End
    Begin MSComctlLib.ListView lv 
@@ -42,8 +50,9 @@ Begin VB.Form Form3
       _ExtentY        =   7011
       View            =   3
       LabelEdit       =   1
+      MultiSelect     =   -1  'True
       LabelWrap       =   -1  'True
-      HideSelection   =   -1  'True
+      HideSelection   =   0   'False
       FullRowSelect   =   -1  'True
       GridLines       =   -1  'True
       _Version        =   393217
@@ -77,11 +86,11 @@ Begin VB.Form Form3
       EndProperty
    End
    Begin VB.CommandButton Command1 
-      Caption         =   "Upload Reports"
+      Caption         =   "Upload"
       Height          =   375
-      Left            =   9240
+      Left            =   9270
       TabIndex        =   2
-      Top             =   360
+      Top             =   390
       Width           =   1575
    End
    Begin VB.TextBox Text1 
@@ -89,7 +98,7 @@ Begin VB.Form Form3
       Left            =   960
       TabIndex        =   1
       Top             =   360
-      Width           =   8055
+      Width           =   6945
    End
    Begin VB.Label Label8 
       Caption         =   "?"
@@ -135,6 +144,21 @@ Begin VB.Form Form3
       Top             =   360
       Width           =   975
    End
+   Begin VB.Menu mnuTools 
+      Caption         =   "Tools"
+      Begin VB.Menu mnuNoUrl 
+         Caption         =   "Remove no URL"
+      End
+      Begin VB.Menu mnuDelAllFiles 
+         Caption         =   "Delete All Files"
+      End
+      Begin VB.Menu mnuSelectLike 
+         Caption         =   "Selete Like"
+      End
+      Begin VB.Menu mnuSelNone 
+         Caption         =   "Select None"
+      End
+   End
 End
 Attribute VB_Name = "Form3"
 Attribute VB_GlobalNameSpace = False
@@ -142,8 +166,10 @@ Attribute VB_Creatable = False
 Attribute VB_PredeclaredId = True
 Attribute VB_Exposed = False
 Dim urls As New Collection
+Dim fso As New CFileSystem2
 
-Private Sub Command1_Click()
+Private Sub cmdLoad_Click()
+    
     'ID,Status,Size,Url
      
      Dim li As ListItem
@@ -172,16 +198,65 @@ Private Sub Command1_Click()
                 Set li = lv.ListItems.Add(, , Trim(X))
                 Set li.Tag = e
                 li.SubItems(3) = e.ExtractedUrl
-                If keyExistsInCollection(urls, li.SubItems(3)) Then
-                    li.SubItems(1) = "Duplicate"
-                Else
-                    urls.Add li.SubItems(3), li.SubItems(3)
+                If Len(e.ExtractedUrl) > 0 Then
+                    If keyExistsInCollection(urls, li.SubItems(3)) Then
+                        li.SubItems(1) = "Duplicate"
+                    Else
+                        urls.Add li.SubItems(3), li.SubItems(3)
+                    End If
                 End If
                 li.SubItems(2) = Len(e.scLog)
                 lv.Refresh
             End If
         End If
      Next
+     
+     Me.Caption = lv.ListItems.Count & " files"
+     DoEvents
+     lv.Refresh
+     Me.Refresh
+     
+End Sub
+
+Private Sub Command1_Click()
+    'ID,Status,Size,Url
+     
+     Dim li As ListItem
+     Dim e As CEntry
+     
+     Set urls = New Collection
+     
+     If Len(txtUrl) = 0 Then
+        MsgBox "Must set server script first"
+        Exit Sub
+     End If
+    
+     If Len(txtPass) = 0 Then
+        MsgBox "Must set script password first"
+        Exit Sub
+     End If
+        
+'     tmp = Split(Text1, ",")
+'     lv.ListItems.Clear
+'
+'     For Each X In tmp
+'        If Len(X) > 0 Then
+'            X = Replace(X, ".sc.txt", Empty)
+'            Set e = New CEntry
+'            If e.LoadRaw(X & String(5, vbTab)) Then  'full: 1253    11.15.11 - 4:51am   1xx.2xx.95.116  2274    cc34d9be7ad27b1614ac4daac89343b4
+'                Set li = lv.ListItems.Add(, , Trim(X))
+'                Set li.Tag = e
+'                li.SubItems(3) = e.ExtractedUrl
+'                If keyExistsInCollection(urls, li.SubItems(3)) Then
+'                    li.SubItems(1) = "Duplicate"
+'                Else
+'                    urls.Add li.SubItems(3), li.SubItems(3)
+'                End If
+'                li.SubItems(2) = Len(e.scLog)
+'                lv.Refresh
+'            End If
+'        End If
+'     Next
      
      DoEvents
      lv.Refresh
@@ -219,6 +294,7 @@ End Sub
 Private Function keyExistsInCollection(c As Collection, k As String) As Boolean
     On Error GoTo hell
     Dim r
+    If Len(Trim(k)) = 0 Then Exit Function
     r = c(k)
     keyExistsInCollection = True
     Exit Function
@@ -231,6 +307,10 @@ Private Sub Form_Load()
      Next
      txtPass = GetSetting("bulk", "settings", "password", "")
      txtUrl = GetSetting("bulk", "settings", "serverscript", "")
+     
+     tmp = Clipboard.GetText
+     If InStr(tmp, ".sc.txt") > 0 Then Text1 = tmp: cmdLoad_Click
+     
 End Sub
 
 Private Sub Form_Unload(Cancel As Integer)
@@ -240,4 +320,98 @@ End Sub
 
 Private Sub Label8_Click()
     MsgBox "This is to integrate with my shellcode database. You can read the source to make compatiable with yours", vbInformation
+End Sub
+
+Private Sub lv_ItemClick(ByVal Item As MSComctlLib.ListItem)
+    On Error Resume Next
+    Dim e As CEntry
+    Set e = Item.Tag
+    If e Is Nothing Then Exit Sub
+    Form1.Text2 = e.scLog
+End Sub
+
+Private Sub lv_KeyDown(KeyCode As Integer, Shift As Integer)
+    If KeyCode = vbKeyDelete Then
+        Dim li As ListItem
+        For i = lv.ListItems.Count To 1 Step -1
+            Set li = lv.ListItems(i)
+            If li.Selected = True Then
+                lv.ListItems.Remove i
+            End If
+        Next
+        Me.Caption = lv.ListItems.Count & " files"
+    End If
+End Sub
+
+Private Sub mnuDelAllFiles_Click()
+    Dim li As ListItem
+    Dim base As String
+    Dim path  As String
+    
+    Dim selCount As Long
+    Dim selOnly As VbMsgBoxResult
+    Dim doIt As Boolean
+    
+    For Each li In lv.ListItems
+        If li.Selected Then selCount = selCount + 1
+    Next
+    
+    If selCount > 0 Then
+        selOnly = MsgBox("Delete Selected = YES, UNSelected = NO", vbYesNoCancel)
+        If selOnly = vbCancel Then Exit Sub
+    End If
+    
+    base = Form1.Text1 & "\"
+    For i = lv.ListItems.Count To 1 Step -1
+        Set li = lv.ListItems(i)
+        
+        doIt = False
+        If selOnly = vbYes Then If li.Selected Then doIt = True
+        If selOnly = vbNo Then If Not li.Selected Then doIt = True
+        
+        If doIt Then
+            path = base & li.Text & ".sc"
+            If fso.FileExists(path) Then
+                fso.DeleteFile path
+                fso.DeleteFile path & ".txt"
+                li.SubItems(1) = "Deleted"
+            Else
+                li.SubItems(1) = "NotFound"
+            End If
+        End If
+        
+    Next
+End Sub
+
+Private Sub mnuNoUrl_Click()
+    Dim li As ListItem
+    For i = lv.ListItems.Count To 1 Step -1
+        Set li = lv.ListItems(i)
+        If Len(li.SubItems(3)) = 0 Then
+            lv.ListItems.Remove i
+        End If
+    Next
+    Me.Caption = lv.ListItems.Count & " files"
+End Sub
+
+Private Sub mnuSelectLike_Click()
+    Dim li As ListItem
+    Dim e As CEntry
+    Dim find As String
+    
+    find = InputBox("Enter text to search for in run log")
+    If Len(find) = 0 Then Exit Sub
+    
+    For Each li In lv.ListItems
+        Set e = li.Tag
+        If InStr(1, e.scLog, find, vbTextCompare) > 0 Then li.Selected = True
+    Next
+    lv.SetFocus
+    Me.Caption = lv.ListItems.Count & " files"
+End Sub
+
+Private Sub mnuSelNone_Click()
+    For Each li In lv.ListItems
+        li.Selected = False
+    Next
 End Sub

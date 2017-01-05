@@ -366,7 +366,7 @@ bool isInteractive(char* api){
 bool isProxied(char* api){
 	char* iApi[] = {"GetCommandLineA","GetSystemTime", "GetTempPathA","GetTempFileNameA","strstr",
 					"SHGetFolderPathA","SHGetSpecialFolderPathA","ExpandEnvironmentStringsA","lstrlenA",
-					"lstrcmpiA","lstrcatA","strcat",NULL };
+					"lstrcmpiA","lstrcatA","strcat","strcmp","stricmp","GetSystemInfo",NULL };
 
 	int i=0;
 	while( iApi[i] != NULL ){
@@ -2013,7 +2013,7 @@ void set_hooks(struct emu_env *env){
 	extern int32_t	__stdcall hook_GenericStub(struct emu_env_w32 *win, struct emu_env_w32_dll_export *ex);
 	extern int32_t	__stdcall hook_GenericStub2String(struct emu_env_w32 *win, struct emu_env_w32_dll_export *ex);
 	extern int32_t	__stdcall hook_shdocvw65(struct emu_env_w32 *win, struct emu_env_w32_dll_export *ex);
-
+ 
 	#define GENERICHOOK(name) if(emu_env_w32_export_new_hook(env, #name, hook_GenericStub, NULL) < 0) printf("Failed to set generic Hook %s\n",#name);
 
 	#define ADDHOOK(name) \
@@ -2049,7 +2049,11 @@ void set_hooks(struct emu_env *env){
 	HOOKBOTH(OpenMutex);
 	HOOKBOTH(RegDeleteKey);
     HOOKBOTH(GetModuleHandle);
+	HOOKBOTH(DeleteFile);
+	HOOKBOTH(GetFileAttributes);
+    HOOKBOTH(CreateNamedPipe);
 
+	//these are up here because this declares the extern so we can break macro pattern in manual hooking below..
 	ADDHOOK(ExitProcess);
 	ADDHOOK(memset);
 	ADDHOOK(memcpy);
@@ -2060,6 +2064,13 @@ void set_hooks(struct emu_env *env){
     ADDHOOK(lstrcatA);
 	ADDHOOK(strrchr);
 	ADDHOOK(VirtualQuery);
+	ADDHOOK(strcmp);
+	ADDHOOK(Process32First);
+	ADDHOOK(_stricmp);
+    ADDHOOK(GetKeyState);
+	ADDHOOK(memchr);
+	ADDHOOK(memcmp);
+    ADDHOOK(strcpy);
 
 	//these dont follow the macro pattern..mostly redirects/multitasks
 	emu_env_w32_export_new_hook(env, "LoadLibraryExA",  hook_LoadLibrary, NULL);
@@ -2070,6 +2081,9 @@ void set_hooks(struct emu_env *env){
     emu_env_w32_export_new_hook(env, "RtlMoveMemory", hook_memcpy, NULL); //kernel32. found first...
     emu_env_w32_export_new_hook(env, "CopyMemory", hook_memcpy, NULL);
 	emu_env_w32_export_new_hook(env, "VirtualQueryEx", hook_VirtualQuery, NULL);
+    emu_env_w32_export_new_hook(env, "strcmp", hook__stricmp, NULL);     //ntdll hit first
+	emu_env_w32_export_new_hook(env, "Process32Next", hook_Process32First, NULL);
+	emu_env_w32_export_new_hook(env, "GetAsyncKeyState", hook_GetKeyState, NULL);
 
 	//-----handled by the generic stub 2 string
 	emu_env_w32_export_new_hook(env, "InternetOpenA", hook_GenericStub2String, NULL);
@@ -2078,13 +2092,19 @@ void set_hooks(struct emu_env *env){
 
 	//-----by ordinal
 	emu_env_w32_export_new_hook_ordinal(env, "shdocvw", 0x65,  hook_shdocvw65);
-	emu_env_w32_export_new_hook_ordinal(env, "msvcrt", 0x02E1, hook_memset); //have to hook this one by ordinal cause it finds ntdll.memset first
-	emu_env_w32_export_new_hook_ordinal(env, "msvcrt", 0x030d, hook_strstr); //have to hook this one by ordinal cause it finds ntdll.strstr first
-	emu_env_w32_export_new_hook_ordinal(env, "msvcrt", 0x0311, hook_strtoul); //have to hook this one by ordinal cause it finds ntdll.strtoul first
-	emu_env_w32_export_new_hook_ordinal(env, "msvcrt", 0x02DF, hook_memcpy); //have to hook this one by ordinal cause it finds ntdll  first
+	emu_env_w32_export_new_hook_ordinal(env, "msvcrt", 0x02E1, hook_memset);   //have to hook this one by ordinal cause it finds ntdll.memset first
+	emu_env_w32_export_new_hook_ordinal(env, "msvcrt", 0x030d, hook_strstr);   //have to hook this one by ordinal cause it finds ntdll.strstr first
+	emu_env_w32_export_new_hook_ordinal(env, "msvcrt", 0x0311, hook_strtoul);  //have to hook this one by ordinal cause it finds ntdll.strtoul first
+	emu_env_w32_export_new_hook_ordinal(env, "msvcrt", 0x02DF, hook_memcpy);   //have to hook this one by ordinal cause it finds ntdll  first
 	emu_env_w32_export_new_hook_ordinal(env, "msvcrt", 0x02FE, hook_lstrcatA); //have to hook this one by ordinal cause it finds ntdll  first
-	emu_env_w32_export_new_hook_ordinal(env, "msvcrt", 0x030b, hook_strrchr); //have to hook this one by ordinal cause it finds ntdll  first
-    emu_env_w32_export_new_hook_ordinal(env, "ntdll", 0x02C7, hook_memcpy);   //RtlMoveMemory found in k32 first...
+	emu_env_w32_export_new_hook_ordinal(env, "msvcrt", 0x030b, hook_strrchr);  //have to hook this one by ordinal cause it finds ntdll  first
+    emu_env_w32_export_new_hook_ordinal(env, "msvcrt", 0x0300, hook__stricmp); //have to hook this one by ordinal cause it finds ntdll  first
+	emu_env_w32_export_new_hook_ordinal(env, "msvcrt", 0x02dd, hook_memchr);   //have to hook this one by ordinal cause it finds ntdll  first
+	emu_env_w32_export_new_hook_ordinal(env, "msvcrt", 0x02de, hook_memcmp);   //have to hook this one by ordinal cause it finds ntdll  first
+	emu_env_w32_export_new_hook_ordinal(env, "msvcrt", 0x0302, hook_strcpy);   //have to hook this one by ordinal cause it finds ntdll  first
+
+	emu_env_w32_export_new_hook_ordinal(env, "ntdll", 0x02C7, hook_memcpy);    //RtlMoveMemory found in k32 first...
+
 
 	//-----handled by the generic stub
 	GENERICHOOK(ZwTerminateProcess);
@@ -2136,7 +2156,6 @@ void set_hooks(struct emu_env *env){
 	ADDHOOK(GetTickCount);
 	ADDHOOK(WinExec);
 	ADDHOOK(Sleep);
-	ADDHOOK(DeleteFileA);
 	ADDHOOK(CloseHandle);
 	ADDHOOK(GetVersion);
 	ADDHOOK(GetProcAddress);
@@ -2194,8 +2213,6 @@ void set_hooks(struct emu_env *env){
 	ADDHOOK(lstrcpyA);
 	ADDHOOK(OpenEventA);
 	ADDHOOK(CreateEventA);
-	ADDHOOK(_stricmp);
-	ADDHOOK(strcmp);
 	ADDHOOK(GetThreadContext);
 	ADDHOOK(SetThreadContext);
 	ADDHOOK(ResumeThread);
@@ -2260,10 +2277,15 @@ void set_hooks(struct emu_env *env){
 	ADDHOOK(WinHttpCloseHandle);
 	ADDHOOK(lstrcatW);
 	ADDHOOK(IsWow64Process);
-	ADDHOOK(Process32First);
 	ADDHOOK(GetDesktopWindow);
 	ADDHOOK(InternetErrorDlg);
-
+	ADDHOOK(GetProcessAffinityMask);
+	ADDHOOK(HeapCreate);
+	ADDHOOK(setsockopt);
+	ADDHOOK(WSAAccept);
+	ADDHOOK(GetSystemInfo);
+	ADDHOOK(ConnectNamedPipe);
+	
 }
 
 /* we just cant really support every shellcode can we :( 

@@ -65,6 +65,7 @@ Function LoadRaw(data) As Boolean
     Else
         LogPath = Empty
         Missing = True
+        Exit Function
     End If
     
     If FileExists(SCPath) Then

@@ -2071,12 +2071,23 @@ int32_t	__stdcall hook_Sleep(struct emu_env_w32 *win, struct emu_env_w32_dll_exp
 }
 
 
-int32_t	__stdcall hook_DeleteFileA(struct emu_env_w32 *win, struct emu_env_w32_dll_export *ex)
+int32_t	__stdcall hook_DeleteFile(struct emu_env_w32 *win, struct emu_env_w32_dll_export *ex)
 {
 	uint32_t eip_save = popd();
-	struct emu_string *s_filename = popstring();
-	printf("%x\tDeleteFileA(%s)\n",eip_save, emu_string_char(s_filename) );
+	struct emu_string *s_filename = isWapi(ex->fnname) ? popwstring() : popstring();
+	printf("%x\t%s(%s)\n", eip_save, ex->fnname, emu_string_char(s_filename) );
 	set_ret(0);
+	emu_string_free(s_filename);
+	emu_cpu_eip_set(cpu, eip_save);
+	return 0;
+}
+
+int32_t	__stdcall hook_GetFileAttributes(struct emu_env_w32 *win, struct emu_env_w32_dll_export *ex)
+{
+	uint32_t eip_save = popd();
+	struct emu_string *s_filename = isWapi(ex->fnname) ? popwstring() : popstring();
+	printf("%x\t%s(%s)\n", eip_save, ex->fnname, emu_string_char(s_filename) );
+	set_ret(INVALID_FILE_ATTRIBUTES); //FILE_ATTRIBUTE_NORMAL);
 	emu_string_free(s_filename);
 	emu_cpu_eip_set(cpu, eip_save);
 	return 0;
@@ -4150,7 +4161,11 @@ int32_t	__stdcall hook__stricmp(struct emu_env_w32 *win, struct emu_env_w32_dll_
 	if(s1->size==0 || s2->size == 0){
 		ret  = -1;
 	}else{
-		ret = stricmp(s1->data, s2->data);
+		/*if(strstr(ex->fnname, "icmp") == 0){
+			ret = strcmp(s1->data, s2->data);
+		}else{*/
+			ret = stricmp(s1->data, s2->data);
+		//}
 	}
 
 	printf("%x\t%s(%s, %s) = %x\n", eip_save, ex->fnname , s1->data, s2->data, ret);
@@ -6295,16 +6310,25 @@ int32_t	__stdcall hook_Process32First(struct emu_env_w32 *win, struct emu_env_w3
 	uint32_t eip_save = popd();
 	uint32_t h = popd();
 	uint32_t lp = popd();
+    static uint32_t pIndex = -1;
+	char* procs[] = {"iexplore.exe", "firefox.exe", "explorer.exe", "svchost.exe", "excel.exe", "winword.exe", NULL};
+    uint32_t ret = TRUE;
+
+	pIndex++;
+	if(procs[pIndex] == NULL){
+		pIndex = 0;
+		ret = FALSE;
+	}
 
 	PROCESSENTRY32 pe32;
 	memset(&pe32, 0, sizeof(PROCESSENTRY32));
 	pe32.th32ProcessID = 0x666;
-	strcpy(pe32.szExeFile,"iexplore.exe");
+	strcpy(pe32.szExeFile, procs[pIndex]);
 
 	printf("%x\t%s(%x)\n",eip_save, ex->fnname, h);
 
 	emu_memory_write_block(mem, lp, &pe32, sizeof(PROCESSENTRY32) );
-	cpu->reg[eax] = TRUE;
+	cpu->reg[eax] = ret;
 	emu_cpu_eip_set(cpu, eip_save);
 	return 0;
 }
@@ -6344,4 +6368,267 @@ int32_t	__stdcall hook_InternetErrorDlg(struct emu_env_w32 *win, struct emu_env_
 	cpu->reg[eax] = 0x11223344;
 	emu_cpu_eip_set(cpu, eip_save);
 	return 0;
+}
+
+int32_t	__stdcall hook_GetKeyState(struct emu_env_w32 *win, struct emu_env_w32_dll_export *ex)
+{
+/*
+	SHORT WINAPI GetKeyState(
+	  _In_ int nVirtKey
+	);
+*/
+	uint32_t eip_save = popd();
+	uint32_t k = popd();
+	printf("%x\t%s(%x)\n", eip_save, ex->fnname, k);
+	cpu->reg[eax] = 0;
+	emu_cpu_eip_set(cpu, eip_save);
+	return 0;
+}
+
+int32_t	__stdcall hook_GetProcessAffinityMask(struct emu_env_w32 *win, struct emu_env_w32_dll_export *ex)
+{
+/*
+	BOOL WINAPI GetProcessAffinityMask(
+	  _In_  HANDLE     hProcess,
+	  _Out_ PDWORD_PTR lpProcessAffinityMask,
+	  _Out_ PDWORD_PTR lpSystemAffinityMask
+	);
+*/
+	uint32_t eip_save = popd();
+	uint32_t hp = popd();
+	uint32_t pm = popd();
+	uint32_t sm = popd();
+
+	printf("%x\t%s(%x, %x, %x)\n", eip_save, ex->fnname, hp, pm, sm);
+	cpu->reg[eax] = 0;
+	emu_cpu_eip_set(cpu, eip_save);
+	return 0;
+}
+
+int32_t	__stdcall hook_HeapCreate(struct emu_env_w32 *win, struct emu_env_w32_dll_export *ex)
+{
+/*
+	HANDLE WINAPI HeapCreate(
+	  _In_ DWORD  flOptions,
+	  _In_ SIZE_T dwInitialSize,
+	  _In_ SIZE_T dwMaximumSize
+	);
+*/
+	uint32_t eip_save = popd();
+	uint32_t a = popd();
+	uint32_t b = popd();
+	uint32_t c = popd();
+
+	printf("%x\t%s(%x, %x, %x)\n", eip_save, ex->fnname, a, b, c);
+	cpu->reg[eax] = 0x60000;
+	emu_cpu_eip_set(cpu, eip_save);
+	return 0;
+}
+
+int32_t	__stdcall hook_memchr(struct emu_env_w32 *win, struct emu_env_w32_dll_export *ex)
+{
+	/*  
+		const void * memchr ( const void * ptr, int value, size_t num );
+	*/
+
+	uint32_t eip_save = popd();
+	uint32_t src = popd();
+	uint32_t val = popd();
+	uint32_t sz = popd();
+
+	printf("%x\t%s(%x, %x, %x)\n", eip_save, ex->fnname , src, val, sz);
+
+	uint8_t c = 0;
+	uint32_t i = 0;
+
+	for(i=0; i<sz; i++){
+		if(emu_memory_read_byte(mem, src+i, &c) == -1){i = -1; break; };
+		if(c == val) break;
+	}
+	
+	if(i == -1 || i == sz) set_ret(0); else set_ret(src+i); 
+	emu_cpu_eip_set(cpu, eip_save);
+	return 0;
+
+}
+
+int32_t	__stdcall hook_memcmp(struct emu_env_w32 *win, struct emu_env_w32_dll_export *ex)
+{
+	/*  
+		int memcmp ( const void * ptr1, const void * ptr2, size_t num );
+	*/
+
+	uint32_t eip_save = popd();
+	uint32_t ptr1 = popd();
+	uint32_t ptr2 = popd();
+	uint32_t sz = popd();
+
+	printf("%x\t%s(%x, %x, %x)\n", eip_save, ex->fnname , ptr1, ptr2, sz);
+
+	void* buf1 = (void*)SafeMalloc(sz);
+	void* buf2 = (void*)SafeMalloc(sz);
+	emu_memory_read_block(mem, ptr1, buf1, sz);
+	emu_memory_read_block(mem, ptr2, buf2, sz);
+	uint32_t ret = memcmp(buf1, buf2, sz);
+	free(buf1);
+	free(buf2);
+	
+	set_ret(ret); 
+	emu_cpu_eip_set(cpu, eip_save);
+	return 0;
+
+}
+
+int32_t	__stdcall hook_strcpy(struct emu_env_w32 *win, struct emu_env_w32_dll_export *ex)
+{
+	/*  
+		char * strcpy ( char * destination, const char * source );
+	*/
+
+	uint32_t eip_save = popd();
+	uint32_t ptr = popd();
+	struct emu_string* s = popstring();
+
+	printf("%x\t%s(%x, %s)\n", eip_save, ex->fnname , ptr, s->data);
+
+	emu_memory_write_block(mem, ptr, s->data, s->size);
+	emu_string_free(s);
+	
+	set_ret(ptr); 
+	emu_cpu_eip_set(cpu, eip_save);
+	return 0;
+
+}
+
+int32_t	__stdcall hook_setsockopt(struct emu_env_w32 *win, struct emu_env_w32_dll_export *ex)
+{
+	/*  
+		int setsockopt(
+		  _In_       SOCKET s,
+		  _In_       int    level,
+		  _In_       int    optname,
+		  _In_ const char   *optval,
+		  _In_       int    optlen
+		);
+	*/
+
+	uint32_t eip_save = popd();
+	uint32_t a = popd();
+	uint32_t b = popd();
+	uint32_t c = popd();
+	uint32_t d = popd();
+	uint32_t e = popd();
+
+	printf("%x\t%s(%x, %x, %x, %x, %x)\n", eip_save, ex->fnname , a,b,c,d,e);
+
+	set_ret(0); 
+	emu_cpu_eip_set(cpu, eip_save);
+	return 0;
+
+}
+
+int32_t	__stdcall hook_WSAAccept(struct emu_env_w32 *win, struct emu_env_w32_dll_export *ex)
+{
+	/*  
+		SOCKET WSAAccept(
+		  _In_    SOCKET          s,
+		  _Out_   struct sockaddr *addr,
+		  _Inout_ LPINT           addrlen,
+		  _In_    LPCONDITIONPROC lpfnCondition,
+		  _In_    DWORD_PTR       dwCallbackData
+		);
+	*/
+
+	uint32_t eip_save = popd();
+	uint32_t a = popd();
+	uint32_t b = popd();
+	uint32_t c = popd();
+	uint32_t d = popd();
+	uint32_t e = popd();
+
+	printf("%x\t%s(%x, %x, %x, %x, %x)\n", eip_save, ex->fnname , a,b,c,d,e);
+
+	set_ret(0xdeadbeef); 
+	emu_cpu_eip_set(cpu, eip_save);
+	return 0;
+
+}
+
+int32_t	__stdcall hook_GetSystemInfo(struct emu_env_w32 *win, struct emu_env_w32_dll_export *ex)
+{
+	/*  
+		void WINAPI GetSystemInfo(
+		  _Out_ LPSYSTEM_INFO lpSystemInfo
+		);
+	*/
+
+	uint32_t eip_save = popd();
+	uint32_t a = popd();
+
+	printf("%x\t%s(%x)\n", eip_save, ex->fnname , a);
+
+	SYSTEM_INFO si;
+	GetSystemInfo(&si);
+	emu_memory_write_block(mem,a,&si, sizeof(SYSTEM_INFO));
+	set_ret(0); 
+	emu_cpu_eip_set(cpu, eip_save);
+	return 0;
+
+}
+
+int32_t	__stdcall hook_CreateNamedPipe(struct emu_env_w32 *win, struct emu_env_w32_dll_export *ex)
+{
+	/*  
+		HANDLE WINAPI CreateNamedPipe(
+		  _In_     LPCTSTR               lpName,
+		  _In_     DWORD                 dwOpenMode,
+		  _In_     DWORD                 dwPipeMode,
+		  _In_     DWORD                 nMaxInstances,
+		  _In_     DWORD                 nOutBufferSize,
+		  _In_     DWORD                 nInBufferSize,
+		  _In_     DWORD                 nDefaultTimeOut,
+		  _In_opt_ LPSECURITY_ATTRIBUTES lpSecurityAttributes
+		);
+	*/
+
+	uint32_t eip_save = popd();
+	struct emu_string *s = isWapi(ex->fnname) ? popwstring() :  popstring();
+	uint32_t a = popd();
+	uint32_t b = popd();
+	uint32_t c = popd();
+	uint32_t d = popd();
+	uint32_t e = popd();
+	uint32_t f = popd();
+	uint32_t g = popd();
+	
+	printf("%x\t%s(%s, %x, %x, %x, %x, %x, %x, %x)\n", eip_save, ex->fnname , s->data,a,b,c,d,e,f,g);
+
+	emu_string_free(s);
+	
+	set_ret(0xcafebabe); //or INVALID_HANDLE_VALUE?
+	emu_cpu_eip_set(cpu, eip_save);
+	return 0;
+
+}
+
+int32_t	__stdcall hook_ConnectNamedPipe(struct emu_env_w32 *win, struct emu_env_w32_dll_export *ex)
+{
+	/*  
+		BOOL WINAPI ConnectNamedPipe(
+		  _In_        HANDLE       hNamedPipe,
+		  _Inout_opt_ LPOVERLAPPED lpOverlapped
+		);
+
+	*/
+
+	uint32_t eip_save = popd();
+	uint32_t a = popd();
+	uint32_t b = popd();
+
+	printf("%x\t%s(%x,%x)\n", eip_save, ex->fnname , a,b);
+
+	set_ret(1); 
+	emu_cpu_eip_set(cpu, eip_save);
+	return 0;
+
 }

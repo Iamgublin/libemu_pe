@@ -1,5 +1,5 @@
 VERSION 5.00
-Object = "{831FDD16-0C5C-11D2-A9FC-0000F8754DA1}#2.0#0"; "MSCOMCTL.OCX"
+Object = "{831FDD16-0C5C-11D2-A9FC-0000F8754DA1}#2.0#0"; "mscomctl.ocx"
 Begin VB.Form Form1 
    Caption         =   "Bulk Analyzer"
    ClientHeight    =   8625
@@ -9,7 +9,7 @@ Begin VB.Form Form1
    LinkTopic       =   "Form1"
    ScaleHeight     =   8625
    ScaleWidth      =   15330
-   StartUpPosition =   3  'Windows Default
+   StartUpPosition =   2  'CenterScreen
    Begin MSComctlLib.ProgressBar pb 
       Height          =   330
       Left            =   6525
@@ -688,7 +688,7 @@ End Sub
 Private Sub Command5_Click()
     Clipboard.Clear
     Clipboard.SetText Text3
-    MsgBox "Copied " & Len(Text3) & " bytes to clipboard"
+    Me.Caption = "Copied " & Len(Text3) & " bytes to clipboard"
 End Sub
 
 Private Sub Command6_Click()

@@ -289,15 +289,20 @@ End Sub
 
 Private Sub Form_Load()
     txtScdbg = GetSetting("bulk", "settings", "scdbg", "")
+    If Not fso.FileExists(txtScdbg) Then
+        t = App.path & "\..\..\scdbg.exe"
+        If fso.FileExists(CStr(t)) Then txtScdbg = t
+    End If
+    
 End Sub
 
 Private Sub Form_Unload(Cancel As Integer)
     SaveSetting "bulk", "settings", "scdbg", txtScdbg
 End Sub
 
-Private Sub txtScdbg_OLEDragOver(Data As DataObject, Effect As Long, Button As Integer, Shift As Integer, X As Single, Y As Single, State As Integer)
+Private Sub txtScdbg_OLEDragOver(data As DataObject, Effect As Long, Button As Integer, Shift As Integer, X As Single, Y As Single, State As Integer)
     On Error Resume Next
-    txtScdbg = Data.files(1)
+    txtScdbg = data.files(1)
 End Sub
 
 Public Function isHexNum(v) As Boolean

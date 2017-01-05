@@ -5,12 +5,12 @@ Begin VB.Form Form2
    Caption         =   "Form2"
    ClientHeight    =   7170
    ClientLeft      =   165
-   ClientTop       =   735
+   ClientTop       =   450
    ClientWidth     =   14595
    LinkTopic       =   "Form2"
    ScaleHeight     =   7170
    ScaleWidth      =   14595
-   StartUpPosition =   3  'Windows Default
+   StartUpPosition =   2  'CenterScreen
    Begin VB.CommandButton Command3 
       Caption         =   "Bulk Delete"
       Height          =   255
@@ -28,6 +28,7 @@ Begin VB.Form Form2
       _ExtentX        =   18230
       _ExtentY        =   5741
       _Version        =   393217
+      Enabled         =   -1  'True
       ScrollBars      =   2
       TextRTF         =   $"Form2.frx":0000
       BeginProperty Font {0BE35203-8F91-11CE-9DE3-00AA004BB851} 
