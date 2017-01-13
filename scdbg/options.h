@@ -67,6 +67,8 @@ struct run_time_options
 	uint32_t IDAImgBase;
 	uint32_t bpx[10];
 	loadlib_override llo[10];
+    uint32_t xorVal;
+    uint32_t padding;
 
 	struct{
 		char *host;

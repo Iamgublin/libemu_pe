@@ -340,6 +340,9 @@ Begin VB.Form frmscdbg
       Begin VB.Menu mnuHashScan 
          Caption         =   "Scan for known Hashs"
       End
+      Begin VB.Menu mnuConvert 
+         Caption         =   "Convert to Binary"
+      End
    End
 End
 Attribute VB_Name = "frmscdbg"
@@ -348,11 +351,11 @@ Attribute VB_Creatable = False
 Attribute VB_PredeclaredId = True
 Attribute VB_Exposed = False
 Dim b() As Byte
-Dim dlg As New clsCmnDlg
-Dim scfile As String
-Dim sctest As String
+Public dlg As New clsCmnDlg
+Public scfile As String
+Public sctest As String
 Dim lastcmdline As String
-Dim loadedFile As String
+Public loadedFile As String
 Dim manualArgs() As String
 
 'under wine scdbg itself seems to work ok, but getshortpathname is wacked, and shell(cmd /k) does not work..
@@ -752,6 +755,16 @@ Private Sub Label6_Click(Index As Integer)
 
 End Sub
 
+
+Private Sub mnuConvert_Click()
+    If Not fso.FileExists(txtLoadedFile) Then
+        txtLoadedFile = dlg.OpenDialog(AllFiles)
+        If Len(txtLoadedFile) = 0 Then Exit Sub
+    End If
+    frmConvert.Show
+    frmConvert.Text2 = txtLoadedFile
+    frmConvert.Text1 = txtLoadedFile & ".conv"
+End Sub
 
 Private Sub mnuHashScan_Click()
     frmHashScan.Text1 = txtLoadedFile

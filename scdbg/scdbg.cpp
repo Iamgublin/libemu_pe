@@ -3008,6 +3008,7 @@ void show_help(void)
 		{"norw", NULL,       "Disables display of read/write file hooks"},
 		{"o", "hexnum"   ,   "base offset to use (default: 0x401000)"},
 		{"patch", "fpath",   "load patch file <fpath> into libemu memory"},
+		{"pad", "0xVal",     "add an extra 0xVal bytes to shellcode"},
 		{"r", NULL ,         "show analysis report at end of run (includes -mm)"},
 		{"redir", "ip:port", "redirect connect to ip (port optional)"},
 		{"s", "int"	     ,   "max number of steps to run (def=2000000, -1 unlimited)"},	
@@ -3027,6 +3028,7 @@ void show_help(void)
 		{"nofile", NULL ,     "assumes you have loaded shellcode manually with -raw, -wstr, or -wint"},
 		{"bswap", NULL ,     "byte swaps -f and -wstr input buffers"},
 		{"eswap", NULL ,     "endian swaps -f and -wstr input buffers"},
+		{"xor", "0xVal" ,     "xor -f and -wstr input buffers with 1 - 4 byte keys"},
 		{"conv", "path" , "outputs converted shellcode to file (%u,\\x,bswap,eswap..)"},
 		{"ida", NULL , "connects to last opened IDA instance on startup"},
 		{"[reg]", "value" , "sets init register value ex: -eax 0x20 -ebx 20 -ecx base -reg base"},
@@ -3110,10 +3112,51 @@ void show_supported_hooks(void){
 	exit(0);
 }
 
+void xorBuf(unsigned char* buf, uint32_t sz, char* id){
+	
+	if(strlen(id) > 0) printf("Xor %s input buffer..", id);
+	unsigned short *b;
+	unsigned int   *c;
+	
+	int stepSize = 4; //4 byte int val was given..
+
+	if(opts.xorVal == 0) return;
+	if((opts.xorVal & 0xFFFF) == opts.xorVal) stepSize = 2; //2 byte short val
+	if((opts.xorVal & 0xFF) == opts.xorVal) stepSize = 1;   //single byte 
+    
+	uint32_t mod = sz % stepSize;
+	if(mod!=0){
+		printf("size %% %d != 0, wont swap last %d bytes..", stepSize, mod);
+		sz -= mod;
+	}
+	nl();
+
+	for(int i=0; i < sz-(stepSize-1); i += stepSize){
+		if(stepSize==1){
+			buf[i]^= (unsigned char)opts.xorVal;
+		}else if(stepSize==2){
+			b = (unsigned short*)&buf[i];
+			*b^=(unsigned short)opts.xorVal;
+		}else{
+			c = (unsigned int*)&buf[i];
+			*c^= opts.xorVal;
+		}
+	}
+
+}
+
 void byteSwap(unsigned char* buf, uint32_t sz, char* id){
 	
-	if(strlen(id) > 0) printf("Byte Swapping %s input buffer..\n", id);
+	if(strlen(id) > 0) printf("Byte Swapping %s input buffer..", id);
 	unsigned char a,b;
+
+	uint32_t mod = sz % 2;
+	if(mod!=0){
+		printf("size %% 2 != 0, wont swap last %d bytes..", mod);
+		sz -= mod;
+	}
+	nl();
+
 	for(int i=0; i < sz-1; i+=2){
 		a = buf[i];
         b = buf[i+1];
@@ -3128,7 +3171,10 @@ void endianSwap(unsigned char* buf, uint32_t sz, char* id){
 	if(strlen(id) > 0) printf("Endian Swapping %s input buffer..", id);
 	
 	uint32_t mod = sz % 4;
-	if(mod!=0) printf("size %% 4 != 0, wont swap last %d bytes..", mod);
+	if(mod!=0){
+		printf("size %% 4 != 0, wont swap last %d bytes..", mod);
+		sz -= mod;
+	}
 	nl();
 
 	uint32_t a;
@@ -3200,6 +3246,8 @@ void parse_opts(int argc, char* argv[] ){
     opts.eSwap = false;
 	opts.bSwap = false;
 	opts.convert_outPath = 0;
+	opts.xorVal = 0;
+	opts.padding = 0;
 
 	for(i=1; i < argc; i++){
 
@@ -3382,6 +3430,24 @@ void parse_opts(int argc, char* argv[] ){
 				m_exit(0);
 			}
 			opts.offset = strtol(argv[i+1], NULL, 16);
+			i++;handled=true;
+		}
+
+		if(opt == "/xor"){
+			if(i+1 >= argc){
+				color_printf(myellow, "Invalid option /xor must specify hex value as next arg\n");
+				m_exit(0);
+			}
+			opts.xorVal = strtol(argv[i+1], NULL, 16);
+			i++;handled=true;
+		}
+
+		if(opt == "/pad"){
+			if(i+1 >= argc){
+				color_printf(myellow, "Invalid option /pad must specify hex value as next arg\n");
+				m_exit(0);
+			}
+			opts.padding = strtol(argv[i+1], NULL, 16);
 			i++;handled=true;
 		}
 
@@ -3806,6 +3872,7 @@ void post_parse_opts(int argc, char* argv[] ){
 					embedLength = HexToBin(sz,  (int*)&embed);
 					if(opts.bSwap) byteSwap((unsigned char*)embed,embedLength,"/wstr");
 					if(opts.eSwap) endianSwap((unsigned char*)embed,embedLength,"/wstr");
+					if(opts.xorVal!=0) xorBuf((unsigned char*)embed,embedLength,"/wstr");
 					emu_memory_write_block(mem, base, embed, embedLength);
 					free(embed);
 				}else{ //its just a regular string to directly embed..
@@ -3850,8 +3917,8 @@ void loadsc(void){
 
 	if (opts.nofile || (opts.patch_file != NULL && opts.file_mode == false) ){ 
 		//create a default allocation to cover any assumptions
-		opts.scode = (unsigned char*) malloc(0x1000);
-		opts.size = 0x1000;
+		opts.scode = (unsigned char*) malloc(0x1000 + opts.padding);
+		opts.size = 0x1000 + opts.padding;
 		memset(opts.scode, 0, opts.size); 
 		return;
 	}
@@ -3863,10 +3930,10 @@ void loadsc(void){
 		end_color();
 		m_exit(0);
 	}
-	opts.size = file_length(fp);
+	opts.size = file_length(fp) + opts.padding ;
 	opts.scode = (unsigned char*)malloc(opts.size+10); 
 	memset(opts.scode, 0, opts.size+10);
-	fread(opts.scode, 1, opts.size, fp);
+	fread(opts.scode, 1, opts.size - opts.padding, fp);
 	fclose(fp);
 	if(!opts.automationRun) printf("Loaded %x bytes from file %s\n", opts.size, opts.sc_file);
 	 
@@ -4148,6 +4215,7 @@ reinit:
 	if(!opts.nofile){ 
 		if(opts.bSwap) byteSwap(opts.scode,opts.size, "main");
 		if(opts.eSwap) endianSwap(opts.scode,opts.size, "main");
+		if(opts.xorVal!=0) xorBuf(opts.scode,opts.size,"main");
 	}
 
 	if(opts.convert_outPath != 0){
@@ -4181,6 +4249,7 @@ reinit:
 
 		printf("\nTrying -bswap...\n");
 		byteSwap(opts.scode, opts.size, "-findsc");
+		if(opts.xorVal!=0) xorBuf(opts.scode,opts.size, "-findsc");
 		opts.offset = orgStartOffset;
 
 		opts.offset = find_sc();
@@ -4192,8 +4261,12 @@ reinit:
 		}
 
 		printf("\nTrying -eswap...\n");
+		if(opts.xorVal!=0) xorBuf(opts.scode,opts.size, "");//back to normal...
 		byteSwap(opts.scode, opts.size, ""); //back to normal...
+
 		endianSwap(opts.scode,opts.size, "-findsc");
+		if(opts.xorVal!=0) xorBuf(opts.scode,opts.size, "-findsc");
+
         opts.offset = orgStartOffset;
 
 		opts.offset = find_sc();
@@ -4404,9 +4477,9 @@ void loadraw_patch(uint32_t base, char* fpath){
 		exit(0);
 	}
 
-	uint32_t size = file_length(fp);
+	uint32_t size = file_length(fp) + opts.padding;
 	unsigned char* buf = (unsigned char*)SafeMalloc(size); 
-	fread(buf, 1, size, fp);
+	fread(buf, 1, size - opts.padding, fp);
 	fclose(fp);
 
 	printf("RawLoad 0x%x bytes at 0x%x from file %s\n", size,base,fpath);

@@ -36,9 +36,13 @@ End Function
 Public Function GetShortName(sFile As String) As String
     Dim sShortFile As String * 67
     Dim lResult As Long
+    Dim iCreated As Boolean
     
     'the path must actually exist to get the short path name !!
-    If Not fso.FileExists(sFile) Then fso.writeFile sFile, ""
+    If Not fso.FileExists(sFile) Then
+        fso.writeFile sFile, ""
+        iCreated = True
+    End If
     
     'Make a call to the GetShortPathName API
     lResult = GetShortPathName(sFile, sShortFile, _
@@ -48,7 +52,8 @@ Public Function GetShortName(sFile As String) As String
     GetShortName = Left$(sShortFile, lResult)
     
     If Len(GetShortName) = 0 Then GetShortName = sFile
-
+    If iCreated Then Kill sFile
+    
 End Function
 
 Sub DebugMsg(x As String)
