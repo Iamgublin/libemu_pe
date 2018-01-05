@@ -2611,7 +2611,7 @@ int32_t	__stdcall hook_connect(struct emu_env_w32 *win, struct emu_env_w32_dll_e
 	if (namelen != sizeof(struct sockaddr)) namelen = sizeof(struct sockaddr);
 
 	if( opts.interactive_hooks == 0 ){
-		set_ret(0x4711);
+		set_ret(0); //no error
 	}else{
 		set_ret( connect((SOCKET)s, &sa, namelen) );
 	}
