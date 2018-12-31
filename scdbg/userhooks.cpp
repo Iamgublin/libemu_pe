@@ -810,7 +810,7 @@ int32_t	__stdcall hook_MapViewOfFile(struct emu_env_w32 *win, struct emu_env_w32
 			memcpy(buf,view,size);
 		}else{
 			if(opts.h_fopen > 0){
-				uint32_t bytesRead;
+				ULONG bytesRead;
 				SetFilePointer(opts.h_fopen, offset, (PLONG)&offsetHigh, FILE_BEGIN);
 				uint32_t r = ReadFile(opts.h_fopen, buf, size, &bytesRead, NULL);
 			}else{
@@ -1117,7 +1117,7 @@ int32_t	__stdcall hook_ReadFile(struct emu_env_w32 *win, struct emu_env_w32_dll_
 	
 	//numBytes++;
 	uint32_t m_hfile = hfile;
-	uint32_t bytesRead=0;
+	ULONG bytesRead=0;
 	BOOL rv = FALSE;
 
 	if( opts.interactive_hooks == 1){
@@ -2457,7 +2457,7 @@ int32_t	__stdcall hook_WriteFile(struct emu_env_w32 *win, struct emu_env_w32_dll
 	}
 
 	uint32_t returnvalue = 1;
-	uint32_t written=0;
+	ULONG written=0;
 	if(opts.interactive_hooks == 1 ){
 		//technically we should check if overlapped was used...
 		returnvalue = WriteFile( (HANDLE)file, buffer, bytestowrite, &written,0);
@@ -3105,7 +3105,7 @@ int32_t	__stdcall hook_GetFileSize(struct emu_env_w32 *win, struct emu_env_w32_d
 	uint32_t lpSizeHigh = popd();
 
 	uint32_t ret_val = -1;
-	uint32_t sizeHigh = 0;
+	ULONG sizeHigh = 0;
     bool nolog = false;
 
 	if( hFile < 5 && opts.h_fopen > 0 )
@@ -3457,7 +3457,7 @@ int32_t	__stdcall hook_CryptGetHashParam(struct emu_env_w32 *win, struct emu_env
 	uint32_t dwFlags = popd();
 
 	uint32_t dwDataLen = 0;
-	uint32_t myDataLen = 0;
+	ULONG myDataLen = 0;
 
 	emu_memory_read_dword(mem, pdwDataLen, &dwDataLen);
 
@@ -5009,7 +5009,7 @@ int32_t	__stdcall hook_RtlDecompressBuffer(struct emu_env_w32 *win, struct emu_e
 	printf("%x\t%s(fmat=%x,ubuf=%x, usz=%x, cbuf=%x, csz=%x) ", eip_save, ex->fnname, fmat, ubuf, usz,cbuf, csz );
 	
 	if(opts.interactive_hooks){
-		uint32_t szOut=0;
+		ULONG szOut=0;
 		void *rUbuf = SafeMalloc(usz);
 		void *rCBuf = SafeMalloc(csz);
 		emu_memory_read_block(mem,cbuf,rCBuf,csz);
@@ -5665,7 +5665,7 @@ int32_t	__stdcall hook_DeviceIoControl(struct emu_env_w32 *win, struct emu_env_w
 		hexdump(buffer, display_size);
 	}
 
-	uint32_t written=0;
+	ULONG written=0;
 	if(opts.interactive_hooks == 1 ){
 		WriteFile( (HANDLE)hDev, buffer, buf_size , &written,0);
 	}
