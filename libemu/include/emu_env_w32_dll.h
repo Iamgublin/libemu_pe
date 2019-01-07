@@ -41,9 +41,9 @@ struct emu_env_w32_dll
 	uint32_t	imagesize;
 	uint32_t	baseaddr;
 	struct emu_env_w32_dll_export *exportx;
-	stdext::hash_map <uint32_t, void*>    *exports_by_fnptr;
-	stdext::hash_map <std::string, void*> *exports_by_fnname;
-	stdext::hash_map <uint32_t, void*>    *exports_by_ordinal;
+	std::unordered_map <uint32_t, void*>    *exports_by_fnptr;
+	std::unordered_map <std::string, void*> *exports_by_fnname;
+	std::unordered_map <uint32_t, void*>    *exports_by_ordinal;
 };
 
 struct emu_env_w32_dll *emu_env_w32_dll_new(void);

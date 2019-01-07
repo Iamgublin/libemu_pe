@@ -31,7 +31,7 @@
 #pragma warning(disable: 4482)
 #pragma comment(lib, "Winhttp.lib")
 
-#include <hash_map>
+#include <unordered_map>
 #include <string>
 #include <stdint.h>
 #include <stdio.h>

@@ -27,7 +27,7 @@
 
 #include <stdlib.h>
 #include <string.h>
-#include <hash_map>
+#include <unordered_map>
 #include <string>
 
 #include "emu.h"
@@ -77,9 +77,9 @@ void emu_env_w32_dll_exports_copy(struct emu_env_w32_dll *to,struct emu_env_w32_
 //	to->hooks = (struct emu_env_hook*)malloc(sizeof(struct emu_env_hook) * size);
 	memcpy(to->exportx, from, sizeof(struct emu_env_w32_dll_export) * size);
 
-	to->exports_by_ordinal = new stdext::hash_map<uint32_t,void*>;
-	to->exports_by_fnptr   = new stdext::hash_map<uint32_t,void*>;
-	to->exports_by_fnname  = new stdext::hash_map<std::string,void*>;
+	to->exports_by_ordinal = new std::unordered_map<uint32_t,void*>;
+	to->exports_by_fnptr   = new std::unordered_map<uint32_t,void*>;
+	to->exports_by_fnname  = new std::unordered_map<std::string,void*>;
 
 	for (i=0;from[i].fnname != 0; i++)
 	{

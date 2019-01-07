@@ -38,7 +38,7 @@
 */
 
 #include <windows.h>
-#include <hash_map>
+#include <unordered_map>
 #include <algorithm>
 #include <stdlib.h>
 #include <stdint.h>
