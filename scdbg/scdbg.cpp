@@ -38,6 +38,7 @@
 */
 
 #include <windows.h>
+#include <Shlwapi.h>
 #include <unordered_map>
 #include <algorithm>
 #include <stdlib.h>
@@ -64,7 +65,8 @@
 #include "stdint.h"
 #include "options.h"
 
-#define INT32_MAX 0x7fffffff
+#pragma comment(lib,"Shlwapi.lib")
+
 #define F(x) (1 << (x))
 #define CPU_FLAG_ISSET(cpu_p, fl) ((cpu_p)->eflags & (1 << (fl)))
 #define FLAG(fl) (1 << (fl))
@@ -3031,6 +3033,7 @@ void show_help(void)
 		{"xor", "0xVal" ,     "xor -f and -wstr input buffers with 1 - 4 byte keys"},
 		{"conv", "path" , "outputs converted shellcode to file (%u,\\x,bswap,eswap..)"},
 		{"ida", NULL , "connects to last opened IDA instance on startup"},
+        {"exe", "path" , "execute a spefic file"},
 		{"[reg]", "value" , "sets init register value ex: -eax 0x20 -ebx 20 -ecx base -reg base"},
 	};
 
@@ -3671,6 +3674,25 @@ void parse_opts(int argc, char* argv[] ){
 			}
 		}
 
+        if (opt == "/exe")
+        {
+            if (i + 1 >= argc) {
+                color_printf(myellow, "Invalid option /exe must specify a vaild path\n");
+                m_exit(0);
+            }
+
+            if (!PathFileExistsA(argv[i + 1]))
+            {
+                color_printf(myellow, "Invalid option /exe file not exist!\n");
+                m_exit(0);
+            }
+
+            strncpy(opts.sc_file, argv[i + 1], 499);
+            opts.file_mode = true;
+            opts.execfromfile = true;
+            i++; handled = true;
+        }
+
 		//this one has to be last because it modifies opt argument..
 		if(!handled){		
 			int j;
@@ -3911,6 +3933,49 @@ uint32_t stripChars(unsigned char* buf_in, int *output, uint32_t sz, char* chars
 	return out;
 }
 
+void loadexeassc()
+{
+    memset(opts.scode, 0, opts.size + 10);
+
+    IMAGE_SECTION_HEADER *section_table = NULL;
+    PIMAGE_DOS_HEADER ibuf_dos_header = NULL;
+    PIMAGE_NT_HEADERS ibuf_nt_headers = NULL;
+    ibuf_dos_header = (PIMAGE_DOS_HEADER)opts.pefile;
+    if (ibuf_dos_header->e_magic != IMAGE_DOS_SIGNATURE
+        || ibuf_dos_header->e_lfanew + sizeof(IMAGE_NT_HEADERS) > opts.size)
+    {
+        color_printf(myellow, "Invalid PE file!\n");
+        m_exit(0);
+    }
+
+    ibuf_nt_headers = (PIMAGE_NT_HEADERS)&opts.pefile[ibuf_dos_header->e_lfanew];
+
+    if (ibuf_nt_headers->Signature != IMAGE_NT_SIGNATURE)
+    {
+        color_printf(myellow, "Invalid PE file!\n");
+        m_exit(0);
+    }
+
+    section_table = IMAGE_FIRST_SECTION(ibuf_nt_headers);
+    if (section_table == NULL)
+    {
+        color_printf(myellow, "Invalid PE file!\n");
+        m_exit(0);
+    }
+
+    for (int i = 0; i < ibuf_nt_headers->FileHeader.NumberOfSections; i++)
+    {
+        IMAGE_SECTION_HEADER *sechdr = section_table;
+        if (StrCmpI((char*)sechdr->Name, ".text") == 0)
+        {
+            memcpy(opts.scode, &opts.pefile[sechdr->PointerToRawData], sechdr->SizeOfRawData);
+            opts.offset = ibuf_nt_headers->OptionalHeader.AddressOfEntryPoint - sechdr->VirtualAddress;
+        }
+
+        section_table++;
+    }
+}
+
 void loadsc(void){
 
 	FILE *fp;
@@ -3932,8 +3997,11 @@ void loadsc(void){
 	}
 	opts.size = file_length(fp) + opts.padding ;
 	opts.scode = (unsigned char*)malloc(opts.size+10); 
+    opts.pefile = (unsigned char*)malloc(opts.size + 10);
 	memset(opts.scode, 0, opts.size+10);
+    memset(opts.pefile, 0, opts.size + 10);
 	fread(opts.scode, 1, opts.size - opts.padding, fp);
+    memcpy(opts.pefile, opts.scode, opts.size + 10);
 	fclose(fp);
 	if(!opts.automationRun) printf("Loaded %x bytes from file %s\n", opts.size, opts.sc_file);
 	 
@@ -3942,6 +4010,11 @@ void loadsc(void){
 		show_help();
 		return;
 	}
+
+    if (opts.execfromfile)
+    {
+        loadexeassc();
+    }
 
 	int tmp;
 	int tmp2;

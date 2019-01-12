@@ -18,6 +18,7 @@ struct run_time_options
 	int verbose;
 	uint32_t steps;
 	unsigned char *scode;
+    unsigned char *pefile;
 	uint32_t size;        //shellcode size
 	uint32_t offset;      //start at offset x within shellcode (usually 0)
 	uint32_t baseAddress; //where in memory shellcode is based at
@@ -69,6 +70,7 @@ struct run_time_options
 	loadlib_override llo[10];
     uint32_t xorVal;
     uint32_t padding;
+    bool execfromfile;
 
 	struct{
 		char *host;
