@@ -3977,7 +3977,7 @@ void loadexeassc()
         //.data区段直接从PE文件中的区段进行映射即可
         if (StrCmpI((char*)sechdr->Name, ".data") == 0)
         {
-            emu_memory_write_block(mem, 0x539000, &opts.pefile[sechdr->PointerToRawData], sechdr->SizeOfRawData);
+            emu_memory_write_block(mem, ibuf_nt_headers->OptionalHeader.ImageBase + sechdr->VirtualAddress, &opts.pefile[sechdr->PointerToRawData], sechdr->SizeOfRawData);
         }
 
         section_table++;
