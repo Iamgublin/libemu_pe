@@ -3966,10 +3966,18 @@ void loadexeassc()
     for (int i = 0; i < ibuf_nt_headers->FileHeader.NumberOfSections; i++)
     {
         IMAGE_SECTION_HEADER *sechdr = section_table;
+
+        //将.text代码段写到scode开头处，并计算offset
         if (StrCmpI((char*)sechdr->Name, ".text") == 0)
         {
             memcpy(opts.scode, &opts.pefile[sechdr->PointerToRawData], sechdr->SizeOfRawData);
             opts.offset = ibuf_nt_headers->OptionalHeader.AddressOfEntryPoint - sechdr->VirtualAddress;
+        }
+
+        //.data区段直接从PE文件中的区段进行映射即可
+        if (StrCmpI((char*)sechdr->Name, ".data") == 0)
+        {
+            emu_memory_write_block(mem, 0x539000, &opts.pefile[sechdr->PointerToRawData], sechdr->SizeOfRawData);
         }
 
         section_table++;
