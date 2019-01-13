@@ -4018,7 +4018,7 @@ void fix_function(PIMAGE_NT_HEADERS ibuf_nt_headers, int func_table_foa, int fun
             }
 
             find = true;
-            *address = known_dlls[dllindex].exports[i].virtualaddr;
+            *address = known_dlls[dllindex].exports[i].virtualaddr + known_dlls[dllindex].baseaddress;
             break;
         }
 
