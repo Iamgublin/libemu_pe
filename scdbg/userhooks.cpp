@@ -613,6 +613,15 @@ int32_t	__stdcall hook_GenericStub(struct emu_env_w32 *win, struct emu_env_w32_d
 		GetSystemTime(&st);
 		emu_memory_write_block( mem, log_val, &st, sizeof(SYSTEMTIME));
 	}
+
+    if (strcmp(func, "QueryPerformanceCounter") == 0) {
+        arg_count = 1;
+        ret_val = 1;
+        log_val = get_arg(0);  //lpPerformanceCount
+        LARGE_INTEGER pc;
+        QueryPerformanceCounter(&pc);
+        emu_memory_write_block(mem, log_val, &pc, sizeof(LARGE_INTEGER));
+    }
  
 	if(strcmp(func, "FreeLibrary") ==0 ){
 		log_val = get_arg(0);  //hmodule

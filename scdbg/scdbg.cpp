@@ -2129,6 +2129,7 @@ void set_hooks(struct emu_env *env){
 	GENERICHOOK(GetCurrentThread);
 	GENERICHOOK(CloseServiceHandle);
 	GENERICHOOK(DeleteService);
+    GENERICHOOK(QueryPerformanceCounter)
 	GENERICHOOK(AdjustTokenPrivileges)
 
 	ADDHOOK(MessageBoxA);
@@ -4012,7 +4013,7 @@ void fix_function(PIMAGE_NT_HEADERS ibuf_nt_headers, int func_table_foa, int fun
 
         for (int i = 0; known_dlls[dllindex].exports[i].virtualaddr != NULL; i++)
         {
-            if (_strnicmp(info->Name, known_dlls[dllindex].exports[i].fnname, strlen(known_dlls[dllindex].exports[i].fnname)) != 0)
+            if (_strnicmp(info->Name, known_dlls[dllindex].exports[i].fnname, strlen(info->Name)) != 0)
             {
                 continue;
             }
