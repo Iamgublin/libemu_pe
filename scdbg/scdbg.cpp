@@ -3935,7 +3935,7 @@ uint32_t stripChars(unsigned char* buf_in, int *output, uint32_t sz, char* chars
 
 void loadexeerror()
 {
-    color_printf(myellow, "Invalid PE file!\n");
+    color_printf(mred, "Invalid PE file!\n");
     m_exit(0);
 }
 
@@ -3979,16 +3979,53 @@ int rva_to_foa(PIMAGE_NT_HEADERS ibuf_nt_headers, DWORD rva)
     return -1;
 }
 
+extern struct emu_env_w32_known_dll known_dlls[];
+
 //根据OriginalFirstThunk的函数名，修改FirstThunk对应位置的地址
-void fix_function(PIMAGE_NT_HEADERS ibuf_nt_headers, int func_table_foa, int func_table_original_foa)
+void fix_function(PIMAGE_NT_HEADERS ibuf_nt_headers, int func_table_foa, int func_table_original_foa, const char* dllname)
 {
+    bool success = false;
+    int dllindex = 0;
+
+    for (dllindex = 1; known_dlls[dllindex].dllname != NULL; dllindex++)
+    {
+        if (_strnicmp(dllname, known_dlls[dllindex].dllname, strlen(known_dlls[dllindex].dllname)) == 0)
+        {
+            success = true;
+            break;
+        }
+    }
+
+    if (!success)
+    {
+        loadexeerror();
+    }
+
     PDWORD address = (PDWORD)&opts.pefile[func_table_foa];
     PDWORD originaladdress = (PDWORD)&opts.pefile[func_table_original_foa];
 
     for (; *address != 0 && originaladdress != 0; address++, originaladdress++)
     {
+        bool find = false;
         int foa_original = rva_to_foa(ibuf_nt_headers, *originaladdress);
         PIMAGE_IMPORT_BY_NAME info = (PIMAGE_IMPORT_BY_NAME)&opts.pefile[foa_original];
+
+        for (int i = 0; known_dlls[dllindex].exports[i].virtualaddr != NULL; i++)
+        {
+            if (_strnicmp(info->Name, known_dlls[dllindex].exports[i].fnname, strlen(known_dlls[dllindex].exports[i].fnname)) != 0)
+            {
+                continue;
+            }
+
+            find = true;
+            *address = known_dlls[dllindex].exports[i].virtualaddr;
+            break;
+        }
+
+        if (!find)
+        {
+            color_printf(myellow, "Cannot find function:%s!\n", info->Name);
+        }
     }
 }
 
@@ -3998,7 +4035,10 @@ void fix_import_descirptor(PIMAGE_NT_HEADERS ibuf_nt_headers, PIMAGE_IMPORT_DESC
     {
         int foa = rva_to_foa(ibuf_nt_headers, import_descriptor->FirstThunk);
         int foa_original = rva_to_foa(ibuf_nt_headers, import_descriptor->OriginalFirstThunk);
-        fix_function(ibuf_nt_headers, foa, foa_original);
+        int foa_name = rva_to_foa(ibuf_nt_headers, import_descriptor->Name);
+        fix_function(ibuf_nt_headers, foa, foa_original, (const char*)&opts.pefile[foa_name]);
+
+        import_descriptor++;
     }
 }
 
