@@ -244,7 +244,7 @@ int32_t instr_mov_a3(struct emu_cpu *c, struct emu_cpu_instruction *i)
 		 * Move AX to (seg:offset)                          
 		 * MOV moffs16*,AX  
 		 */
-		MEM_WORD_WRITE(c, i->imm, *c->reg16[ax]);
+		MEM_WORD_WRITE(c, i->disp, *c->reg16[ax]);
 	}
 	else
 	{
@@ -252,7 +252,7 @@ int32_t instr_mov_a3(struct emu_cpu *c, struct emu_cpu_instruction *i)
 		 * Move EAX to (seg:offset)                         
 		 * MOV moffs32*,EAX 
 		 */                                         
-		MEM_DWORD_WRITE(c, i->imm, c->reg[eax]);
+		MEM_DWORD_WRITE(c, i->disp, c->reg[eax]);
 	}
 
 	return 0;
