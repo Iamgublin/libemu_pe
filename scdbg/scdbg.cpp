@@ -2118,6 +2118,7 @@ void set_hooks(struct emu_env *env){
 	GENERICHOOK(TerminateProcess);
 	GENERICHOOK(CreateThread);
 	GENERICHOOK(GetSystemTime);
+    GENERICHOOK(IsProcessorFeaturePresent);
 	GENERICHOOK(SetSystemTime);
 	GENERICHOOK(RtlDestroyEnvironment);
 	GENERICHOOK(RevertToSelf);

@@ -622,6 +622,12 @@ int32_t	__stdcall hook_GenericStub(struct emu_env_w32 *win, struct emu_env_w32_d
         QueryPerformanceCounter(&pc);
         emu_memory_write_block(mem, log_val, &pc, sizeof(LARGE_INTEGER));
     }
+
+    if (strcmp(func, "IsProcessorFeaturePresent") == 0) {
+        arg_count = 1;
+        log_val = get_arg(0);  //lpPerformanceCount
+        ret_val = IsProcessorFeaturePresent(log_val);
+    }
  
 	if(strcmp(func, "FreeLibrary") ==0 ){
 		log_val = get_arg(0);  //hmodule
