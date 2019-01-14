@@ -2116,6 +2116,7 @@ void set_hooks(struct emu_env *env){
 	GENERICHOOK(GlobalFree);
 	GENERICHOOK(GetCurrentProcess);
 	GENERICHOOK(TerminateProcess);
+    GENERICHOOK(TlsAlloc);
 	GENERICHOOK(CreateThread);
 	GENERICHOOK(GetSystemTime);
     GENERICHOOK(IsProcessorFeaturePresent);
@@ -2130,7 +2131,7 @@ void set_hooks(struct emu_env *env){
 	GENERICHOOK(GetCurrentThread);
 	GENERICHOOK(CloseServiceHandle);
 	GENERICHOOK(DeleteService);
-    GENERICHOOK(QueryPerformanceCounter)
+    GENERICHOOK(QueryPerformanceCounter);
 	GENERICHOOK(AdjustTokenPrivileges)
 
 	ADDHOOK(MessageBoxA);

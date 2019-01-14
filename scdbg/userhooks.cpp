@@ -625,8 +625,13 @@ int32_t	__stdcall hook_GenericStub(struct emu_env_w32 *win, struct emu_env_w32_d
 
     if (strcmp(func, "IsProcessorFeaturePresent") == 0) {
         arg_count = 1;
-        log_val = get_arg(0);  //lpPerformanceCount
+        log_val = get_arg(0);  //ProcessorFeature
         ret_val = IsProcessorFeaturePresent(log_val);
+    }
+
+    if (strcmp(func, "TlsAlloc") == 0) {
+        arg_count = 0;
+        ret_val = TlsAlloc();
     }
  
 	if(strcmp(func, "FreeLibrary") ==0 ){
