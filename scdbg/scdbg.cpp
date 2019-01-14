@@ -2671,9 +2671,13 @@ void init_emu(void){
 	//write shellcode to memory
 	emu_memory_write_block(mem, opts.baseAddress, opts.scode,  opts.size);
 	
-	unsigned char tmp[0x1000]; //extra buffer on end in case they expect it..
-	memset(tmp, 0, sizeof(tmp));
-	emu_memory_write_block(mem, opts.baseAddress + opts.size+1,tmp, sizeof(tmp));
+    //加载exe时这么做的话有可能会覆盖掉段信息，造成错误，先不执行
+    if (!opts.execfromfile)
+    {
+        unsigned char tmp[0x1000]; //extra buffer on end in case they expect it..
+        memset(tmp, 0, sizeof(tmp));
+        emu_memory_write_block(mem, opts.baseAddress + opts.size + 1, tmp, sizeof(tmp));
+    }
 	
 
 }
@@ -4000,7 +4004,8 @@ void fix_function(PIMAGE_NT_HEADERS ibuf_nt_headers, int func_table_foa, int fun
 
     if (!success)
     {
-        loadexeerror();
+        color_printf(myellow, "Not support dll %s Maybe cause some mistakes!\n", dllname);
+        return;
     }
 
     PDWORD address = (PDWORD)&opts.pefile[func_table_foa];
@@ -4044,11 +4049,95 @@ void fix_import_descirptor(PIMAGE_NT_HEADERS ibuf_nt_headers, PIMAGE_IMPORT_DESC
     }
 }
 
+void enum_section_table(PIMAGE_NT_HEADERS ibuf_nt_headers, IMAGE_SECTION_HEADER *section_table)
+{
+    BOOL bHasFixImportTable = FALSE;
+    IMAGE_DATA_DIRECTORY *import_directory_entry = NULL;
+
+    for (int i = 0; i < ibuf_nt_headers->FileHeader.NumberOfSections; i++)
+    {
+        IMAGE_SECTION_HEADER *sechdr = section_table;
+
+        //将.text代码段写到scode开头处，并计算offset
+        if (StrCmpI((char*)sechdr->Name, ".text") == 0)
+        {
+            memcpy(opts.scode, &opts.pefile[sechdr->PointerToRawData], sechdr->SizeOfRawData);
+            opts.size = sechdr->SizeOfRawData;
+            opts.offset = ibuf_nt_headers->OptionalHeader.AddressOfEntryPoint - sechdr->VirtualAddress;
+        }
+
+        //.data区段直接从PE文件中的区段进行映射即可
+        else if (StrCmpI((char*)sechdr->Name, ".data") == 0)
+        {
+            emu_memory_write_block(mem, ibuf_nt_headers->OptionalHeader.ImageBase + sechdr->VirtualAddress, &opts.pefile[sechdr->PointerToRawData], sechdr->SizeOfRawData);
+        }
+
+        //映射输入表,注意，一定要先初始化好，再写入虚拟页表中!
+        else if (StrCmpI((char*)sechdr->Name, ".idata") == 0)
+        {
+            if (bHasFixImportTable)
+            {
+                continue;
+            }
+
+            //获取输入表的地址
+            import_directory_entry = &ibuf_nt_headers->OptionalHeader.DataDirectory[IMAGE_DIRECTORY_ENTRY_IMPORT];
+            if (import_directory_entry->Size == 0)
+            {
+                loadexeerror();
+            }
+
+            int foa = rva_to_foa(ibuf_nt_headers, import_directory_entry->VirtualAddress);
+            if (foa == -1)
+            {
+                loadexeerror();
+            }
+
+            //修复输入表
+            PIMAGE_IMPORT_DESCRIPTOR import_descriptor = (PIMAGE_IMPORT_DESCRIPTOR)&opts.pefile[foa];
+            int num = (import_directory_entry->Size / sizeof(IMAGE_IMPORT_DESCRIPTOR)) - 1;
+            fix_import_descirptor(ibuf_nt_headers, import_descriptor, num);
+
+            emu_memory_write_block(mem, ibuf_nt_headers->OptionalHeader.ImageBase + sechdr->VirtualAddress, &opts.pefile[sechdr->PointerToRawData], sechdr->SizeOfRawData);
+        }
+
+        //(输入表有可能在rdata中)映射输入表,注意，一定要先初始化好，再写入虚拟页表中!
+        else if (StrCmpI((char*)sechdr->Name, ".rdata") == 0)
+        {
+            if (bHasFixImportTable)
+            {
+                continue;
+            }
+
+            //获取输入表的地址
+            import_directory_entry = &ibuf_nt_headers->OptionalHeader.DataDirectory[IMAGE_DIRECTORY_ENTRY_IMPORT];
+            if (import_directory_entry->Size == 0)
+            {
+                loadexeerror();
+            }
+
+            int foa = rva_to_foa(ibuf_nt_headers, import_directory_entry->VirtualAddress);
+            if (foa == -1)
+            {
+                loadexeerror();
+            }
+
+            //修复输入表
+            PIMAGE_IMPORT_DESCRIPTOR import_descriptor = (PIMAGE_IMPORT_DESCRIPTOR)&opts.pefile[foa];
+            int num = (import_directory_entry->Size / sizeof(IMAGE_IMPORT_DESCRIPTOR)) - 1;
+            fix_import_descirptor(ibuf_nt_headers, import_descriptor, num);
+
+            emu_memory_write_block(mem, ibuf_nt_headers->OptionalHeader.ImageBase + sechdr->VirtualAddress, &opts.pefile[sechdr->PointerToRawData], sechdr->SizeOfRawData);
+        }
+
+        section_table++;
+    }
+}
+
 void loadexeassc()
 {
     memset(opts.scode, 0, opts.size + 10);
 
-    IMAGE_DATA_DIRECTORY *import_directory_entry = NULL;
     IMAGE_SECTION_HEADER *section_table = NULL;
     PIMAGE_DOS_HEADER ibuf_dos_header = NULL;
     PIMAGE_NT_HEADERS ibuf_nt_headers = NULL;
@@ -4073,68 +4162,7 @@ void loadexeassc()
         loadexeerror();
     }
 
-    for (int i = 0; i < ibuf_nt_headers->FileHeader.NumberOfSections; i++)
-    {
-        IMAGE_SECTION_HEADER *sechdr = section_table;
-
-        //将.text代码段写到scode开头处，并计算offset
-        if (StrCmpI((char*)sechdr->Name, ".text") == 0)
-        {
-            memcpy(opts.scode, &opts.pefile[sechdr->PointerToRawData], sechdr->SizeOfRawData);
-            opts.offset = ibuf_nt_headers->OptionalHeader.AddressOfEntryPoint - sechdr->VirtualAddress;
-        }
-
-        //.data区段直接从PE文件中的区段进行映射即可
-        if (StrCmpI((char*)sechdr->Name, ".data") == 0)
-        {
-            emu_memory_write_block(mem, ibuf_nt_headers->OptionalHeader.ImageBase + sechdr->VirtualAddress, &opts.pefile[sechdr->PointerToRawData], sechdr->SizeOfRawData);
-        }
-
-        //映射输入表,注意，一定要先初始化好，再写入虚拟页表中!
-        if (StrCmpI((char*)sechdr->Name, ".idata") == 0)
-        {
-            //获取输入表的地址
-            import_directory_entry = &ibuf_nt_headers->OptionalHeader.DataDirectory[IMAGE_DIRECTORY_ENTRY_IMPORT];
-            if (import_directory_entry->Size == 0)
-            {
-                loadexeerror();
-            }
-
-            int foa = rva_to_foa(ibuf_nt_headers, import_directory_entry->VirtualAddress);
-            if (foa == -1)
-            {
-                loadexeerror();
-            }
-
-            //修复输入表
-            PIMAGE_IMPORT_DESCRIPTOR import_descriptor = (PIMAGE_IMPORT_DESCRIPTOR)&opts.pefile[foa];
-            int num = (import_directory_entry->Size / sizeof(IMAGE_IMPORT_DESCRIPTOR)) - 1;
-            fix_import_descirptor(ibuf_nt_headers, import_descriptor, num);
-
-            emu_memory_write_block(mem, ibuf_nt_headers->OptionalHeader.ImageBase + sechdr->VirtualAddress, &opts.pefile[sechdr->PointerToRawData], sechdr->SizeOfRawData);
-        }
-
-        section_table++;
-    }
-
-    ////获取输入表的地址
-    //import_directory_entry = &ibuf_nt_headers->OptionalHeader.DataDirectory[IMAGE_DIRECTORY_ENTRY_IMPORT];
-    //if (import_directory_entry->Size == 0)
-    //{
-    //    loadexeerror();
-    //}
-
-    //int foa = rva_to_foa(ibuf_nt_headers, import_directory_entry->VirtualAddress);
-    //if (foa == -1)
-    //{
-    //    loadexeerror();
-    //}
-
-    ////修复输入表
-    //PIMAGE_IMPORT_DESCRIPTOR import_descriptor = (PIMAGE_IMPORT_DESCRIPTOR)&opts.pefile[foa];
-    //int num = (import_directory_entry->Size / sizeof(IMAGE_IMPORT_DESCRIPTOR)) - 1;
-    //fix_import_descirptor(ibuf_nt_headers, import_descriptor, num);
-
+    enum_section_table(ibuf_nt_headers, section_table);
     return;
 }
 
