@@ -2712,6 +2712,12 @@ int run_sc(void)
 		if(opts.steps >= 0){ //this allows us to use -1 as run till crash..we can ctrl c so
 			if(opts.cur_step > opts.steps) break;
 		}
+
+        if (opts.execfromfile && opts.exestopoffset)
+        {
+            if (emu_cpu_get(e)->eip - opts.baseAddress == opts.exestopoffset)
+                break;
+        }
 	
 		if(cpu->eip != 0){
 			for(i=0; i < 10; i++){
@@ -3041,8 +3047,8 @@ void show_help(void)
 		{"conv", "path" , "outputs converted shellcode to file (%u,\\x,bswap,eswap..)"},
 		{"ida", NULL , "connects to last opened IDA instance on startup"},
         {"exe", "path" , "execute a spefic file"},
-        {"exestartoffset", "value" , "spefic a value where /exe will start"},
-        {"exestopoffset", "value" , "spefic a value where /exe will stop"},
+        {"exestartoffset", "value" , "spefic a value offset(according .text section) where /exe will start"},
+        {"exestopoffset", "value" , "spefic a value offset(according .text section) where /exe will stop"},
 		{"[reg]", "value" , "sets init register value ex: -eax 0x20 -ebx 20 -ecx base -reg base"},
 	};
 
