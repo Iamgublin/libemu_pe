@@ -3041,6 +3041,8 @@ void show_help(void)
 		{"conv", "path" , "outputs converted shellcode to file (%u,\\x,bswap,eswap..)"},
 		{"ida", NULL , "connects to last opened IDA instance on startup"},
         {"exe", "path" , "execute a spefic file"},
+        {"exestartoffset", "value" , "spefic a value where /exe will start"},
+        {"exestopoffset", "value" , "spefic a value where /exe will stop"},
 		{"[reg]", "value" , "sets init register value ex: -eax 0x20 -ebx 20 -ecx base -reg base"},
 	};
 
@@ -3700,6 +3702,28 @@ void parse_opts(int argc, char* argv[] ){
             i++; handled = true;
         }
 
+        if (opt == "/exestartoffset")
+        {
+            if (i + 1 >= argc) {
+                color_printf(myellow, "Invalid option /exestartoffset must specify a vaild start offset\n");
+                m_exit(0);
+            }
+
+            opts.exestartoffset = strtol(argv[i + 1], NULL, 16);
+            i++; handled = true;
+        }
+
+        if (opt == "/exestopoffset")
+        {
+            if (i + 1 >= argc) {
+                color_printf(myellow, "Invalid option /exestopoffset must specify a vaild stop offset\n");
+                m_exit(0);
+            }
+
+            opts.exestopoffset = strtol(argv[i + 1], NULL, 16);
+            i++; handled = true;
+        }
+
 		//this one has to be last because it modifies opt argument..
 		if(!handled){		
 			int j;
@@ -4064,7 +4088,10 @@ void enum_section_table(PIMAGE_NT_HEADERS ibuf_nt_headers, IMAGE_SECTION_HEADER 
         {
             memcpy(opts.scode, &opts.pefile[sechdr->PointerToRawData], sechdr->SizeOfRawData);
             opts.size = sechdr->SizeOfRawData;
-            opts.offset = ibuf_nt_headers->OptionalHeader.AddressOfEntryPoint - sechdr->VirtualAddress;
+            if (opts.exestartoffset != 0)
+                opts.offset = opts.exestartoffset;
+            else
+                opts.offset = ibuf_nt_headers->OptionalHeader.AddressOfEntryPoint - sechdr->VirtualAddress;
         }
 
         //.data区段直接从PE文件中的区段进行映射即可

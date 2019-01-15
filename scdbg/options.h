@@ -71,6 +71,8 @@ struct run_time_options
     uint32_t xorVal;
     uint32_t padding;
     bool execfromfile;
+    uint32_t exestartoffset;
+    uint32_t exestopoffset;
 
 	struct{
 		char *host;
