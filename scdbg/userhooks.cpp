@@ -4461,7 +4461,7 @@ int32_t	__stdcall hook_GetTokenInformation(struct emu_env_w32 *win, struct emu_e
     uint32_t rl = popd();
     uint32_t ret = 0x1;
 
-    printf("%x\tGetTokenInformation(h=%x, TokenInformationClass=%x, TokenInformationLength=%x) = %x\n", eip_save, h, i, ret);
+    printf("%x\tGetTokenInformation(h=%x, TokenInformationClass=%x, TokenInformationLength=%x) = %x\n", eip_save, h, i, l, ret);
 
     emu_memory_write_dword(emu_memory_get(e), rl, 0x2000);
     cpu->reg[eax] = ret;
