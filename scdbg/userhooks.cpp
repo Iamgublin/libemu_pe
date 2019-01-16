@@ -4469,6 +4469,111 @@ int32_t	__stdcall hook_GetTokenInformation(struct emu_env_w32 *win, struct emu_e
     return 0;
 }
 
+int32_t	__stdcall hook_GetUserDefaultLangID(struct emu_env_w32 *win, struct emu_env_w32_dll_export *ex)
+{
+    //LANGID GetUserDefaultLangID(
+    //);
+
+    uint32_t eip_save = popd();
+    uint32_t ret = 0x0C04;             //Chinese (zh)
+
+    printf("%x\tGetUserDefaultLangID() = %x\n", eip_save, ret);
+
+    cpu->reg[eax] = ret;
+    emu_cpu_eip_set(cpu, eip_save);
+    return 0;
+}
+
+int32_t	__stdcall hook_GetKeyboardLayoutList(struct emu_env_w32 *win, struct emu_env_w32_dll_export *ex)
+{
+    //int GetKeyboardLayoutList(
+    //    int nBuff,
+    //    HKL *lpList
+    //);
+
+    uint32_t eip_save = popd();
+    uint32_t n = popd();
+    uint32_t l = popd();
+    uint32_t tmp = 0;
+    if (n != 0)
+    {
+        tmp = (uint32_t)malloc(n+10);
+    }
+
+    uint32_t ret = GetKeyboardLayoutList(n, (HKL*)tmp);
+
+    if (n != 0)
+    {
+        emu_memory_write_dword(emu_memory_get(e), l, tmp);
+        free((void*)tmp);
+    }
+
+    printf("%x\tGetKeyboardLayoutList(nBuff=%x, lpList=%x) = %x\n", eip_save, n, l, ret);
+
+    cpu->reg[eax] = ret;
+    emu_cpu_eip_set(cpu, eip_save);
+    return 0;
+}
+
+int32_t	__stdcall hook_GetProcessHeap(struct emu_env_w32 *win, struct emu_env_w32_dll_export *ex)
+{
+    //HANDLE GetProcessHeap(
+    //);
+
+    uint32_t eip_save = popd();
+    uint32_t ret = (uint32_t)GetProcessHeap();
+
+    printf("%x\tGetProcessHeap() = %x\n", eip_save, ret);
+
+    cpu->reg[eax] = ret;
+    emu_cpu_eip_set(cpu, eip_save);
+    return 0;
+}
+
+int32_t	__stdcall hook_HeapAlloc(struct emu_env_w32 *win, struct emu_env_w32_dll_export *ex)
+{
+    //DECLSPEC_ALLOCATOR LPVOID HeapAlloc(
+    //    HANDLE hHeap,
+    //    DWORD  dwFlags,
+    //    SIZE_T dwBytes
+    //);
+
+    uint32_t eip_save = popd();
+    uint32_t h = popd();
+    uint32_t f = popd();
+    uint32_t b = popd();
+    //uint32_t ret = (uint32_t)HeapAlloc((HANDLE)h, f, b);
+    uint32_t ret = 0x100000;
+
+    printf("%x\tHeapAlloc(hHeap=%x, dwFlags=%x, dwBytes=%x) = %x\n", eip_save, h, f, b, ret);
+
+    cpu->reg[eax] = ret;
+    emu_cpu_eip_set(cpu, eip_save);
+    return 0;
+}
+
+int32_t	__stdcall hook_HeapFree(struct emu_env_w32 *win, struct emu_env_w32_dll_export *ex)
+{
+    //BOOL HeapFree(
+    //    HANDLE                 hHeap,
+    //    DWORD                  dwFlags,
+    //    _Frees_ptr_opt_ LPVOID lpMem
+    //);
+
+    uint32_t eip_save = popd();
+    uint32_t h = popd();
+    uint32_t f = popd();
+    uint32_t m = popd();
+    //uint32_t ret = (uint32_t)HeapFree((HANDLE)h, f, (LPVOID)m);
+    uint32_t ret = 1;
+
+    printf("%x\tHeapFree(hHeap=%x, dwFlags=%x, lpMem=%x) = %x\n", eip_save, h, f, m, ret);
+
+    cpu->reg[eax] = ret;
+    emu_cpu_eip_set(cpu, eip_save);
+    return 0;
+}
+
 int32_t	__stdcall hook_EnumProcesses(struct emu_env_w32 *win, struct emu_env_w32_dll_export *ex)
 {
 /* BOOL WINAPI EnumProcesses(
