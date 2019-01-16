@@ -2226,6 +2226,7 @@ void set_hooks(struct emu_env *env){
 	ADDHOOK(SetEndOfFile);
 	ADDHOOK(LookupPrivilegeValueA);
 	ADDHOOK(OpenProcessToken);
+    ADDHOOK(GetTokenInformation);
 	ADDHOOK(EnumProcesses);
 	ADDHOOK(GetModuleBaseNameA);
 	ADDHOOK(HttpQueryInfoA);

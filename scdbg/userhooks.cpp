@@ -79,6 +79,7 @@ extern char* getDumpPath(char* extension);
 extern bool allocExists(uint32_t base);
 extern uint32_t allocSize(uint32_t base);
 extern void color_printf(colors c, const char *format, ...);
+extern struct emu *e;
 
 enum colors{ mwhite=15, mgreen=10, mred=12, myellow=14, mblue=9, mpurple=5 };
 
@@ -4434,13 +4435,38 @@ int32_t	__stdcall hook_OpenProcessToken(struct emu_env_w32 *win, struct emu_env_
 	uint32_t h = popd();
 	uint32_t a = popd();
 	uint32_t ph = popd();
-	uint32_t ret=0xcafebabe;
+    uint32_t ret = 0xcafebabe;
 
 	printf("%x\tOpenProcessToken(h=%x, access=%x, pTokenHandle=%x) = %x\n", eip_save, h, a, ph, ret);
 	
 	cpu->reg[eax] = ret;
 	emu_cpu_eip_set(cpu, eip_save);
 	return 0;
+}
+
+int32_t	__stdcall hook_GetTokenInformation(struct emu_env_w32 *win, struct emu_env_w32_dll_export *ex)
+{
+    //BOOL GetTokenInformation(
+    //    HANDLE                  TokenHandle,
+    //    TOKEN_INFORMATION_CLASS TokenInformationClass,
+    //    LPVOID                  TokenInformation,
+    //    DWORD                   TokenInformationLength,
+    //    PDWORD                  ReturnLength
+    //);
+
+    uint32_t eip_save = popd();
+    uint32_t h = popd();
+    uint32_t i = popd();
+    uint32_t l = popd();
+    uint32_t rl = popd();
+    uint32_t ret = 0x1;
+
+    printf("%x\tGetTokenInformation(h=%x, TokenInformationClass=%x, TokenInformationLength=%x) = %x\n", eip_save, h, i, ret);
+
+    emu_memory_write_dword(emu_memory_get(e), rl, 0x2000);
+    cpu->reg[eax] = ret;
+    emu_cpu_eip_set(cpu, eip_save);
+    return 0;
 }
 
 int32_t	__stdcall hook_EnumProcesses(struct emu_env_w32 *win, struct emu_env_w32_dll_export *ex)
