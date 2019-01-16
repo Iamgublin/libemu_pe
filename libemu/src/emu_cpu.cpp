@@ -592,10 +592,26 @@ int32_t emu_cpu_parse(struct emu_cpu *c)
 			
 					if( ret != 0 )
 						return ret;
-						
+					
 					c->instr.cpu.opc_2nd = byte;
-					opcode = &c->instr.cpu.opc_2nd;
-					c->cpu_instr_info = &ii_twobyte[byte];
+
+                    if (byte == 0x01)
+                    {
+
+                        ret = emu_memory_read_byte(c->mem, c->eip++, &byte);
+
+                        if (ret != 0)
+                            return ret;
+
+                        c->instr.cpu.opc_3rd = byte;
+                        opcode = &c->instr.cpu.opc_3rd;
+                        c->cpu_instr_info = &ii_threebyte[byte];
+                    }
+                    else
+                    {
+                        opcode = &c->instr.cpu.opc_2nd;
+                        c->cpu_instr_info = &ii_twobyte[byte];
+                    }
 				}
 				else
 				{
@@ -604,7 +620,9 @@ int32_t emu_cpu_parse(struct emu_cpu *c)
 				
 				if ( c->cpu_instr_info->function == 0 )
 				{
-					if( c->instr.cpu.opc == 0x0f )
+                    if(c->instr.cpu.opc_3rd)
+                        emu_strerror_set(c->emu, "opcode 0f 01 %02x not supported\n", c->instr.cpu.opc_3rd);
+					else if( c->instr.cpu.opc == 0x0f )
 						emu_strerror_set(c->emu,"opcode 0f %02x not supported\n", c->instr.cpu.opc_2nd);
 					else
 						emu_strerror_set(c->emu,"opcode %02x not supported\n", c->instr.cpu.opc);
