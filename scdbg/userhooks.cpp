@@ -4013,6 +4013,36 @@ int32_t	__stdcall hook_ExpandEnvironmentStringsA(struct emu_env_w32 *win, struct
 
 }
 
+int32_t	__stdcall hook_ExpandEnvironmentStringsW(struct emu_env_w32 *win, struct emu_env_w32_dll_export *ex)
+{
+    /*
+        DWORD WINAPI ExpandEnvironmentStrings(
+          __in       LPCTSTR lpSrc,
+          __out_opt  LPTSTR lpDst,
+          __in       DWORD nSize
+        );
+    */
+
+    uint32_t eip_save = popd();
+    struct emu_string* src = popwstring();
+    uint32_t dst = popd();
+    uint32_t sz = popd();
+
+    printf("%x\t%s(%s, dst=%x, sz=%x)\n", eip_save, ex->fnname, src->data, dst, sz);
+
+    wchar_t* buf = (wchar_t*)SafeMalloc(sz * 2);
+    int ret = ExpandEnvironmentStringsW(src->wdata, buf, sz);
+
+    if (dst != 0 && ret != 0) emu_memory_write_block(mem, dst, buf, ret * 2);
+
+    free(buf);
+    emu_string_free(src);
+    set_ret(ret);
+    emu_cpu_eip_set(cpu, eip_save);
+    return 0;
+
+}
+
 int32_t	__stdcall hook_lstrlenA(struct emu_env_w32 *win, struct emu_env_w32_dll_export *ex)
 {
 	/*  
@@ -4090,6 +4120,35 @@ int32_t	__stdcall hook_memcpy(struct emu_env_w32 *win, struct emu_env_w32_dll_ex
 
 }
 
+int32_t	__stdcall hook_lstrcmp(struct emu_env_w32 *win, struct emu_env_w32_dll_export *ex)
+{
+    //int lstrcmp(
+    //    LPCSTR lpString1,
+    //    LPCSTR lpString2
+    //);
+
+    uint32_t eip_save = popd();
+    struct emu_string *lpString1 = isWapi(ex->fnname) ? popwstring() : popstring();
+    struct emu_string *lpString2 = isWapi(ex->fnname) ? popwstring() : popstring();
+
+    uint32_t ret = 0;
+    if (isWapi(ex->fnname))
+    {
+        ret = lstrcmpW((LPCWSTR)lpString1->data, (LPCWSTR)lpString2->data);
+    }
+    else
+    {
+        ret = lstrcmpA(lpString1->data, lpString2->data);
+    }
+
+    printf("%x\t%s(str1=%s, str2=%s) = %x\n", eip_save, ex->fnname, lpString1->data, lpString2->data, ret);
+    emu_string_free(lpString1);
+    emu_string_free(lpString2);
+
+    set_ret(ret);
+    emu_cpu_eip_set(cpu, eip_save);
+    return 0;
+}
 
 int32_t	__stdcall hook_lstrcpyA(struct emu_env_w32 *win, struct emu_env_w32_dll_export *ex)
 {
@@ -4109,6 +4168,27 @@ int32_t	__stdcall hook_lstrcpyA(struct emu_env_w32 *win, struct emu_env_w32_dll_
 	set_ret(dest); 
 	emu_cpu_eip_set(cpu, eip_save);
 	return 0;
+
+}
+
+int32_t	__stdcall hook_lstrcpyW(struct emu_env_w32 *win, struct emu_env_w32_dll_export *ex)
+{
+    /*
+        LPTSTR WINAPI lstrcpy( __out  LPTSTR lpString1, __in   LPTSTR lpString2);
+    */
+    uint32_t eip_save = popd();
+    uint32_t dest = popd();
+    struct emu_string *str2 = popwstring();
+
+    printf("%x\t%s(dst=%x, src=%s)\n", eip_save, ex->fnname, dest, str2->data);
+
+    emu_memory_write_block(mem, dest, str2->data, str2->size);
+    emu_memory_write_byte(mem, dest + str2->size + 1, 0);
+    emu_string_free(str2);
+
+    set_ret(dest);
+    emu_cpu_eip_set(cpu, eip_save);
+    return 0;
 
 }
 
@@ -6484,6 +6564,40 @@ int32_t	__stdcall hook_Process32First(struct emu_env_w32 *win, struct emu_env_w3
 	return 0;
 }
 
+int32_t	__stdcall hook_Process32Next(struct emu_env_w32 *win, struct emu_env_w32_dll_export *ex)
+{
+    //BOOL Process32Next(
+    //    HANDLE           hSnapshot,
+    //    LPPROCESSENTRY32 lppe
+    //);
+
+    uint32_t eip_save = popd();
+    uint32_t h = popd();
+    uint32_t lp = popd();
+    static uint32_t pIndex = -1;
+    char* procs[] = { "iexplore.exe", "firefox.exe", "explorer.exe", "svchost.exe", "excel.exe", "winword.exe", NULL };
+    uint32_t ret = TRUE;
+
+    pIndex++;
+    if (procs[pIndex] == NULL) {
+        pIndex = 0;
+        ret = FALSE;
+    }
+
+    PROCESSENTRY32 pe32;
+    memset(&pe32, 0, sizeof(PROCESSENTRY32));
+    pe32.th32ProcessID = 0x666;
+    strcpy(pe32.szExeFile, procs[pIndex]);
+
+    printf("%x\t%s(%x)\n", eip_save, ex->fnname, h);
+
+    emu_memory_write_block(mem, lp, &pe32, sizeof(PROCESSENTRY32));
+    cpu->reg[eax] = ret;
+    emu_cpu_eip_set(cpu, eip_save);
+    return 0;
+
+}
+
 int32_t	__stdcall hook_GetDesktopWindow(struct emu_env_w32 *win, struct emu_env_w32_dll_export *ex)
 {
 /*
@@ -6650,6 +6764,14 @@ int32_t	__stdcall hook_strcpy(struct emu_env_w32 *win, struct emu_env_w32_dll_ex
 	return 0;
 
 }
+//
+//int32_t	__stdcall hook_lstrcpy(struct emu_env_w32 *win, struct emu_env_w32_dll_export *ex)
+//{
+//    uint32_t eip_save = popd();
+//    struct emu_string* path = isWapi(ex->fnname) ? popwstring() : popstring();
+//
+//    printf("%x\t%s(%s)\n", eip_save, ex->fnname, path->data);
+//}
 
 int32_t	__stdcall hook_setsockopt(struct emu_env_w32 *win, struct emu_env_w32_dll_export *ex)
 {

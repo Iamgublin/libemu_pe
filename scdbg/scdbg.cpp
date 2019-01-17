@@ -2054,6 +2054,8 @@ void set_hooks(struct emu_env *env){
 	HOOKBOTH(DeleteFile);
 	HOOKBOTH(GetFileAttributes);
     HOOKBOTH(CreateNamedPipe);
+    HOOKBOTH(Process32Next);
+    HOOKBOTH(lstrcmp);
 
 	//these are up here because this declares the extern so we can break macro pattern in manual hooking below..
 	ADDHOOK(ExitProcess);
@@ -2213,9 +2215,11 @@ void set_hooks(struct emu_env *env){
 	ADDHOOK(GetWindowThreadProcessId);
 	ADDHOOK(OpenProcess);
 	ADDHOOK(ExpandEnvironmentStringsA);
+    ADDHOOK(ExpandEnvironmentStringsW);
 	ADDHOOK(lstrlenA);
 	ADDHOOK(lstrcmpiA);
 	ADDHOOK(lstrcpyA);
+    ADDHOOK(lstrcpyW);
 	ADDHOOK(OpenEventA);
 	ADDHOOK(CreateEventA);
 	ADDHOOK(GetThreadContext);

@@ -48,6 +48,7 @@ struct emu_string *emu_string_new(void)
 void emu_string_free(struct emu_string *s)
 {
     if( s->data != NULL ) free(s->data); //added null check in case? only malloced on read not new.. dzzie
+    if (s->wdata != NULL) free(s->wdata);
     free(s);
 }
 

@@ -493,6 +493,7 @@ int32_t emu_memory_read_wide_string(struct emu_memory *m, uint32_t addr, struct 
 	
 	char* tmp = (char*)malloc(maxsize);
 	read = emu_memory_read_block(m,addr, tmp, maxsize);
+    s->wdata = wcsdup((wchar_t*)tmp);
 
 	if( read != -1){
 		for(i=0; i < maxsize;i++){
