@@ -6905,3 +6905,29 @@ int32_t	__stdcall hook_ConnectNamedPipe(struct emu_env_w32 *win, struct emu_env_
 	return 0;
 
 }
+
+int32_t	__stdcall hook_CryptImportKey(struct emu_env_w32 *win, struct emu_env_w32_dll_export *ex)
+{
+    //BOOL CryptImportKey(
+    //    HCRYPTPROV hProv,
+    //    const BYTE *pbData,
+    //    DWORD      dwDataLen,
+    //    HCRYPTKEY  hPubKey,
+    //    DWORD      dwFlags,
+    //    HCRYPTKEY  *phKey
+    //);
+
+    uint32_t eip_save = popd();
+    uint32_t a = popd();
+    uint32_t b = popd();
+    uint32_t c = popd();
+    uint32_t d = popd();
+    uint32_t e = popd();
+    uint32_t f = popd();
+
+    printf("%x\t%s()\n", eip_save, ex->fnname);
+
+    set_ret(1);
+    emu_cpu_eip_set(cpu, eip_save);
+    return 0;
+}

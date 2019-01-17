@@ -2300,6 +2300,7 @@ void set_hooks(struct emu_env *env){
 	ADDHOOK(WSAAccept);
 	ADDHOOK(GetSystemInfo);
 	ADDHOOK(ConnectNamedPipe);
+    ADDHOOK(CryptImportKey);
 	
 }
 
