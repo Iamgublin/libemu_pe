@@ -4577,7 +4577,7 @@ int32_t	__stdcall hook_GetKeyboardLayoutList(struct emu_env_w32 *win, struct emu
     uint32_t tmp = 0;
     if (n != 0)
     {
-        tmp = (uint32_t)malloc(n+10);
+        tmp = (uint32_t)malloc(n * 4);
     }
 
     uint32_t ret = GetKeyboardLayoutList(n, (HKL*)tmp);
