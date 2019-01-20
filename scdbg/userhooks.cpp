@@ -4190,23 +4190,21 @@ int32_t	__stdcall hook_wnsprintf(struct emu_env_w32 *win, struct emu_env_w32_dll
     }
 
     int malloclen = isWapi(ex->fnname) ? cchdest * 2 : cchdest;
-    unsigned char* buf = (unsigned char*)malloc(malloclen);
     uint32_t ret = 0;
     if (isWapi(ex->fnname))
     {
-        ret = wnsprintfW((PWSTR)buf, cchdest, lpString2->wdata, params[0]);
-        printf("%x\t%s(str1=%ws, ccsdest=%d ,str2=%s) = %x\n", eip_save, ex->fnname, (wchar_t*)buf, cchdest, lpString2->data, ret);
+        ret = wnsprintfW((PWSTR)dest, cchdest, lpString2->wdata, params[0]);
+        printf("%x\t%s(str1=%ws, ccsdest=%d ,str2=%s) = %x\n", eip_save, ex->fnname, (wchar_t*)dest, cchdest, lpString2->data, ret);
     }
     else
     {
-        ret = wnsprintfA((PSTR)buf, cchdest, lpString2->data, params[0]);
-        printf("%x\t%s(str1=%s, ccsdest=%d ,str2=%s) = %x\n", eip_save, ex->fnname, buf, cchdest, lpString2->data, ret);
+        ret = wnsprintfA((PSTR)dest, cchdest, lpString2->data, params[0]);
+        printf("%x\t%s(str1=%s, ccsdest=%d ,str2=%s) = %x\n", eip_save, ex->fnname, dest, cchdest, lpString2->data, ret);
     }
 
     emu_string_free(lpString2);
 
-    emu_memory_write_block(mem, dest, buf, malloclen);
-    free(buf);
+    emu_memory_write_block(mem, dest, (void*)dest, malloclen);
 
     set_ret(ret);
     emu_cpu_eip_set(cpu, eip_save);
@@ -4685,8 +4683,8 @@ int32_t	__stdcall hook_HeapAlloc(struct emu_env_w32 *win, struct emu_env_w32_dll
     uint32_t h = popd();
     uint32_t f = popd();
     uint32_t b = popd();
-    //uint32_t ret = (uint32_t)HeapAlloc((HANDLE)h, f, b);
-    uint32_t ret = 0x100000;
+    uint32_t ret = (uint32_t)HeapAlloc((HANDLE)h, f, b);
+    emu_memory_write_block(mem, ret, (void*)ret, b);
 
     printf("%x\tHeapAlloc(hHeap=%x, dwFlags=%x, dwBytes=%x) = %x\n", eip_save, h, f, b, ret);
 
@@ -4707,8 +4705,7 @@ int32_t	__stdcall hook_HeapFree(struct emu_env_w32 *win, struct emu_env_w32_dll_
     uint32_t h = popd();
     uint32_t f = popd();
     uint32_t m = popd();
-    //uint32_t ret = (uint32_t)HeapFree((HANDLE)h, f, (LPVOID)m);
-    uint32_t ret = 1;
+    uint32_t ret = (uint32_t)HeapFree((HANDLE)h, f, (LPVOID)m);
 
     printf("%x\tHeapFree(hHeap=%x, dwFlags=%x, lpMem=%x) = %x\n", eip_save, h, f, m, ret);
 
