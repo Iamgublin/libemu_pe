@@ -1,0 +1,203 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Project DefaultTargets="Build" ToolsVersion="15.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <ItemGroup Label="ProjectConfigurations">
+    <ProjectConfiguration Include="Debug|Win32">
+      <Configuration>Debug</Configuration>
+      <Platform>Win32</Platform>
+    </ProjectConfiguration>
+    <ProjectConfiguration Include="Release|Win32">
+      <Configuration>Release</Configuration>
+      <Platform>Win32</Platform>
+    </ProjectConfiguration>
+  </ItemGroup>
+  <PropertyGroup Label="Globals">
+    <ProjectGuid>{FB46CF89-64F1-4CDE-9006-598A266E223C}</ProjectGuid>
+    <RootNamespace>scdbg</RootNamespace>
+    <Keyword>Win32Proj</Keyword>
+  </PropertyGroup>
+  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.Default.props" />
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'" Label="Configuration">
+    <ConfigurationType>Application</ConfigurationType>
+    <PlatformToolset>v141</PlatformToolset>
+    <CharacterSet>MultiByte</CharacterSet>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'" Label="Configuration">
+    <ConfigurationType>Application</ConfigurationType>
+    <PlatformToolset>v141</PlatformToolset>
+    <CharacterSet>MultiByte</CharacterSet>
+  </PropertyGroup>
+  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.props" />
+  <ImportGroup Label="ExtensionSettings">
+  </ImportGroup>
+  <ImportGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'" Label="PropertySheets">
+    <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
+  </ImportGroup>
+  <ImportGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'" Label="PropertySheets">
+    <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
+  </ImportGroup>
+  <PropertyGroup Label="UserMacros" />
+  <PropertyGroup>
+    <_ProjectFileVersion>16.0.28320.50</_ProjectFileVersion>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
+    <OutDir>$(SolutionDir)</OutDir>
+    <IntDir>Debug\</IntDir>
+    <LinkIncremental>true</LinkIncremental>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
+    <OutDir>$(SolutionDir)</OutDir>
+    <IntDir>Release\</IntDir>
+    <LinkIncremental>true</LinkIncremental>
+  </PropertyGroup>
+  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
+    <ClCompile>
+      <AdditionalOptions>/D LIL_ENDIAN /D BYTE_ORDER %(AdditionalOptions)</AdditionalOptions>
+      <Optimization>Disabled</Optimization>
+      <InlineFunctionExpansion>Default</InlineFunctionExpansion>
+      <AdditionalIncludeDirectories>$(VC_IncludePath);./libemu\libdasm;./libemu\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <PreprocessorDefinitions>WIN32;_DEBUG;_CONSOLE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <PreprocessToFile>false</PreprocessToFile>
+      <PreprocessSuppressLineNumbers>false</PreprocessSuppressLineNumbers>
+      <MinimalRebuild>true</MinimalRebuild>
+      <BasicRuntimeChecks>EnableFastChecks</BasicRuntimeChecks>
+      <RuntimeLibrary>MultiThreadedDebugDLL</RuntimeLibrary>
+      <PrecompiledHeader />
+      <WarningLevel>Level3</WarningLevel>
+      <DebugInformationFormat>ProgramDatabase</DebugInformationFormat>
+    </ClCompile>
+    <Link>
+      <AdditionalOptions>ws2_32.lib %(AdditionalOptions)</AdditionalOptions>
+      <OutputFile>$(OutDir)$(ProjectName).exe</OutputFile>
+      <GenerateDebugInformation>true</GenerateDebugInformation>
+      <SubSystem>Console</SubSystem>
+      <TargetMachine>MachineX86</TargetMachine>
+    </Link>
+  </ItemDefinitionGroup>
+  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
+    <ClCompile>
+      <AdditionalOptions>/D LIL_ENDIAN /D BYTE_ORDER %(AdditionalOptions)</AdditionalOptions>
+      <AdditionalIncludeDirectories>$(VC_IncludePath);./libemu\libdasm;./libemu\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <PreprocessorDefinitions>WIN32;NDEBUG;_CONSOLE;LITTLE_ENDIAN;BYTE_ORDER;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <RuntimeLibrary>MultiThreaded</RuntimeLibrary>
+      <PrecompiledHeader />
+      <WarningLevel>Level3</WarningLevel>
+      <DebugInformationFormat>ProgramDatabase</DebugInformationFormat>
+    </ClCompile>
+    <Link>
+      <AdditionalOptions>ws2_32.lib %(AdditionalOptions)</AdditionalOptions>
+      <OutputFile>./scdbg.exe</OutputFile>
+      <GenerateDebugInformation>true</GenerateDebugInformation>
+      <SubSystem>Console</SubSystem>
+      <OptimizeReferences>true</OptimizeReferences>
+      <EnableCOMDATFolding>true</EnableCOMDATFolding>
+      <TargetMachine>MachineX86</TargetMachine>
+    </Link>
+    <PostBuildEvent>
+      <Command>upx "$(TargetPath)"</Command>
+    </PostBuildEvent>
+  </ItemDefinitionGroup>
+  <ItemGroup>
+    <ClCompile Include="libemu\libdasm\libdasm.c" />
+    <ClCompile Include="libemu\opcodes\aaa.cpp" />
+    <ClCompile Include="libemu\opcodes\adc.cpp" />
+    <ClCompile Include="libemu\opcodes\add.cpp" />
+    <ClCompile Include="libemu\opcodes\and.cpp" />
+    <ClCompile Include="libemu\opcodes\call.cpp" />
+    <ClCompile Include="libemu\opcodes\cmp.cpp" />
+    <ClCompile Include="libemu\opcodes\cmps.cpp" />
+    <ClCompile Include="libemu\opcodes\cpuid.cpp" />
+    <ClCompile Include="libemu\opcodes\dec.cpp" />
+    <ClCompile Include="libemu\opcodes\div.cpp" />
+    <ClCompile Include="libemu\opcodes\group_1.cpp" />
+    <ClCompile Include="libemu\opcodes\group_10.cpp" />
+    <ClCompile Include="libemu\opcodes\group_2.cpp" />
+    <ClCompile Include="libemu\opcodes\group_3.cpp" />
+    <ClCompile Include="libemu\opcodes\group_4.cpp" />
+    <ClCompile Include="libemu\opcodes\group_5.cpp" />
+    <ClCompile Include="libemu\opcodes\idiv.cpp" />
+    <ClCompile Include="libemu\opcodes\imul.cpp" />
+    <ClCompile Include="libemu\opcodes\inc.cpp" />
+    <ClCompile Include="libemu\opcodes\int.cpp" />
+    <ClCompile Include="libemu\opcodes\jcc.cpp" />
+    <ClCompile Include="libemu\opcodes\jmp.cpp" />
+    <ClCompile Include="libemu\opcodes\lodscc.cpp" />
+    <ClCompile Include="libemu\opcodes\loopcc.cpp" />
+    <ClCompile Include="libemu\opcodes\misc.cpp" />
+    <ClCompile Include="libemu\opcodes\mov.cpp" />
+    <ClCompile Include="libemu\opcodes\movsx.cpp" />
+    <ClCompile Include="libemu\opcodes\movzx.cpp" />
+    <ClCompile Include="libemu\opcodes\mul.cpp" />
+    <ClCompile Include="libemu\opcodes\neg.cpp" />
+    <ClCompile Include="libemu\opcodes\not.cpp" />
+    <ClCompile Include="libemu\opcodes\or.cpp" />
+    <ClCompile Include="libemu\opcodes\pop.cpp" />
+    <ClCompile Include="libemu\opcodes\push.cpp" />
+    <ClCompile Include="libemu\opcodes\rcl.cpp" />
+    <ClCompile Include="libemu\opcodes\rcr.cpp" />
+    <ClCompile Include="libemu\opcodes\ret.cpp" />
+    <ClCompile Include="libemu\opcodes\rol.cpp" />
+    <ClCompile Include="libemu\opcodes\ror.cpp" />
+    <ClCompile Include="libemu\opcodes\sal.cpp" />
+    <ClCompile Include="libemu\opcodes\sar.cpp" />
+    <ClCompile Include="libemu\opcodes\sbb.cpp" />
+    <ClCompile Include="libemu\opcodes\scas.cpp" />
+    <ClCompile Include="libemu\opcodes\shr.cpp" />
+    <ClCompile Include="libemu\opcodes\stoscc.cpp" />
+    <ClCompile Include="libemu\opcodes\sub.cpp" />
+    <ClCompile Include="libemu\opcodes\test.cpp" />
+    <ClCompile Include="libemu\opcodes\xchg.cpp" />
+    <ClCompile Include="libemu\opcodes\xgetbv.cpp" />
+    <ClCompile Include="libemu\opcodes\xor.cpp" />
+    <ClCompile Include="libemu\src\emu.cpp" />
+    <ClCompile Include="libemu\src\emu_cpu.cpp" />
+    <ClCompile Include="libemu\src\emu_env.cpp" />
+    <ClCompile Include="libemu\src\emu_env_w32.cpp" />
+    <ClCompile Include="libemu\src\emu_env_w32_dll.cpp" />
+    <ClCompile Include="libemu\src\emu_log.cpp" />
+    <ClCompile Include="libemu\src\emu_memory.cpp" />
+    <ClCompile Include="libemu\src\emu_string.cpp" />
+    <ClCompile Include="scdbg\jcalc.cpp" />
+    <ClCompile Include="scdbg\scdbg.cpp" />
+    <ClCompile Include="scdbg\userhooks.cpp" />
+  </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="libemu\include\emu.h" />
+    <ClInclude Include="libemu\include\emu_cpu.h" />
+    <ClInclude Include="libemu\include\emu_cpu_data.h" />
+    <ClInclude Include="libemu\include\emu_cpu_functions.h" />
+    <ClInclude Include="libemu\include\emu_cpu_instruction.h" />
+    <ClInclude Include="libemu\include\emu_cpu_itables.h" />
+    <ClInclude Include="libemu\include\emu_cpu_stack.h" />
+    <ClInclude Include="libemu\include\emu_env.h" />
+    <ClInclude Include="libemu\include\emu_env_w32.h" />
+    <ClInclude Include="libemu\include\emu_env_w32_dll.h" />
+    <ClInclude Include="libemu\include\emu_env_w32_dll_export.h" />
+    <ClInclude Include="libemu\include\emu_fpu_instruction.h" />
+    <ClInclude Include="libemu\include\emu_instruction.h" />
+    <ClInclude Include="libemu\include\emu_log.h" />
+    <ClInclude Include="libemu\include\emu_memory.h" />
+    <ClInclude Include="libemu\include\emu_string.h" />
+    <ClInclude Include="libemu\include\env_w32_dll_export_hooks.h" />
+    <ClInclude Include="libemu\include\inttypes.h" />
+    <ClInclude Include="libemu\include\stdbool.h" />
+    <ClInclude Include="libemu\include\stdint.h" />
+    <ClInclude Include="libemu\include\winsyscalls.h" />
+    <ClInclude Include="libemu\libdasm\libdasm.h" />
+    <ClInclude Include="libemu\libdasm\opcode_tables.h" />
+    <ClInclude Include="scdbg\options.h" />
+  </ItemGroup>
+  <ItemGroup>
+    <ResourceCompile Include="libemu\include\resources.rc" />
+  </ItemGroup>
+  <ItemGroup>
+    <CustomBuild Include=".todo.txt">
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">true</ExcludedFromBuild>
+    </CustomBuild>
+    <CustomBuild Include="ChangeLog.txt">
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">true</ExcludedFromBuild>
+    </CustomBuild>
+  </ItemGroup>
+  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
+  <ImportGroup Label="ExtensionTargets">
+  </ImportGroup>
+</Project>
