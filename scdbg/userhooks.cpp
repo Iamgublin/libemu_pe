@@ -4180,6 +4180,7 @@ int32_t	__stdcall hook_wnsprintf(struct emu_env_w32 *win, struct emu_env_w32_dll
     uint32_t dest = popd();
     uint32_t cchdest = popd();
     struct emu_string *lpString2 = isWapi(ex->fnname) ? popwstring() : popstring();
+    uint32_t ret = 0;
 
     int sz = getFormatParameterCount(lpString2);
     int params[10];
@@ -4190,7 +4191,8 @@ int32_t	__stdcall hook_wnsprintf(struct emu_env_w32 *win, struct emu_env_w32_dll
     }
 
     int malloclen = isWapi(ex->fnname) ? cchdest * 2 : cchdest;
-    uint32_t ret = 0;
+
+    //TODO:完善传值机制，目前只传入了一个参数，但是参数数量会有多种可能
     if (isWapi(ex->fnname))
     {
         ret = wnsprintfW((PWSTR)dest, cchdest, lpString2->wdata, params[0]);
@@ -4205,6 +4207,9 @@ int32_t	__stdcall hook_wnsprintf(struct emu_env_w32 *win, struct emu_env_w32_dll
     emu_string_free(lpString2);
 
     emu_memory_write_block(mem, dest, (void*)dest, malloclen);
+
+    //平衡esp!!!!!(这里不平衡的话返回时会崩溃)
+    cpu->reg[esp] -= 0x16 + 4 * sz;
 
     set_ret(ret);
     emu_cpu_eip_set(cpu, eip_save);
@@ -7054,6 +7059,74 @@ int32_t	__stdcall hook_WNetOpenEnum(struct emu_env_w32 *win, struct emu_env_w32_
 
     printf("%x\t%s(%x,%x,%x,%x,%x) = %x\n", eip_save, ex->fnname, s, t, u, n, h, ret);
 
+    set_ret(ret);
+    emu_cpu_eip_set(cpu, eip_save);
+    return 0;
+
+}
+
+int32_t	__stdcall hook_FindFirstFile(struct emu_env_w32 *win, struct emu_env_w32_dll_export *ex)
+{
+    //HANDLE FindFirstFile(
+    //    LPCSTR             lpFileName,
+    //    LPWIN32_FIND_DATA  lpFindFileData
+    //);
+
+    uint32_t eip_save = popd();
+    struct emu_string *s = isWapi(ex->fnname) ? popwstring() : popstring();
+    uint32_t f = popd();
+    uint32_t ret = (uint32_t)INVALID_HANDLE_VALUE;
+
+    WIN32_FIND_DATAA DataA = {};
+    WIN32_FIND_DATAW DataW = {};
+
+    if (isWapi(ex->fnname))
+    {
+        ret = (uint32_t)FindFirstFileW(s->wdata, &DataW);
+        emu_memory_write_block(mem, f, &DataW, sizeof(_WIN32_FIND_DATAW));
+        printf("%x\t%s(%ws,%x) = %x\n", eip_save, ex->fnname, s->wdata, f, ret);
+    }
+    else
+    {
+        ret = (uint32_t)FindFirstFileA(s->data, &DataA);
+        emu_memory_write_block(mem, f, &DataA, sizeof(_WIN32_FIND_DATAA));
+        printf("%x\t%s(%s,%x) = %x\n", eip_save, ex->fnname, s->data, f, ret);
+    }
+
+    set_ret(ret);
+    emu_cpu_eip_set(cpu, eip_save);
+    return 0;
+
+}
+
+int32_t	__stdcall hook_FindNextFile(struct emu_env_w32 *win, struct emu_env_w32_dll_export *ex)
+{
+    //BOOL FindNextFileA(
+    //    HANDLE             hFindFile,
+    //    LPWIN32_FIND_DATAA lpFindFileData
+    //);
+
+    uint32_t eip_save = popd();
+    uint32_t h = popd();
+    uint32_t f = popd();
+    uint32_t ret = 0;
+
+    WIN32_FIND_DATAA DataA = {};
+    WIN32_FIND_DATAW DataW = {};
+
+    if (isWapi(ex->fnname))
+    {
+        ret = (uint32_t)FindNextFileW((HANDLE)h, &DataW);
+        emu_memory_write_block(mem, f, &DataW, sizeof(WIN32_FIND_DATAW));
+    }
+    else
+    {
+        ret = (uint32_t)FindNextFileA((HANDLE)h, &DataA);
+        emu_memory_write_block(mem, f, &DataA, sizeof(WIN32_FIND_DATAA));
+    }
+
+
+    printf("%x\t%s(%x,%x) = %x\n", eip_save, ex->fnname, h, f, ret);
     set_ret(ret);
     emu_cpu_eip_set(cpu, eip_save);
     return 0;

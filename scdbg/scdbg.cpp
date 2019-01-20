@@ -2058,6 +2058,8 @@ void set_hooks(struct emu_env *env){
     HOOKBOTH(lstrcmp);
     HOOKBOTH(wnsprintf);
     HOOKBOTH(WNetOpenEnum);
+    HOOKBOTH(FindFirstFile);
+    HOOKBOTH(FindNextFile);
 
 	//these are up here because this declares the extern so we can break macro pattern in manual hooking below..
 	ADDHOOK(ExitProcess);
