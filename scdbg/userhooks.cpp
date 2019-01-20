@@ -49,6 +49,7 @@
 #include <wininet.h>
 #include <Shlobj.h>
 #include <TlHelp32.h>
+#include <Shlwapi.h>
 //#include <Winhttp.h>
 
 #include "emu.h"
@@ -2936,6 +2937,22 @@ int32_t	__stdcall hook_GetLogicalDriveStringsA(struct emu_env_w32 *win, struct e
 	return 0;
 }
 
+int32_t	__stdcall hook_GetLogicalDrives(struct emu_env_w32 *win, struct emu_env_w32_dll_export *ex)
+{
+    //DWORD GetLogicalDrives(
+    //);
+
+    uint32_t rv = 0;
+    uint32_t eip_save = popd();
+    rv = GetLogicalDrives();
+
+    printf("%x\tGetLogicalDrives() = %x\n", eip_save, rv);
+
+    set_ret(rv);
+    emu_cpu_eip_set(cpu, eip_save);
+    return 0;
+}
+
 int32_t	__stdcall hook_FindWindowA(struct emu_env_w32 *win, struct emu_env_w32_dll_export *ex)
 {
 	/*
@@ -4134,7 +4151,7 @@ int32_t	__stdcall hook_lstrcmp(struct emu_env_w32 *win, struct emu_env_w32_dll_e
     uint32_t ret = 0;
     if (isWapi(ex->fnname))
     {
-        ret = lstrcmpW((LPCWSTR)lpString1->data, (LPCWSTR)lpString2->data);
+        ret = lstrcmpW((LPCWSTR)lpString1->wdata, (LPCWSTR)lpString2->wdata);
     }
     else
     {
@@ -4144,6 +4161,52 @@ int32_t	__stdcall hook_lstrcmp(struct emu_env_w32 *win, struct emu_env_w32_dll_e
     printf("%x\t%s(str1=%s, str2=%s) = %x\n", eip_save, ex->fnname, lpString1->data, lpString2->data, ret);
     emu_string_free(lpString1);
     emu_string_free(lpString2);
+
+    set_ret(ret);
+    emu_cpu_eip_set(cpu, eip_save);
+    return 0;
+}
+
+int32_t	__stdcall hook_wnsprintf(struct emu_env_w32 *win, struct emu_env_w32_dll_export *ex)
+{
+    //int wnsprintf(
+    //    PSTR  pszDest,
+    //    int   cchDest,
+    //    PCSTR pszFmt,
+    //    ...
+    //);
+
+    uint32_t eip_save = popd();
+    uint32_t dest = popd();
+    uint32_t cchdest = popd();
+    struct emu_string *lpString2 = isWapi(ex->fnname) ? popwstring() : popstring();
+
+    int sz = getFormatParameterCount(lpString2);
+    int params[10];
+    if (sz > 10) sz = 10;
+
+    for (int i = 0; i < sz; i++) {
+        params[i] = /*get_arg(12 + (i * 4));*/ popd();
+    }
+
+    int malloclen = isWapi(ex->fnname) ? cchdest * 2 : cchdest;
+    unsigned char* buf = (unsigned char*)malloc(malloclen);
+    uint32_t ret = 0;
+    if (isWapi(ex->fnname))
+    {
+        ret = wnsprintfW((PWSTR)buf, cchdest, lpString2->wdata, params[0]);
+        printf("%x\t%s(str1=%ws, ccsdest=%d ,str2=%s) = %x\n", eip_save, ex->fnname, (wchar_t*)buf, cchdest, lpString2->data, ret);
+    }
+    else
+    {
+        ret = wnsprintfA((PSTR)buf, cchdest, lpString2->data, params[0]);
+        printf("%x\t%s(str1=%s, ccsdest=%d ,str2=%s) = %x\n", eip_save, ex->fnname, buf, cchdest, lpString2->data, ret);
+    }
+
+    emu_string_free(lpString2);
+
+    emu_memory_write_block(mem, dest, buf, malloclen);
+    free(buf);
 
     set_ret(ret);
     emu_cpu_eip_set(cpu, eip_save);
@@ -5214,6 +5277,48 @@ int32_t	__stdcall hook_wsprintfA(struct emu_env_w32 *win, struct emu_env_w32_dll
     emu_cpu_eip_set(cpu, eip_save);
 	emu_string_free(fmat);
 	return 0;
+}
+
+int32_t	__stdcall hook_wsprintfW(struct emu_env_w32 *win, struct emu_env_w32_dll_export *ex)
+{
+    /*
+        int __cdecl wsprintf(
+          _Out_  LPTSTR lpOut,
+          _In_   LPCTSTR lpFmt,
+          _In_    ...
+        );
+    */
+    uint32_t eip_save = popd();
+    uint32_t lpOut = get_arg(0);
+    uint32_t lpFmt = get_arg(4);
+
+    struct emu_string *fmat = emu_string_new();
+    emu_memory_read_string(mem, lpFmt, fmat, 1256);
+
+    printf("%x\t%s(buf=%x, fmat=%s", eip_save, ex->fnname, lpOut, fmat->data);
+
+    int sz = getFormatParameterCount(fmat);
+    if (sz > 0) printf(" args(%x)=[", sz);
+
+    int params[10];
+    if (sz > 10) sz = 10;
+
+    for (int i = 0; i < sz; i++) {
+        params[i] = get_arg(8 + (i * 4));
+        printf("%x", params[i]);
+        if (i + 1 != sz) printf(","); else printf("] ");
+    }
+
+    printf(")\n");
+
+    char ret[150];
+    sz = sprintf(ret, "wsprintfA_%x", eip_save);
+    emu_memory_write_block(mem, lpOut, ret, sz + 1);
+    set_ret(sz);
+
+    emu_cpu_eip_set(cpu, eip_save);
+    emu_string_free(fmat);
+    return 0;
 }
 
 int32_t	__stdcall hook_RtlDecompressBuffer(struct emu_env_w32 *win, struct emu_env_w32_dll_export *ex)
@@ -6930,4 +7035,30 @@ int32_t	__stdcall hook_CryptImportKey(struct emu_env_w32 *win, struct emu_env_w3
     set_ret(1);
     emu_cpu_eip_set(cpu, eip_save);
     return 0;
+}
+
+int32_t	__stdcall hook_WNetOpenEnum(struct emu_env_w32 *win, struct emu_env_w32_dll_export *ex)
+{
+    //DWORD WNetOpenEnumW(
+    //    DWORD          dwScope,
+    //    DWORD          dwType,
+    //    DWORD          dwUsage,
+    //    LPNETRESOURCEW lpNetResource,
+    //    LPHANDLE       lphEnum
+    //);
+
+    uint32_t eip_save = popd();
+    uint32_t s = popd();
+    uint32_t t = popd();
+    uint32_t u = popd();
+    uint32_t n = popd();
+    uint32_t h = popd();
+    uint32_t ret = ERROR_NO_NETWORK;
+
+    printf("%x\t%s(%x,%x,%x,%x,%x) = %x\n", eip_save, ex->fnname, s, t, u, n, h, ret);
+
+    set_ret(ret);
+    emu_cpu_eip_set(cpu, eip_save);
+    return 0;
+
 }

@@ -2056,6 +2056,8 @@ void set_hooks(struct emu_env *env){
     HOOKBOTH(CreateNamedPipe);
     HOOKBOTH(Process32Next);
     HOOKBOTH(lstrcmp);
+    HOOKBOTH(wnsprintf);
+    HOOKBOTH(WNetOpenEnum);
 
 	//these are up here because this declares the extern so we can break macro pattern in manual hooking below..
 	ADDHOOK(ExitProcess);
@@ -2257,6 +2259,7 @@ void set_hooks(struct emu_env *env){
 	ADDHOOK(rand);
 	ADDHOOK(inet_addr);
 	ADDHOOK(wsprintfA);
+    ADDHOOK(wsprintfW);
     ADDHOOK(RtlDecompressBuffer);
 	ADDHOOK(RtlZeroMemory);
 	ADDHOOK(swprintf);
@@ -2301,6 +2304,7 @@ void set_hooks(struct emu_env *env){
 	ADDHOOK(GetSystemInfo);
 	ADDHOOK(ConnectNamedPipe);
     ADDHOOK(CryptImportKey);
+    ADDHOOK(GetLogicalDrives);
 	
 }
 
@@ -4061,7 +4065,7 @@ void fix_function(PIMAGE_NT_HEADERS ibuf_nt_headers, int func_table_foa, int fun
 
         for (int i = 0; known_dlls[dllindex].exports[i].virtualaddr != NULL; i++)
         {
-            if (_strnicmp(info->Name, known_dlls[dllindex].exports[i].fnname, strlen(info->Name)) != 0)
+            if (strcmp(info->Name, known_dlls[dllindex].exports[i].fnname) != 0)
             {
                 continue;
             }
