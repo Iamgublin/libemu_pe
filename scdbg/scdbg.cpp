@@ -2060,6 +2060,7 @@ void set_hooks(struct emu_env *env){
     HOOKBOTH(WNetOpenEnum);
     HOOKBOTH(FindFirstFile);
     HOOKBOTH(FindNextFile);
+    HOOKBOTH(StrStrI);
 
 	//these are up here because this declares the extern so we can break macro pattern in manual hooking below..
 	ADDHOOK(ExitProcess);
@@ -2222,6 +2223,7 @@ void set_hooks(struct emu_env *env){
     ADDHOOK(ExpandEnvironmentStringsW);
 	ADDHOOK(lstrlenA);
 	ADDHOOK(lstrcmpiA);
+    ADDHOOK(lstrcmpiW);
 	ADDHOOK(lstrcpyA);
     ADDHOOK(lstrcpyW);
 	ADDHOOK(OpenEventA);
@@ -2307,6 +2309,7 @@ void set_hooks(struct emu_env *env){
 	ADDHOOK(ConnectNamedPipe);
     ADDHOOK(CryptImportKey);
     ADDHOOK(GetLogicalDrives);
+    ADDHOOK(WaitForMultipleObjects);
 	
 }
 

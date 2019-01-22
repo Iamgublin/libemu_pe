@@ -87,6 +87,8 @@ void emu_memory_set_access_monitor(uint32_t lpfnCallback);
 void emu_memory_add_monitor_point(uint32_t address);
 void emu_memory_add_monitor_range(char id, uint32_t start_at, uint32_t end_at);
 void emu_memory_set_range_access_monitor(uint32_t lpfnCallback);
+
+void* mytranslate_addr(struct emu_memory *em, uint32_t addr);
 //----------------------------
 
 #define MEM_BYTE_READ(cpu_p, addr, data_p) \

@@ -285,6 +285,11 @@ static inline void *translate_addr(struct emu_memory *em, uint32_t addr)
 	return NULL;
 }
 
+void* mytranslate_addr(struct emu_memory *em, uint32_t addr)
+{
+    return translate_addr(em, addr);
+}
+
 void mm_check(uint32_t addr, uint32_t len, char mode){
 	
 	uint32_t i=0;

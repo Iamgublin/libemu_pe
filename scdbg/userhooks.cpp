@@ -152,6 +152,21 @@ struct emu_string* popwstring(void){
 	return str;
 }
 
+uint32_t get_arg(int arg_adjust);
+struct emu_string* getargstring(int arg_adjust) {
+    uint32_t addr = get_arg(arg_adjust);
+    struct emu_string *str = emu_string_new();
+    emu_memory_read_string(mem, addr, str, 1256);
+    return str;
+}
+
+struct emu_string* getargwstring(int arg_adjust) {
+    uint32_t addr = get_arg(arg_adjust);
+    struct emu_string *str = emu_string_new();
+    emu_memory_read_wide_string(mem, addr, str, 1256);
+    return str;
+}
+
 void loadargs(int count, uint32_t ary[]){
 	for(int i=0;i<count;i++){
 		int32_t ret = emu_memory_read_dword(cpu->mem, cpu->reg[esp], &ary[i]); 
@@ -2937,6 +2952,29 @@ int32_t	__stdcall hook_GetLogicalDriveStringsA(struct emu_env_w32 *win, struct e
 	return 0;
 }
 
+int32_t	__stdcall hook_WaitForMultipleObjects(struct emu_env_w32 *win, struct emu_env_w32_dll_export *ex)
+{
+    //DWORD WaitForMultipleObjects(
+    //    DWORD        nCount,
+    //    const HANDLE *lpHandles,
+    //    BOOL         bWaitAll,
+    //    DWORD        dwMilliseconds
+    //);
+
+    uint32_t rv = WAIT_OBJECT_0;
+    uint32_t eip_save = popd();
+    uint32_t c = popd();
+    uint32_t h = popd();
+    uint32_t w = popd();
+    uint32_t m = popd();
+
+    printf("%x\tWaitForMultipleObjects(%x,%x,%x,%x) = %x\n", eip_save, c, h, w, m, rv);
+
+    set_ret(rv);
+    emu_cpu_eip_set(cpu, eip_save);
+    return 0;
+}
+
 int32_t	__stdcall hook_GetLogicalDrives(struct emu_env_w32 *win, struct emu_env_w32_dll_export *ex)
 {
     //DWORD GetLogicalDrives(
@@ -4107,6 +4145,31 @@ int32_t	__stdcall hook_lstrcmpiA(struct emu_env_w32 *win, struct emu_env_w32_dll
 
 }
 
+int32_t	__stdcall hook_lstrcmpiW(struct emu_env_w32 *win, struct emu_env_w32_dll_export *ex)
+{
+    /*
+        int WINAPI lstrcmpi(
+          __in  LPCTSTR lpString1,
+          __in  LPCTSTR lpString2
+        );
+    */
+
+    uint32_t eip_save = popd();
+    struct emu_string* src = popwstring();
+    struct emu_string* src2 = popwstring();
+
+    printf("%x\t%s(%s, %s)\n", eip_save, ex->fnname, src->data, src2->data);
+
+    int ret = lstrcmpiA(src->data, src2->data);
+
+    emu_string_free(src);
+    emu_string_free(src2);
+    set_ret(ret);
+    emu_cpu_eip_set(cpu, eip_save);
+    return 0;
+
+}
+
 int32_t	__stdcall hook_memcpy(struct emu_env_w32 *win, struct emu_env_w32_dll_export *ex)
 {
 	/*  
@@ -4169,7 +4232,7 @@ int32_t	__stdcall hook_lstrcmp(struct emu_env_w32 *win, struct emu_env_w32_dll_e
 
 int32_t	__stdcall hook_wnsprintf(struct emu_env_w32 *win, struct emu_env_w32_dll_export *ex)
 {
-    //int wnsprintf(
+    //int _cdecl wnsprintf(
     //    PSTR  pszDest,
     //    int   cchDest,
     //    PCSTR pszFmt,
@@ -4177,9 +4240,10 @@ int32_t	__stdcall hook_wnsprintf(struct emu_env_w32 *win, struct emu_env_w32_dll
     //);
 
     uint32_t eip_save = popd();
-    uint32_t dest = popd();
-    uint32_t cchdest = popd();
-    struct emu_string *lpString2 = isWapi(ex->fnname) ? popwstring() : popstring();
+    uint32_t dest = get_arg(0);
+    uint32_t cchdest = get_arg(4);
+    struct emu_string *lpString2 = isWapi(ex->fnname) ? getargwstring(8) : getargstring(8);
+
     uint32_t ret = 0;
 
     int sz = getFormatParameterCount(lpString2);
@@ -4187,7 +4251,14 @@ int32_t	__stdcall hook_wnsprintf(struct emu_env_w32 *win, struct emu_env_w32_dll
     if (sz > 10) sz = 10;
 
     for (int i = 0; i < sz; i++) {
-        params[i] = /*get_arg(12 + (i * 4));*/ popd();
+        params[i] = get_arg(12 + (i * 4));
+
+        //判断是否为虚拟内存地址，如果是则进行转换
+        void *p = mytranslate_addr(mem, params[i]);
+        if (p != NULL)
+        {
+            params[i] = (int)p;
+        }
     }
 
     int malloclen = isWapi(ex->fnname) ? cchdest * 2 : cchdest;
@@ -4195,21 +4266,34 @@ int32_t	__stdcall hook_wnsprintf(struct emu_env_w32 *win, struct emu_env_w32_dll
     //TODO:完善传值机制，目前只传入了一个参数，但是参数数量会有多种可能
     if (isWapi(ex->fnname))
     {
-        ret = wnsprintfW((PWSTR)dest, cchdest, lpString2->wdata, params[0]);
+        if (sz == 1)
+        {
+            ret = wnsprintfW((PWSTR)dest, cchdest, lpString2->wdata, params[0]);
+        }
+        else if (sz == 2)
+        {
+            ret = wnsprintfW((PWSTR)dest, cchdest, lpString2->wdata, params[0], params[1]);
+        }
+
         printf("%x\t%s(str1=%ws, ccsdest=%d ,str2=%s) = %x\n", eip_save, ex->fnname, (wchar_t*)dest, cchdest, lpString2->data, ret);
     }
     else
     {
-        ret = wnsprintfA((PSTR)dest, cchdest, lpString2->data, params[0]);
+        if (sz == 1)
+        {
+            ret = wnsprintfA((PSTR)dest, cchdest, lpString2->data, params[0]);
+        }
+        else if (sz == 2)
+        {
+            ret = wnsprintfA((PSTR)dest, cchdest, lpString2->data, params[0], params[1]);
+        }
+
         printf("%x\t%s(str1=%s, ccsdest=%d ,str2=%s) = %x\n", eip_save, ex->fnname, dest, cchdest, lpString2->data, ret);
     }
 
     emu_string_free(lpString2);
 
     emu_memory_write_block(mem, dest, (void*)dest, malloclen);
-
-    //平衡esp!!!!!(这里不平衡的话返回时会崩溃)
-    cpu->reg[esp] -= 0x16 + 4 * sz;
 
     set_ret(ret);
     emu_cpu_eip_set(cpu, eip_save);
@@ -7095,6 +7179,7 @@ int32_t	__stdcall hook_FindFirstFile(struct emu_env_w32 *win, struct emu_env_w32
 
     set_ret(ret);
     emu_cpu_eip_set(cpu, eip_save);
+    emu_string_free(s);
     return 0;
 
 }
@@ -7129,6 +7214,38 @@ int32_t	__stdcall hook_FindNextFile(struct emu_env_w32 *win, struct emu_env_w32_
     printf("%x\t%s(%x,%x) = %x\n", eip_save, ex->fnname, h, f, ret);
     set_ret(ret);
     emu_cpu_eip_set(cpu, eip_save);
+    return 0;
+
+}
+
+int32_t	__stdcall hook_StrStrI(struct emu_env_w32 *win, struct emu_env_w32_dll_export *ex)
+{
+    //PCSTR StrStrIA(
+    //    PCSTR pszFirst,
+    //    PCSTR pszSrch
+    //);
+
+    uint32_t eip_save = popd();
+    struct emu_string *f = isWapi(ex->fnname) ? popwstring() : popstring();
+    struct emu_string *s = isWapi(ex->fnname) ? popwstring() : popstring();
+    uint32_t ret = 0;
+
+
+    if (isWapi(ex->fnname))
+    {
+        ret = (uint32_t)StrStrIW(f->wdata, s->wdata);
+    }
+    else
+    {
+        ret = (uint32_t)StrStrIA(f->data, s->data);
+    }
+
+    printf("%x\t%s(%s,%s) = %x\n", eip_save, ex->fnname, f->data, s->data, ret);
+
+    set_ret(ret);
+    emu_cpu_eip_set(cpu, eip_save);
+    emu_string_free(f);
+    emu_string_free(s);
     return 0;
 
 }
