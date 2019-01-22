@@ -811,6 +811,7 @@ int32_t emu_env_w32_export_new_hook(struct emu_env *env,
 								void *userdata)
 {
 	int numdlls=0;
+    int find = -1;
 	while ( env->win->loaded_dlls[numdlls] != NULL )
 	{
 		if (1)//dllname == NULL || strncasecmp(env->loaded_dlls[numdlls]->dllname, dllname, strlen(env->loaded_dlls[numdlls]->dllname)) == 0)
@@ -824,6 +825,7 @@ int32_t emu_env_w32_export_new_hook(struct emu_env *env,
 				if(ex != NULL){
 					ex->fnhook = fnhook;
 					ex->userdata = userdata;
+                    find = 0;
 				}
 				//return 0;
 			}
@@ -833,7 +835,7 @@ int32_t emu_env_w32_export_new_hook(struct emu_env *env,
  
 	//printf("hooking %s failed\n", exportname);
  
-	return -1;
+	return find;
 }
 
 /*void emu_env_w32_generic_api_handler(uint32_t lpfnCallback){
