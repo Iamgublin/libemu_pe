@@ -825,7 +825,7 @@ int32_t emu_env_w32_export_new_hook(struct emu_env *env,
 					ex->fnhook = fnhook;
 					ex->userdata = userdata;
 				}
-				return 0;
+				//return 0;
 			}
 		}
 		numdlls++;
