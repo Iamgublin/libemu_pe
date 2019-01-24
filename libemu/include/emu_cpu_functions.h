@@ -433,5 +433,7 @@ int32_t instr_xgetbv_0f01d0(struct emu_cpu *c, struct emu_cpu_instruction *i);
 /* xorps */
 int32_t instr_xorps_0f57(struct emu_cpu *c, struct emu_cpu_instruction *i);
 
+/* movlpd */
+int32_t instr_movlpd_0f13(struct emu_cpu *c, struct emu_cpu_instruction *i);
 #endif /*HAVE_EMU_CPU_FUNCTIONS_H*/                           
 															  

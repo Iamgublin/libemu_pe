@@ -60,7 +60,7 @@
       <PreprocessSuppressLineNumbers>false</PreprocessSuppressLineNumbers>
       <MinimalRebuild>true</MinimalRebuild>
       <BasicRuntimeChecks>EnableFastChecks</BasicRuntimeChecks>
-      <RuntimeLibrary>MultiThreadedDebugDLL</RuntimeLibrary>
+      <RuntimeLibrary>MultiThreadedDebug</RuntimeLibrary>
       <PrecompiledHeader />
       <WarningLevel>Level3</WarningLevel>
       <DebugInformationFormat>ProgramDatabase</DebugInformationFormat>
@@ -124,6 +124,7 @@
     <ClCompile Include="libemu\opcodes\loopcc.cpp" />
     <ClCompile Include="libemu\opcodes\misc.cpp" />
     <ClCompile Include="libemu\opcodes\mov.cpp" />
+    <ClCompile Include="libemu\opcodes\movlpd.cpp" />
     <ClCompile Include="libemu\opcodes\movsx.cpp" />
     <ClCompile Include="libemu\opcodes\movzx.cpp" />
     <ClCompile Include="libemu\opcodes\mul.cpp" />
