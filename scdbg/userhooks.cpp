@@ -1134,6 +1134,54 @@ int32_t	__stdcall hook_SetFilePointer(struct emu_env_w32 *win, struct emu_env_w3
 	return 0;
 }
 
+int32_t	__stdcall hook_SetFilePointerEx(struct emu_env_w32 *win, struct emu_env_w32_dll_export *ex)
+{
+
+    //BOOL SetFilePointerEx(
+    //    HANDLE         hFile,
+    //    LARGE_INTEGER  liDistanceToMove,
+    //    PLARGE_INTEGER lpNewFilePointer,
+    //    DWORD          dwMoveMethod
+    //);
+
+    uint32_t eip_save = popd();
+    uint32_t hfile = popd();
+    LARGE_INTEGER Tmp;
+    Tmp.LowPart = popd();
+    Tmp.HighPart = popd();
+    uint32_t lDistanceToMove = Tmp.LowPart;
+    PLARGE_INTEGER plDistanceToMoveHigh = (PLARGE_INTEGER)popd();
+    uint32_t dwMoveMethod = popd();
+
+    if (dwMoveMethod > 2 || dwMoveMethod < 0) dwMoveMethod = 3; //this shouldnt happen..
+    char* method[4] = { "FILE_BEGIN", "FILE_CURRENT", "FILE_END","UNKNOWN" };
+
+    DWORD rv = 0;
+    uint32_t m_hFile = hfile;
+    long distanceHigh = 0;
+    if (opts.interactive_hooks == 1) {
+        if ((int)opts.h_fopen != 0 && m_hFile < 10) m_hFile = (uint32_t)opts.h_fopen; //from a scanner
+        if (plDistanceToMoveHigh != 0) {
+            rv = SetFilePointer((HANDLE)m_hFile, lDistanceToMove, &distanceHigh, dwMoveMethod); //doesnt work with fopen handles?
+            emu_memory_write_dword(mem, plDistanceToMoveHigh->LowPart, distanceHigh);
+        }
+        else {
+            rv = SetFilePointer((HANDLE)m_hFile, lDistanceToMove, 0, dwMoveMethod); //doesnt work with fopen handles?
+        }
+    }
+
+    bool isSpam = strcmp(win->lastApiCalled, "SetFilePointer") == 0 ? true : false;
+
+    if (!isSpam || (isSpam && win->lastApiHitCount == 2))
+        printf("%x\tSetFilePointer(hFile=%x, dist=%x, %x, %s) = %x\n", eip_save, hfile, lDistanceToMove, plDistanceToMoveHigh, method[dwMoveMethod], rv);
+
+    if (isSpam && win->lastApiHitCount == 2) printf("\topen file handle scanning occuring - hiding output\n");
+
+    cpu->reg[eax] = rv;
+    emu_cpu_eip_set(cpu, eip_save);
+    return 0;
+}
+
 int32_t	__stdcall hook_ReadFile(struct emu_env_w32 *win, struct emu_env_w32_dll_export *ex)
 {
 /*	
@@ -2975,6 +3023,56 @@ int32_t	__stdcall hook_WaitForMultipleObjects(struct emu_env_w32 *win, struct em
     return 0;
 }
 
+int32_t	__stdcall hook_CryptGenRandom(struct emu_env_w32 *win, struct emu_env_w32_dll_export *ex)
+{
+    //BOOL CryptGenRandom(
+    //    HCRYPTPROV hProv,
+    //    DWORD      dwLen,
+    //    BYTE       *pbBuffer
+    //);
+
+    uint32_t rv = TRUE;
+    uint32_t eip_save = popd();
+    uint32_t h = popd();
+    uint32_t l = popd();
+    uint32_t b = popd();
+
+    printf("%x\tCryptGenRandom(%x,%x,%x) = %x\n", eip_save, h, l, b, rv);
+
+    set_ret(rv);
+    emu_cpu_eip_set(cpu, eip_save);
+    return 0;
+}
+
+int32_t	__stdcall hook_CryptEncrypt(struct emu_env_w32 *win, struct emu_env_w32_dll_export *ex)
+{
+    //BOOL CryptEncrypt(
+    //    HCRYPTKEY  hKey,
+    //    HCRYPTHASH hHash,
+    //    BOOL       Final,
+    //    DWORD      dwFlags,
+    //    BYTE       *pbData,
+    //    DWORD      *pdwDataLen,
+    //    DWORD      dwBufLen
+    //);
+
+    uint32_t rv = TRUE;
+    uint32_t eip_save = popd();
+    uint32_t k = popd();
+    uint32_t h = popd();
+    uint32_t f = popd();
+    uint32_t g = popd();
+    uint32_t p = popd();
+    uint32_t d = popd();
+    uint32_t b = popd();
+
+    printf("%x\tCryptGenRandom() = %x\n", eip_save, rv);
+
+    set_ret(rv);
+    emu_cpu_eip_set(cpu, eip_save);
+    return 0;
+}
+
 int32_t	__stdcall hook_GetLogicalDrives(struct emu_env_w32 *win, struct emu_env_w32_dll_export *ex)
 {
     //DWORD GetLogicalDrives(
@@ -4117,6 +4215,28 @@ int32_t	__stdcall hook_lstrlenA(struct emu_env_w32 *win, struct emu_env_w32_dll_
 	set_ret(ret); 
 	emu_cpu_eip_set(cpu, eip_save);
 	return 0;
+
+}
+
+int32_t	__stdcall hook_lstrlenW(struct emu_env_w32 *win, struct emu_env_w32_dll_export *ex)
+{
+    /*
+        int WINAPI lstrlen(
+          __in  LPCTSTR lpString
+        );
+    */
+
+    uint32_t eip_save = popd();
+    struct emu_string* src = popwstring();
+
+    printf("%x\t%s(%s)\n", eip_save, ex->fnname, src->data);
+
+    int ret = lstrlenA(src->data);
+
+    emu_string_free(src);
+    set_ret(ret);
+    emu_cpu_eip_set(cpu, eip_save);
+    return 0;
 
 }
 
@@ -7238,6 +7358,38 @@ int32_t	__stdcall hook_StrStrI(struct emu_env_w32 *win, struct emu_env_w32_dll_e
     else
     {
         ret = (uint32_t)StrStrIA(f->data, s->data);
+    }
+
+    printf("%x\t%s(%s,%s) = %x\n", eip_save, ex->fnname, f->data, s->data, ret);
+
+    set_ret(ret);
+    emu_cpu_eip_set(cpu, eip_save);
+    emu_string_free(f);
+    emu_string_free(s);
+    return 0;
+
+}
+
+int32_t	__stdcall hook_StrStr(struct emu_env_w32 *win, struct emu_env_w32_dll_export *ex)
+{
+    //PCSTR StrStrIA(
+    //    PCSTR pszFirst,
+    //    PCSTR pszSrch
+    //);
+
+    uint32_t eip_save = popd();
+    struct emu_string *f = isWapi(ex->fnname) ? popwstring() : popstring();
+    struct emu_string *s = isWapi(ex->fnname) ? popwstring() : popstring();
+    uint32_t ret = 0;
+
+
+    if (isWapi(ex->fnname))
+    {
+        ret = (uint32_t)StrStrW(f->wdata, s->wdata);
+    }
+    else
+    {
+        ret = (uint32_t)StrStrA(f->data, s->data);
     }
 
     printf("%x\t%s(%s,%s) = %x\n", eip_save, ex->fnname, f->data, s->data, ret);

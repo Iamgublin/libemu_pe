@@ -148,6 +148,7 @@
     <ClCompile Include="libemu\opcodes\xchg.cpp" />
     <ClCompile Include="libemu\opcodes\xgetbv.cpp" />
     <ClCompile Include="libemu\opcodes\xor.cpp" />
+    <ClCompile Include="libemu\opcodes\xorps.cpp" />
     <ClCompile Include="libemu\src\emu.cpp" />
     <ClCompile Include="libemu\src\emu_cpu.cpp" />
     <ClCompile Include="libemu\src\emu_env.cpp" />

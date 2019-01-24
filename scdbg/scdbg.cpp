@@ -50,6 +50,7 @@
 #include <io.h>
 #include <signal.h>
 #include <conio.h>
+#include <wincrypt.h>
 
 #include "emu.h"
 #include "emu_memory.h"
@@ -2061,6 +2062,7 @@ void set_hooks(struct emu_env *env){
     HOOKBOTH(FindFirstFile);
     HOOKBOTH(FindNextFile);
     HOOKBOTH(StrStrI);
+    HOOKBOTH(StrStr);
 
 	//these are up here because this declares the extern so we can break macro pattern in manual hooking below..
 	ADDHOOK(ExitProcess);
@@ -2149,6 +2151,7 @@ void set_hooks(struct emu_env *env){
 	ADDHOOK(VirtualAlloc);
 	ADDHOOK(VirtualProtectEx);
 	ADDHOOK(SetFilePointer);
+    ADDHOOK(SetFilePointerEx);
 	ADDHOOK(ReadFile);
 	ADDHOOK(DialogBoxIndirectParamA);
 	ADDHOOK(ZwQueryVirtualMemory);
@@ -2222,6 +2225,7 @@ void set_hooks(struct emu_env *env){
 	ADDHOOK(ExpandEnvironmentStringsA);
     ADDHOOK(ExpandEnvironmentStringsW);
 	ADDHOOK(lstrlenA);
+    ADDHOOK(lstrlenW);
 	ADDHOOK(lstrcmpiA);
     ADDHOOK(lstrcmpiW);
 	ADDHOOK(lstrcpyA);
@@ -2310,7 +2314,8 @@ void set_hooks(struct emu_env *env){
     ADDHOOK(CryptImportKey);
     ADDHOOK(GetLogicalDrives);
     ADDHOOK(WaitForMultipleObjects);
-	
+    ADDHOOK(CryptGenRandom);
+    ADDHOOK(CryptEncrypt);
 }
 
 /* we just cant really support every shellcode can we :( 
