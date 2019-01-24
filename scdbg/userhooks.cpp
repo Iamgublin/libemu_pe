@@ -95,6 +95,11 @@ int last_set_context_handle=0;
 char *default_host_name = "JOHN_PC1";
 
 char* SafeMalloc(uint32_t size){
+    if (size == 0)
+    {
+        return NULL;
+    }
+
 	char* buf = 0;
 	if(size > 0 && size <= MAX_ALLOC) buf = (char*)malloc(size);
 	if( (int)buf == 0){
