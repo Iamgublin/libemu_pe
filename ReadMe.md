@@ -10,10 +10,10 @@ feature
 
 
 How to run pe file
-----------------------
+---------------
 scdbg /exe ./test.exe
 
 
 Screenshot
--------------------------
+---------------
 ![效果图](http://img.arch-vile.com/git-scdbg1.png)
