@@ -2,7 +2,7 @@
 =============
 feature
 ---------------
-1.support run pe file according /exe commande
+1.support run pe file use /exe command
 
 2.add mpr.dll dll hook support
 
