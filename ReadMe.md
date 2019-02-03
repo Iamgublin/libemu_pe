@@ -21,3 +21,8 @@ scdbg /exe ./test.exe
 Screenshot
 ---------------
 ![效果图](http://img.arch-vile.com/git-scdbg1.png)
+
+
+Reference
+-----------------------------
+https://github.com/dzzie/VS_LIBEMU
