@@ -6,7 +6,7 @@ feature
 
 2.add mpr.dll dll hook support
 
-3.add lots of function suport
+3.add lots of function support
 
 4.support some extra instruction(such as cpuid)
 
@@ -22,6 +22,38 @@ Screenshot
 ---------------
 ![效果图](http://img.arch-vile.com/git-scdbg1.png)
 
+
+Detail
+---------------
+NewFunction
+```
+GetTokenInformation
+GetUserDefaultLangID
+GetKeyboardLayoutList
+GetProcessHeap
+HeapAlloc
+HeapFree
+Process32Next
+lstrcmp
+ExpandEnvironmentStringsW
+lstrcpyW
+CryptImportKey
+wnsprintf
+WNetOpenEnum
+wsprintfW
+GetLogicalDrives
+FindFirstFile
+FindNextFile
+WaitForMultipleObjects
+StrStrI
+lstrcmpiW
+StrStr
+SetFilePointerEx
+lstrlenW
+lstrlenW
+CryptGenRandom
+CryptEncrypt
+```
 
 Reference
 -----------------------------
